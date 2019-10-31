@@ -35,7 +35,7 @@ class MockAdapter(BaseHarmonyAdapter):
         MockAdapter.error = error
 
 
-class IsHarmonyCli(unittest.TestCase):
+class TestIsHarmonyCli(unittest.TestCase):
     @cli_test('--something-else', 'invoke')
     def test_when_not_passing_harmony_action_it_returns_false(self, parser):
         parser.add_argument('--something-else')
@@ -52,7 +52,7 @@ class IsHarmonyCli(unittest.TestCase):
         args = parser.parse_args()
         self.assertFalse(cli.is_harmony_cli(args))
 
-class RunCli(unittest.TestCase):
+class TestRunCli(unittest.TestCase):
     def tearDown(self):
         MockAdapter.message = None
         MockAdapter.error = None

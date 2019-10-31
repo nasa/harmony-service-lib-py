@@ -15,7 +15,8 @@ import urllib
 from abc import ABC, abstractmethod
 from tempfile import mkdtemp
 from uuid import uuid4
-from .util import download, stage
+
+from . import util
 
 class BaseHarmonyAdapter(ABC):
     """
@@ -85,7 +86,7 @@ class BaseHarmonyAdapter(ABC):
 
         # Download the remote file
         for granule in granules:
-            granule.local_filename = download(granule.url, temp_dir)
+            granule.local_filename = util.download(granule.url, temp_dir)
 
     def stage(self, local_file, remote_filename=None, mime=None):
         """
@@ -113,7 +114,7 @@ class BaseHarmonyAdapter(ABC):
         if mime is None:
             mime = self.message.format.mime
 
-        return stage(local_file, remote_filename, mime)
+        return util.stage(local_file, remote_filename, mime)
 
     def completed_with_error(self, error_message):
         """
@@ -170,7 +171,7 @@ class BaseHarmonyAdapter(ABC):
         mime : string, optional
             The mime type of the file, by default the output mime type requested by Harmony
         """
-        url = self.stage(filename, output_filename, mime)
+        url = self.stage(filename, remote_filename, mime)
         self.completed_with_redirect(url)
 
     def _completed_with_post(self, path):

@@ -248,9 +248,9 @@ class Message(JsonObject):
             properties=['version', 'callback', 'user', 'format', 'subset'],
             list_properties={'sources': Source}
         )
-        if self.format:
+        if self.format is not None:
             self.format = Format(self.format)
-        if self.subset:
+        if self.subset is not None:
             self.subset = Subset(self.subset)
 
     def digest(self):
