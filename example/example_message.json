@@ -9,7 +9,7 @@
       "variables": [
         {
           "id": "V0001-EXAMPLE",
-          "name": "CloudFrc_A"
+          "name": "ExampleVar"
         }
       ],
       "granules": [

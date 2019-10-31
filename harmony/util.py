@@ -1,10 +1,10 @@
 """
-=========
-data_transfer.py
-=========
+=======
+util.py
+=======
 
-Functions for moving remote data (HTTPS and S3) to be operated on locally and for staging
-data results for external access (S3 pre-signed URL).
+Utility methods, consisting of functions for moving remote data (HTTPS and S3) to be operated
+on locally and for staging data results for external access (S3 pre-signed URL).
 
 This module relies (overly?) heavily on environment variables to know which endpoints to use
 and how to authenticate to them as follows:
@@ -36,7 +36,7 @@ _s3 = None
 
 # Flag determining the use of LocalStack (for testing), which will influence how URLs are structured
 # and how S3 is accessed
-USE_LOCALSTACK = 'USE_LOCALSTACK' in environ and environ['USE_LOCALSTACK'] == 'true'
+USE_LOCALSTACK = environ.get('USE_LOCALSTACK') == 'true'
 
 
 def _get_s3_client():
@@ -52,7 +52,7 @@ def _get_s3_client():
     """
     if _s3 != None:
         return _s3
-    region = environ.get('AWS_DEFAULT_REGION')
+    region = environ.get('AWS_DEFAULT_REGION') or 'us-west-2'
     if USE_LOCALSTACK:
         return boto3.client('s3',
                             endpoint_url='http://host.docker.internal:4572',
@@ -70,7 +70,6 @@ def _setup_networking():
     use Earthdata Login (EDL) auth as appropriate.  Will allow Earthdata login auth only if
     the following environment variables are set and will print a warning if they are not:
 
-    EDL_ENDPOINT: The endpoint to use for Earthdata Login, e.g. https://urs.earthdata.nasa.gov or https://uat.urs.earthdata.nasa.gov
     EDL_USERNAME: The username to be passed to Earthdata Login when challenged
     EDL_PASSWORD: The password to be passed to Earthdata Login when challenged
 
@@ -80,8 +79,9 @@ def _setup_networking():
     """
     try:
         manager = request.HTTPPasswordMgrWithDefaultRealm()
-        manager.add_password(
-            None, environ['EDL_ENDPOINT'], environ['EDL_USERNAME'], environ['EDL_PASSWORD'])
+        edl_endpoints = ['https://sit.urs.earthdata.nasa.gov', 'https://uat.urs.earthdata.nasa.gov', 'https://urs.earthdata.nasa.gov']
+        for endpoint in edl_endpoints:
+            manager.add_password(None, endpoint, environ['EDL_USERNAME'], environ['EDL_PASSWORD'])
         auth = request.HTTPBasicAuthHandler(manager)
 
         jar = CookieJar()
@@ -184,14 +184,21 @@ def stage(local_filename, remote_filename, mime):
     url : string
         A pre-signed S3 URL to the staged file
     """
-    staging_bucket = environ['STAGING_BUCKET']
-    staging_path = environ['STAGING_PATH']
+    staging_bucket = environ.get('STAGING_BUCKET')
+    staging_path = environ.get('STAGING_PATH')
 
-    key = '%s/%s' % (staging_path, remote_filename)
+    if staging_path:
+        key = '%s/%s' % (staging_path, remote_filename)
+    else:
+        key = remote_filename
+
+    if environ.get('ENV') in ['dev', 'test'] and not USE_LOCALSTACK:
+        print("WARNING: ENV=" + environ['ENV'] + " and not using localstack, so we will not stage " + local_filename + " to " + key)
+        return "http://example.com/" + key
 
     s3 = _get_s3_client()
     s3.upload_file(local_filename, staging_bucket, key,
-                   ExtraArgs={'ContentType': mime})
+                ExtraArgs={'ContentType': mime})
     url = s3.generate_presigned_url(
         'get_object', Params={'Bucket': staging_bucket, 'Key': key})
 

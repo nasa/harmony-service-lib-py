@@ -1,14 +1,13 @@
 """
-=========
+======
 cli.py
-=========
+======
 
 Parses CLI arguments provided by Harmony and invokes the subsetter accordingly
 """
 
 import sys
 from harmony.message import Message
-from harmony.util import callback_with_error
 
 def setup_cli(parser):
     """
@@ -18,10 +17,6 @@ def setup_cli(parser):
     ----------
     parser : argparse.ArgumentParser
         The parser being used to parse CLI arguments
-
-    Returns
-    -------
-    None
     """
     parser.add_argument('--harmony-action',
                         choices=['invoke'],
@@ -57,16 +52,11 @@ def run_cli(parser, args, AdapterClass):
         The parser being used to parse CLI arguments, used to provide CLI argument errors
     args : Namespace
         Argument values parsed from the command line, presumably via ArgumentParser.parse_args
-
-    Returns
-    -------
-    is_harmony_cli : bool
-        True if the provided arguments constitute a Harmony CLI invocation, False otherwise
     """
 
     if args.harmony_action in ['invoke'] and not bool(args.harmony_input):
         parser.error(
-            '--harmony-input must be provided for --harmony-action  %s' % (args.harmony_action))
+            '--harmony-input must be provided for --harmony-action %s' % (args.harmony_action))
 
     message = None
     output_name = None
@@ -77,6 +67,8 @@ def run_cli(parser, args, AdapterClass):
     try:
         if args.harmony_action == 'invoke':
             adapter.invoke()
+            if not adapter.is_complete:
+                adapter.completed_with_error('The backend service did not respond')
     except:
         # Make sure we always call back if the error is in a Harmony invocation and we have
         # successfully parsed enough that we know where to call back to
