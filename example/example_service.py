@@ -14,24 +14,10 @@ import traceback
 from tempfile import mkstemp
 from os import environ
 
+# IMPORTANT: The following line avoids making real calls to a non-existent
+# Harmony frontend.  Service authors should not set this variable to "dev"
+# or "test" when releasing the service.
 environ['ENV'] = 'dev'
-
-# The above is set to avoid making real calls to a non-existent Harmony service
-# Service authors may set the following environment variables to adjust behavior:
-#
-# Typically required:
-#   STAGING_BUCKET: The bucket where S3 data will be staged
-#   STAGING_PATH: The path within the
-#   AWS_DEFAULT_REGION: The region in which S3 calls will be made
-#
-# Development flags:
-#   ENV: The name of the environment.  If 'dev' or 'test', callbacks to Harmony are
-#        not made and data is not staged unless also using localstack
-#   USE_LOCALSTACK: If 'true' will perform S3 calls against localstack rather than AWS
-#
-# Auth flags when downloading data over HTTPS that is behind Earthdata Login (Better solution to come):
-#   EDL_USERNAME: The name of an Earthdata Login user that can access the data in question
-#   EDL_PASSWORD: The password of the user identified by EDL_USERNAME
 
 class ExampleAdapter(harmony.BaseHarmonyAdapter):
     """
