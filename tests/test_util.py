@@ -20,7 +20,7 @@ class TestDownload(unittest.TestCase):
         self.assertEqual(filename.split('.')[-1], 'txt')
 
     @patch('urllib.request.urlopen')
-    @patch.dict(os.environ, { 'EDL_ENDPOINT': 'https://example.com', 'EDL_USERNAME' : 'jdoe', 'EDL_PASSWORD': 'abc' })
+    @patch.dict(os.environ, { 'EDL_USERNAME' : 'jdoe', 'EDL_PASSWORD': 'abc' })
     def test_when_given_an_http_url_it_downloads_the_url(self, urlopen):
         mopen = mock_open()
         with patch('builtins.open', mopen):

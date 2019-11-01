@@ -74,10 +74,6 @@ class BaseHarmonyAdapter(ABC):
         """
         Downloads all of the granules contained in the message to the given temp directory, giving each
         a unique filename.
-
-        The using a hard-coded temporary directory rather than the more conventional mkdtemp aids significantly
-        in debugging, as we can mount this directory to the docker container to view intermediate files.  Because
-        services are typically run in docker, files in production are ephemeral
         """
         temp_dir = mkdtemp()
         self.temp_paths += [temp_dir]

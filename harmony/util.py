@@ -10,14 +10,13 @@ This module relies (overly?) heavily on environment variables to know which endp
 and how to authenticate to them as follows:
 
 Required when reading from or staging to S3:
-    AWS_DEFAULT_REGION: The AWS region in which the S3 client is operating
+    AWS_DEFAULT_REGION: The AWS region in which the S3 client is operating (default: "us-west-2")
 
 Required when staging to S3:
     STAGING_BUCKET: The bucket where staged files should be placed
     STAGING_PATH: The base path under which staged files should be placed
 
 Recommended when using HTTPS, allowing Earthdata Login auth.  Prints a warning if not supplied:
-    EDL_ENDPOINT: The endpoint to use for Earthdata Login, e.g. https://urs.earthdata.nasa.gov or https://uat.urs.earthdata.nasa.gov
     EDL_USERNAME: The username to be passed to Earthdata Login when challenged
     EDL_PASSWORD: The password to be passed to Earthdata Login when challenged
 
@@ -41,8 +40,8 @@ USE_LOCALSTACK = environ.get('USE_LOCALSTACK') == 'true'
 
 def _get_s3_client():
     """
-    Returns a client for accessing S3.  Expects the environment variable "AWS_DEFAULT_REGION"
-    to be set.  If the environment variable "USE_LOCALSTACK" is set to "true", it will return
+    Returns a client for accessing S3.  Accesses S3 in us-west-2 unless "AWS_DEFAULT_REGION"
+    is set.  If the environment variable "USE_LOCALSTACK" is set to "true", it will return
     a client that will access a LocalStack S3 instance instead of AWS.
 
     Returns
@@ -89,17 +88,16 @@ def _setup_networking():
         opener = request.build_opener(auth, processor)
         request.install_opener(opener)
     except KeyError:
-        print('Warning: Earthdata Login environment variables EDL_ENDPOINT, EDL_USERNAME, and EDL_PASSWORD must be set up for authenticated downloads.  Requests will be unauthenticated.')
+        print('Warning: Earthdata Login environment variables EDL_USERNAME and EDL_PASSWORD must be set up for authenticated downloads.  Requests will be unauthenticated.')
 
 def download(url, destination_dir):
     """
     Downloads the given URL to the given destination directory, using the basename of the URL
     as the filename in the destination directory.  Supports http://, https:// and s3:// schemes.
-    When using the s3:// scheme, expects the "AWS_DEFAULT_REGION" environment variable to be set.
-    When using http:// or https:// schemes, expects the following environment variables or will
-    print a warning:
+    When using the s3:// scheme, will run against us-west-2 unless the "AWS_DEFAULT_REGION"
+    environment variable is set. When using http:// or https:// schemes, expects the following
+    environment variables or will print a warning:
 
-    EDL_ENDPOINT: The endpoint to use for Earthdata Login, e.g. https://urs.earthdata.nasa.gov or https://uat.urs.earthdata.nasa.gov
     EDL_USERNAME: The username to be passed to Earthdata Login when challenged
     EDL_PASSWORD: The password to be passed to Earthdata Login when challenged
 
