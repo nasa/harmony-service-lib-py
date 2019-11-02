@@ -14,7 +14,7 @@ import urllib
 import logging
 
 from abc import ABC, abstractmethod
-from tempfile import mkdtemp, mktemp
+from tempfile import mkdtemp
 from uuid import uuid4
 
 from . import util
@@ -80,21 +80,6 @@ class BaseHarmonyAdapter(ABC):
                 os.remove(temp_path)  # remove the file
             elif os.path.isdir(temp_path):
                 shutil.rmtree(temp_path)  # remove dir and all contains
-
-    def mktemp(self, **flags):
-        """
-        Calls `tempfile.mktemp`, but adds the file to the list to be cleaned up by `#cleanup`.
-        Read the security warnings on `tempfile.mktemp` before use.
-
-        Returns
-        -------
-        string
-            A temporary filename
-        """
-        filename = mktemp(**flags)
-        self.temp_paths += [filename] # Add it to the list of things to clean up
-        return filename
-
 
     def download_granules(self, granules=None):
         """
