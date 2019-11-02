@@ -8,8 +8,6 @@ An example service adapter implementation and example CLI parser
 
 import argparse
 import harmony
-import os
-import traceback
 
 from tempfile import mkstemp
 from os import environ
@@ -33,7 +31,7 @@ class ExampleAdapter(harmony.BaseHarmonyAdapter):
         self.download_granules()
 
         # 2. Build a single output file
-        (flags, output_filename) = mkstemp(text=True)
+        (flags, output_filename) = mkstemp(suffix='.txt', text=True)
         self.temp_paths += [output_filename] # Add it to the list of things to clean up
         output_file = open(output_filename, 'w')
         for granule in self.message.granules:
