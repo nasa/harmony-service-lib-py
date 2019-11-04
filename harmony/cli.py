@@ -73,5 +73,5 @@ def run_cli(parser, args, AdapterClass):
         # Make sure we always call back if the error is in a Harmony invocation and we have
         # successfully parsed enough that we know where to call back to
         if not adapter.is_complete:
-            adapter.completed_with_error('An unexpected error occurred')
+            adapter.completed_with_error('Service request failed with an unknown error')
         raise

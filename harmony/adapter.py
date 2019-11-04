@@ -11,6 +11,7 @@ between service results and Harmony callbacks.
 import shutil
 import os
 import urllib
+import logging
 
 from abc import ABC, abstractmethod
 from tempfile import mkdtemp
@@ -51,6 +52,16 @@ class BaseHarmonyAdapter(ABC):
         self.temp_paths = []
         self.is_complete = False
 
+        logger = logging.getLogger(self.__class__.__name__)
+        syslog = logging.StreamHandler()
+        formatter = logging.Formatter("[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] [%(user)s] %(message)s")
+        syslog.setFormatter(formatter)
+        logger.addHandler(syslog)
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+
+        self.logger = logging.LoggerAdapter(logger, { 'user': message.user })
+
     @abstractmethod
     def invoke(self):
         """
@@ -70,19 +81,25 @@ class BaseHarmonyAdapter(ABC):
             elif os.path.isdir(temp_path):
                 shutil.rmtree(temp_path)  # remove dir and all contains
 
-    def download_granules(self):
+    def download_granules(self, granules=None):
         """
         Downloads all of the granules contained in the message to the given temp directory, giving each
         a unique filename.
+
+        Parameters
+        ----------
+        granules : list
+            A list of harmony.message.Granule objects corresponding to the granules to download.  Default:
+            all granules in the incoming message
         """
         temp_dir = mkdtemp()
         self.temp_paths += [temp_dir]
 
-        granules = self.message.granules
+        granules = granules or self.message.granules
 
         # Download the remote file
         for granule in granules:
-            granule.local_filename = util.download(granule.url, temp_dir)
+            granule.local_filename = util.download(granule.url, temp_dir, self.logger)
 
     def stage(self, local_file, remote_filename=None, mime=None):
         """
@@ -110,7 +127,7 @@ class BaseHarmonyAdapter(ABC):
         if mime is None:
             mime = self.message.format.mime
 
-        return util.stage(local_file, remote_filename, mime)
+        return util.stage(local_file, remote_filename, mime, self.logger)
 
     def completed_with_error(self, error_message):
         """
@@ -186,12 +203,12 @@ class BaseHarmonyAdapter(ABC):
 
         url = self.message.callback + path
         if os.environ.get('ENV') in ['dev', 'test']:
-            print("WARNING: ENV=" + os.environ['ENV'] + " so we will not reply to Harmony with POST " + url)
+            self.logger.warn("ENV=" + os.environ['ENV'] + " so we will not reply to Harmony with POST " + url)
         else:
-            print('Starting response', url)
+            self.logger.info('Starting response: %s', url)
             request = urllib.request.Request(url, method='POST')
             response = urllib.request.urlopen(request).read().decode('utf-8')
-            print('Remote response:', response)
-            print('Completed response', url)
+            self.logger.info('Remote response: %s', response)
+            self.logger.info('Completed response: %s', url)
         self.is_complete = True
 

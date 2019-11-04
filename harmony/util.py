@@ -26,6 +26,7 @@ Optional when reading from or staging to S3:
 
 import boto3
 import hashlib
+import logging
 
 from http.cookiejar import CookieJar
 from urllib import request
@@ -63,7 +64,7 @@ def _get_s3_client():
         return boto3.client('s3', region_name=region)
 
 
-def _setup_networking():
+def _setup_networking(logger=logging):
     """
     Sets up HTTP(S) cookies and basic auth so that HTTP calls using urllib.request will
     use Earthdata Login (EDL) auth as appropriate.  Will allow Earthdata login auth only if
@@ -88,9 +89,9 @@ def _setup_networking():
         opener = request.build_opener(auth, processor)
         request.install_opener(opener)
     except KeyError:
-        print('Warning: Earthdata Login environment variables EDL_USERNAME and EDL_PASSWORD must be set up for authenticated downloads.  Requests will be unauthenticated.')
+        logger.warn('Earthdata Login environment variables EDL_USERNAME and EDL_PASSWORD must be set up for authenticated downloads.  Requests will be unauthenticated.')
 
-def download(url, destination_dir):
+def download(url, destination_dir, logger=logging):
     """
     Downloads the given URL to the given destination directory, using the basename of the URL
     as the filename in the destination directory.  Supports http://, https:// and s3:// schemes.
@@ -127,12 +128,12 @@ def download(url, destination_dir):
         _setup_networking()
         # Open the url
         f = request.urlopen(url)
-        print('Downloading', url)
+        logger.info('Downloading %s', url)
 
         with open(destination, 'wb') as local_file:
             local_file.write(f.read())
 
-        print('Completed', url)
+        logger.info('Completed %s', url)
         return destination
 
     basename = hashlib.sha256(url.encode('utf-8')).hexdigest()
@@ -158,7 +159,7 @@ def download(url, destination_dir):
     return download_from_http(url, destination)
 
 
-def stage(local_filename, remote_filename, mime):
+def stage(local_filename, remote_filename, mime, logger=logging):
     """
     Stages the given local filename, including directory path, to an S3 location with the given
     filename and mime-type, returning a pre-signed URL to the staged file
@@ -191,7 +192,7 @@ def stage(local_filename, remote_filename, mime):
         key = remote_filename
 
     if environ.get('ENV') in ['dev', 'test'] and not USE_LOCALSTACK:
-        print("WARNING: ENV=" + environ['ENV'] + " and not using localstack, so we will not stage " + local_filename + " to " + key)
+        logger.warn("ENV=" + environ['ENV'] + " and not using localstack, so we will not stage " + local_filename + " to " + key)
         return "http://example.com/" + key
 
     s3 = _get_s3_client()
