@@ -95,7 +95,7 @@ class TestRunCli(unittest.TestCase):
             cli.run_cli(parser, args, MockImpl)
         except:
             pass
-        self.assertEqual(MockImpl.error, 'An unexpected error occurred')
+        self.assertEqual(MockImpl.error, 'Service request failed with an unknown error')
 
     @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
     def test_when_the_backend_service_throws_an_exception_afterresponse_it_does_not_respond_again(self, parser):
