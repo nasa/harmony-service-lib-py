@@ -95,6 +95,6 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
     def test_completed_with_local_file_stages_the_local_file_and_redirects_to_it(self, stage, _completed_with_post):
         adapter = TestAdapter(full_message)
         adapter.completed_with_local_file('tmp/output.tif', 'out.tif')
-        stage.assert_called_with('tmp/output.tif', 'out.tif', 'image/tiff')
+        stage.assert_called_with('tmp/output.tif', 'out.tif', 'image/tiff', adapter.logger)
         _completed_with_post.assert_called_with('/response?redirect=https%3A//example.com/out')
 
