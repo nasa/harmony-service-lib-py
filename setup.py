@@ -19,6 +19,11 @@ DEPENDENCIES = [
     'pytest >= 5.1.2',
     'boto3 >= 1.9.0'
 ]
+DEV_DEPENDENCIES = [
+    'safety >= 1.8.5',
+    'coverage >= 4.5.4'
+]
+
 EXCLUDE_FROM_PACKAGES = ["contrib", "docs", "tests*"]
 CURDIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -50,6 +55,9 @@ setup(
     entry_points={"console_scripts": ["harmony-service-lib=harmony.cli.__main__:main"]},
     zip_safe=False,
     install_requires=DEPENDENCIES,
+    extras_require={
+        'dev': DEV_DEPENDENCIES # Run `pip install -e .[dev]` to install dev dependencies
+    },
     test_suite="tests",
     python_requires=">=3.7",
     # license and classifier list:
