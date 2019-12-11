@@ -16,6 +16,7 @@ import logging
 from abc import ABC, abstractmethod
 from tempfile import mkdtemp
 from uuid import uuid4
+from pythonjsonlogger import jsonlogger
 
 from . import util
 
@@ -54,7 +55,11 @@ class BaseHarmonyAdapter(ABC):
 
         logger = logging.getLogger(self.__class__.__name__)
         syslog = logging.StreamHandler()
-        formatter = logging.Formatter("[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] [%(user)s] %(message)s")
+        text_formatter = os.environ.get('TEXT_LOGGER') == 'true'
+        if text_formatter:
+            formatter = logging.Formatter("[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] [%(user)s] %(message)s")
+        else:
+            formatter = jsonlogger.JsonFormatter()
         syslog.setFormatter(formatter)
         logger.addHandler(syslog)
         logger.setLevel(logging.INFO)
