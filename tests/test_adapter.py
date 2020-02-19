@@ -68,33 +68,79 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         finally:
             adapter.cleanup()
 
-    @patch.object(BaseHarmonyAdapter, '_completed_with_post')
-    def test_completed_with_error_when_no_callback_has_been_made_it_posts_the_error(self, _completed_with_post):
+    @patch.object(BaseHarmonyAdapter, '_callback_post')
+    def test_completed_with_error_when_no_callback_has_been_made_it_posts_the_error(self, _callback_post):
         adapter = TestAdapter(full_message)
         adapter.completed_with_error('ohai there')
-        _completed_with_post.assert_called_with('/response?error=ohai%20there')
+        _callback_post.assert_called_with('/response?error=ohai%20there')
 
     def test_completed_with_error_when_a_callback_has_been_made_it_throws_an_exception(self):
         adapter = TestAdapter(full_message)
         adapter.completed_with_error('ohai there')
         self.assertRaises(Exception, adapter.completed_with_error, 'ohai there again')
 
-    @patch.object(BaseHarmonyAdapter, '_completed_with_post')
-    def test_completed_with_redirect_when_no_callback_has_been_made_it_posts_the_redirect(self, _completed_with_post):
+    @patch.object(BaseHarmonyAdapter, '_callback_post')
+    def test_completed_with_redirect_when_no_callback_has_been_made_it_posts_the_redirect(self, _callback_post):
         adapter = TestAdapter(full_message)
         adapter.completed_with_redirect('https://example.com')
-        _completed_with_post.assert_called_with('/response?redirect=https%3A//example.com')
+        _callback_post.assert_called_with('/response?redirect=https%3A//example.com')
 
     def test_completed_with_redirect_when_a_callback_has_been_made_it_throws_an_exception(self):
         adapter = TestAdapter(full_message)
         adapter.completed_with_redirect('https://example.com/1')
         self.assertRaises(Exception, adapter.completed_with_error, 'https://example.com/2')
 
-    @patch.object(BaseHarmonyAdapter, '_completed_with_post')
+    @patch.object(BaseHarmonyAdapter, '_callback_post')
     @patch.object(harmony.util, 'stage', return_value='https://example.com/out')
-    def test_completed_with_local_file_stages_the_local_file_and_redirects_to_it(self, stage, _completed_with_post):
+    def test_completed_with_local_file_stages_the_local_file_and_redirects_to_it(self, stage, _callback_post):
         adapter = TestAdapter(full_message)
         adapter.completed_with_local_file('tmp/output.tif', 'out.tif')
         stage.assert_called_with('tmp/output.tif', 'out.tif', 'image/tiff', adapter.logger)
-        _completed_with_post.assert_called_with('/response?redirect=https%3A//example.com/out')
+        _callback_post.assert_called_with('/response?redirect=https%3A//example.com/out')
+
+
+    @patch.object(BaseHarmonyAdapter, '_callback_post')
+    def test_async_add_url_partial_result_for_async_incomplete_requests_posts_the_url(self, _callback_post):
+        adapter = TestAdapter(full_message)
+        adapter.message.isSynchronous = False
+        adapter.async_add_url_partial_result('https://example.com')
+        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com&item[type]=image/tiff')
+
+    def test_async_add_url_partial_result_for_sync_requests_throws_an_error(self):
+        adapter = TestAdapter(full_message)
+        adapter.message.isSynchronous = True
+        self.assertRaises(Exception, adapter.async_add_url_partial_result, 'https://example.com/2')
+
+    def test_async_add_url_partial_result_for_complete_requests_throws_an_error(self):
+        adapter = TestAdapter(full_message)
+        adapter.message.isSynchronous = False
+        adapter.completed_with_redirect('https://example.com/1')
+        self.assertRaises(Exception, adapter.async_add_url_partial_result, 'https://example.com/2')
+
+    @patch.object(BaseHarmonyAdapter, '_callback_post')
+    def test_async_completed_successfully_for_async_incomplete_requests_posts_the_completion_status(self, _callback_post):
+        adapter = TestAdapter(full_message)
+        adapter.message.isSynchronous = False
+        adapter.async_completed_successfully()
+        _callback_post.assert_called_with('/response?status=successful')
+
+    def test_async_completed_successfully_for_sync_requests_throws_an_error(self):
+        adapter = TestAdapter(full_message)
+        adapter.message.isSynchronous = True
+        self.assertRaises(Exception, adapter.async_completed_successfully)
+
+    def test_async_completed_successfully_for_complete_requests_throws_an_error(self):
+        adapter = TestAdapter(full_message)
+        adapter.message.isSynchronous = False
+        adapter.async_completed_successfully()
+        self.assertRaises(Exception, adapter.async_completed_successfully)
+
+    @patch.object(BaseHarmonyAdapter, '_callback_post')
+    @patch.object(harmony.util, 'stage', return_value='https://example.com/out')
+    def test_async_add_local_file_partial_result_stages_the_local_file_and_updates_progress(self, stage, _callback_post):
+        adapter = TestAdapter(full_message)
+        adapter.message.isSynchronous = False
+        adapter.async_add_local_file_partial_result('tmp/output.tif', remote_filename='out.tif', title='my file', progress=50)
+        stage.assert_called_with('tmp/output.tif', 'out.tif', 'image/tiff', adapter.logger)
+        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com/out&item[type]=image/tiff&item[title]=my%20file&progress=50')
 

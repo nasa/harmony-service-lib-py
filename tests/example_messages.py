@@ -1,10 +1,12 @@
 
 minimal_message =  """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.1.0/data-operation-v0.1.0.json",
-        "version": "0.1.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.3.0/data-operation-v0.3.0.json",
+        "version": "0.3.0",
         "callback": "http://localhost/some-path",
         "user": "jdoe",
+        "client": "curl",
+        "requestId": "00001111-2222-3333-4444-555566667777",
         "sources": [
         ],
         "format": {
@@ -16,10 +18,12 @@ minimal_message =  """
 
 minimal_source_message =  """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.1.0/data-operation-v0.1.0.json",
-        "version": "0.1.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.3.0/data-operation-v0.3.0.json",
+        "version": "0.3.0",
         "callback": "http://localhost/some-path",
         "user": "jdoe",
+        "client": "curl",
+        "requestId": "00001111-2222-3333-4444-555566667777",
         "sources": [
             {
             "collection": "C0001-EXAMPLE",
@@ -36,10 +40,13 @@ minimal_source_message =  """
 
 full_message =  """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.1.0/data-operation-v0.1.0.json",
-        "version": "0.1.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.3.0/data-operation-v0.3.0.json",
+        "version": "0.3.0",
         "callback": "http://localhost/some-path",
         "user": "jdoe",
+        "client": "curl",
+        "requestId": "00001111-2222-3333-4444-555566667777",
+        "isSynchronous": true,
         "sources": [
             {
             "collection": "C0001-EXAMPLE",

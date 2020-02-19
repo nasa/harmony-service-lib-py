@@ -37,12 +37,11 @@ class TestDownload(unittest.TestCase):
 class TestStage(unittest.TestCase):
     @patch('boto3.client')
     @patch.dict(os.environ, { 'STAGING_BUCKET': 'example', 'STAGING_PATH' : 'staging/path', 'ENV' : 'not_test_we_swear' })
-    def test_uploads_to_s3_and_returns_a_presigned_url(self, client):
+    def test_uploads_to_s3_and_returns_its_s3_url(self, client):
         # Sets a non-test ENV environment variable to force things through the (mocked) download path
         s3 = MagicMock()
         s3.generate_presigned_url.return_value = 'https://example.com/presigned.txt'
         client.return_value = s3
         result = util.stage('file.txt', 'remote.txt', 'text/plain')
         s3.upload_file.assert_called_with('file.txt', 'example', 'staging/path/remote.txt', ExtraArgs={'ContentType': 'text/plain'})
-        s3.generate_presigned_url.assert_called_with('get_object', Params={'Bucket': 'example', 'Key': 'staging/path/remote.txt'})
-        self.assertEqual(result, 'https://example.com/presigned.txt')
+        self.assertEqual(result, 's3://example/staging/path/remote.txt')
