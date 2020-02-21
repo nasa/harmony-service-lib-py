@@ -225,9 +225,20 @@ class Message(JsonObject):
         The URL that services must POST to when their execution is complete.  Services
         should use the `completed_with_*` methods of a Harmony Adapter to perform
         callbacks to ensure compatibility, rather than directly using this URL
+    isSynchronous : bool
+        True if a user is awaiting an immediate response, False if the user is expecting
+        the service to be performed at a later point.  This may influence prioritization
+        of the request and impacts ability to send multi-file responses
     user : string
         The username of the user requesting the service.  If the message is coming from
         Harmony, services can assume that the provided username has been authenticated
+    client : string
+        A string indicating the client accessing the service, usually the harmony
+        environment, e.g. "harmony-sit"
+    requestId : string
+        A UUID identifying the originating user request.  This should only be used for
+        logging and tracing purposes, as a single user request may produce multiple
+        service invocations.
     format: message.Format
         The Harmony message's output parameters
     subset: message.Subset
@@ -245,7 +256,16 @@ class Message(JsonObject):
         """
         self.json = json_str
         super().__init__(json.loads(json_str),
-            properties=['version', 'callback', 'user', 'format', 'subset'],
+            properties=[
+                'version',
+                'callback',
+                'isSynchronous',
+                'user',
+                'client',
+                'requestId',
+                'format',
+                'subset'
+                ],
             list_properties={'sources': Source}
         )
         if self.format is not None:

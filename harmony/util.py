@@ -162,7 +162,7 @@ def download(url, destination_dir, logger=logging):
 def stage(local_filename, remote_filename, mime, logger=logging):
     """
     Stages the given local filename, including directory path, to an S3 location with the given
-    filename and mime-type, returning a pre-signed URL to the staged file
+    filename and mime-type
 
     Requires the following environment variables:
         AWS_DEFAULT_REGION: The AWS region in which the S3 client is operating
@@ -181,7 +181,7 @@ def stage(local_filename, remote_filename, mime, logger=logging):
     Returns
     -------
     url : string
-        A pre-signed S3 URL to the staged file
+        An s3:// URL to the staged file
     """
     staging_bucket = environ.get('STAGING_BUCKET')
     staging_path = environ.get('STAGING_PATH')
@@ -198,10 +198,5 @@ def stage(local_filename, remote_filename, mime, logger=logging):
     s3 = _get_s3_client()
     s3.upload_file(local_filename, staging_bucket, key,
                 ExtraArgs={'ContentType': mime})
-    url = s3.generate_presigned_url(
-        'get_object', Params={'Bucket': staging_bucket, 'Key': key})
 
-    if USE_LOCALSTACK:
-        url = url.replace('host.docker.internal', 'localhost')
-
-    return url
+    return 's3://%s/%s' % (staging_bucket, key)

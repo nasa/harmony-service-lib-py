@@ -152,7 +152,8 @@ class BaseHarmonyAdapter(ABC):
 
         if self.is_complete:
             raise Exception('Attempted to error an already-complete service call with message ' + error_message)
-        self._completed_with_post('/response?error=%s' % (urllib.parse.quote(error_message)))
+        self._callback_post('/response?error=%s' % (urllib.parse.quote(error_message)))
+        self.is_complete = True
 
     def completed_with_redirect(self, url):
         """
@@ -171,7 +172,8 @@ class BaseHarmonyAdapter(ABC):
 
         if self.is_complete:
             raise Exception('Attempted to redirect an already-complete service call to ' + url)
-        self._completed_with_post('/response?redirect=%s' % (urllib.parse.quote(url)))
+        self._callback_post('/response?redirect=%s' % (urllib.parse.quote(url)))
+        self.is_complete = True
 
     def completed_with_local_file(self, filename, remote_filename=None, mime=None):
         """
@@ -188,11 +190,103 @@ class BaseHarmonyAdapter(ABC):
             By default a UUID with the same extension as the local file
         mime : string, optional
             The mime type of the file, by default the output mime type requested by Harmony
+
+        Raises
+        ------
+        Exception
+            If a callback has already been performed
         """
         url = self.stage(filename, remote_filename, mime)
         self.completed_with_redirect(url)
 
-    def _completed_with_post(self, path):
+    def async_add_local_file_partial_result(
+        self,
+        filename,
+        remote_filename=None,
+        title=None,
+        mime=None,
+        progress=None):
+        """
+        For service requests that are asynchronous, stages the given filename and sends the staged
+        URL as a progress update to Harmony.  Optionally also provides a numeric progress indicator.
+        Synchronous requests may not call this method and will throw an exeception.
+
+        Parameters
+        ----------
+        filename : string
+            The path and name of the local file
+        remote_filename : string, optional
+            The name of the file when staged, which will be visible to the user requesting data.
+            By default a UUID with the same extension as the local file
+        title : string, optional
+            Textual information to provide users along with the link
+        mime : string, optional
+            The mime type of the file, by default the output mime type requested by Harmony
+        progress : integer, optional
+            Numeric progress of the total request, 0-100
+
+        Raises
+        ------
+        Exception
+            If the request is synchronous or the request has already been marked complete
+        """
+        url = self.stage(filename, remote_filename, mime)
+        self.async_add_url_partial_result(url, title, mime, progress)
+
+    def async_add_url_partial_result(self, url, title=None, mime=None, progress=None):
+        """
+        For service requests that are asynchronous, stages the provides the given URL as a partial result.
+        Optionally also provides a numeric progress indicator.
+        Synchronous requests may not call this method and will throw an exeception.
+
+        Parameters
+        ----------
+        url : string
+            The URL where the service user should be redirected
+        title : string, optional
+            Textual information to provide users along with the link
+        mime : string, optional
+            The mime type of the file, by default the output mime type requested by Harmony
+        progress : integer, optional
+            Numeric progress of the total request, 0-100
+
+        Raises
+        ------
+        Exception
+            If the request is synchronous or the request has already been marked complete
+        """
+        if self.message.isSynchronous:
+            raise Exception('Attempted to call back asynchronously to a synchronous request')
+        if self.is_complete:
+            raise Exception('Attempted to add a result to an already-completed request: ' + url)
+        if mime is None:
+            mime = self.message.format.mime
+        callback_url = '/response?item[href]=%s&item[type]=%s' % (urllib.parse.quote(url), mime)
+        if title is not None:
+            callback_url += '&item[title]=%s' % (urllib.parse.quote(title))
+        if progress is not None:
+            callback_url += '&progress=%d' % (progress)
+        self._callback_post(callback_url)
+
+    def async_completed_successfully(self):
+        """
+        For service requests that are asynchronous, sends a progress update indicating
+        that a service request is complete.
+        Synchronous requests may not call this method and will throw an exeception.
+
+        Raises
+        ------
+        Exception
+            If the request is synchronous or the request has already been marked complete
+        """
+        if self.message.isSynchronous:
+            raise Exception('Attempted to call back asynchronously to a synchronous request')
+        if self.is_complete:
+            raise Exception('Attempted to add a result to an already-completed request: ' + url)
+        self._callback_post('/response?status=successful')
+        self.is_complete = True
+
+    def _callback_post(self, path):
         """
         POSTs to the Harmony callback URL at the given path, which may include query params
 
@@ -215,5 +309,4 @@ class BaseHarmonyAdapter(ABC):
             response = urllib.request.urlopen(request).read().decode('utf-8')
             self.logger.info('Remote response: %s', response)
             self.logger.info('Completed response: %s', url)
-        self.is_complete = True
 
