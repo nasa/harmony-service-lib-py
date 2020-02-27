@@ -84,7 +84,8 @@ class BaseHarmonyAdapter(ABC):
             if os.path.isfile(temp_path):
                 os.remove(temp_path)  # remove the file
             elif os.path.isdir(temp_path):
-                shutil.rmtree(temp_path)  # remove dir and all contains
+                shutil.rmtree(temp_path)  # remove dir and all contents
+        self.temp_paths = []
 
     def download_granules(self, granules=None):
         """
