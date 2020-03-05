@@ -1,8 +1,8 @@
 
 minimal_message =  """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.3.0/data-operation-v0.3.0.json",
-        "version": "0.3.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.5.0/data-operation-v0.5.0.json",
+        "version": "0.5.0",
         "callback": "http://localhost/some-path",
         "user": "jdoe",
         "client": "curl",
@@ -18,8 +18,8 @@ minimal_message =  """
 
 minimal_source_message =  """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.3.0/data-operation-v0.3.0.json",
-        "version": "0.3.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.5.0/data-operation-v0.5.0.json",
+        "version": "0.5.0",
         "callback": "http://localhost/some-path",
         "user": "jdoe",
         "client": "curl",
@@ -40,8 +40,8 @@ minimal_source_message =  """
 
 full_message =  """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.3.0/data-operation-v0.3.0.json",
-        "version": "0.3.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.5.0/data-operation-v0.5.0.json",
+        "version": "0.5.0",
         "callback": "http://localhost/some-path",
         "user": "jdoe",
         "client": "curl",
@@ -95,7 +95,14 @@ full_message =  """
             "mime": "image/tiff",
             "width": 800,
             "height": 600,
-            "dpi": 72
+            "dpi": 72,
+            "interpolation": "near",
+            "scaleExtent": { "x": { "min": 0.5, "max": 125 }, "y": { "min": 52, "max": 75.22 } },
+            "scaleSize": { "x": 14.2, "y": 35 }
+        },
+        "temporal": {
+            "start": "1999-01-01T10:00:00Z",
+            "end": "2020-02-20T15:00:00Z"
         },
         "subset": {
             "bbox": [
