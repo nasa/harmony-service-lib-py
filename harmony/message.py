@@ -147,6 +147,76 @@ class Granule(JsonObject):
         self.collection = None
         self.variables = []
 
+class MinMax(JsonObject):
+    """
+    Min and max parameters as found in a Harmony message's "format.scaleExtent.[x|y]" objects
+
+    Attributes
+    ----------
+    min: float
+        The min value for the attribute
+    max: float
+        The max value for the attribute
+    """
+    def __init__(self, message_data):
+        """
+        Constructor
+
+        Parameters
+        ----------
+        message_data : dictionary
+            The Harmony message "format.scaleExtent.[x|y]" object to deserialize
+        """
+        super().__init__(message_data, properties=['min','max'])
+
+class ScaleExtent(JsonObject):
+    """
+    Scale extent parameters as found in a Harmony message's "format.scaleExtent" object
+
+    Attributes
+    ----------
+    x: message.MinMax
+        The min and max values for the scale extent for the X dimension
+    y: message.MinMax
+        The min and max values for the scale extent for the Y dimension
+    """
+    def __init__(self, message_data):
+        """
+        Constructor
+
+        Parameters
+        ----------
+        message_data : dictionary
+            The Harmony message "format.scaleExtent" object to deserialize
+        """
+        super().__init__(message_data, properties=['x', 'y'])
+        if self.x is not None:
+            self.x = MinMax(self.x)
+        if self.y is not None:
+            self.y = MinMax(self.y)
+
+class ScaleSize(JsonObject):
+    """
+    Scale size parameters as found in a Harmony message's "format.scaleSize" object
+
+    Attributes
+    ----------
+    x: float
+        The scale size for the X dimension
+    y: float
+        The scale size for the Y dimension
+    """
+    def __init__(self, message_data):
+        """
+        Constructor
+
+        Parameters
+        ----------
+        message_data : dictionary
+            The Harmony message "format.scaleExtent" object to deserialize
+        """
+        super().__init__(message_data, properties=['x', 'y'])
+
 class Format(JsonObject):
     """
     Output format parameters as found in a Harmony message's "format" object
@@ -167,6 +237,12 @@ class Format(JsonObject):
     dpi: integer
         The number of pixels per inch in the desired output file, for image output formats
         that support it
+    interpolation: string
+        The interpolation method
+    scaleExtent: message.ScaleExtent
+        The scale extent in the x and y dimensions
+    scaleSize: message.ScaleSize
+        The scale size in the x and y dimensions
     """
     def __init__(self, message_data):
         """
@@ -183,8 +259,15 @@ class Format(JsonObject):
             'mime',
             'width',
             'height',
-            'dpi'
+            'dpi',
+            'interpolation',
+            'scaleExtent',
+            'scaleSize'
         ])
+        if self.scaleExtent is not None:
+            self.scaleExtent = ScaleExtent(self.scaleExtent)
+        if self.scaleSize is not None:
+            self.scaleSize = ScaleSize(self.scaleSize)
 
 class Subset(JsonObject):
     """
@@ -206,6 +289,28 @@ class Subset(JsonObject):
             The Harmony message "subset" object to deserialize
         """
         super().__init__(message_data, properties=['bbox'])
+
+class Temporal(JsonObject):
+    """
+    Temporal subsetting parameters as found in a Harmony message's "temporal" object
+
+    Attributes
+    ----------
+    start : string
+        An ISO 8601 datetime string for the earliest time for temporal subsetting
+    end : string
+        An ISO 8601 datetime string for the latest time for temporal subsetting
+    """
+    def __init__(self, message_data):
+        """
+        Constructor
+
+        Parameters
+        ----------
+        message_data : dictionary
+            The Harmony message "subset" object to deserialize
+        """
+        super().__init__(message_data, properties=['start', 'end'])
 
 class Message(JsonObject):
     """
@@ -243,6 +348,8 @@ class Message(JsonObject):
         The Harmony message's output parameters
     subset: message.Subset
         The Harmony message's subsetting parameters
+    temporal: message.Temporal
+        The Harmony message's temporal subsetting parameters
     """
     def __init__(self, json_str):
         """
@@ -264,7 +371,8 @@ class Message(JsonObject):
                 'client',
                 'requestId',
                 'format',
-                'subset'
+                'subset',
+                'temporal'
                 ],
             list_properties={'sources': Source}
         )
@@ -272,6 +380,8 @@ class Message(JsonObject):
             self.format = Format(self.format)
         if self.subset is not None:
             self.subset = Subset(self.subset)
+        if self.temporal is not None:
+            self.temporal = Temporal(self.temporal)
 
     def digest(self):
         """
