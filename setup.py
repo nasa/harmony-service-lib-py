@@ -60,7 +60,7 @@ setup(
         'dev': DEV_DEPENDENCIES # Run `pip install -e .[dev]` to install dev dependencies
     },
     test_suite="tests",
-    python_requires=">=3.7",
+    python_requires=">=3.6",
     # license and classifier list:
     # https://pypi.org/pypi?%3Aaction=list_classifiers
     license="License :: none License",
