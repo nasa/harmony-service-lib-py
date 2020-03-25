@@ -181,6 +181,12 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True), 'abc.123_VarA.zarr')
         self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
 
+        # Multiple variable cases (no variable name in suffix)
+        granule.variables.append(Variable({'name': 'VarB'}))
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        granule.variables.pop()
+
         # URL already containing a suffix
         granule.url = 'https://example.com/fake-path/abc.123_regridded.zarr'
         self.assertEqual(adapter.filename_for_granule(granule, ext, is_subsetted=True), 'abc.123_regridded_subsetted.zarr')
