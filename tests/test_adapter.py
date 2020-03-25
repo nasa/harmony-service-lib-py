@@ -5,7 +5,7 @@ from os import path, remove
 from shutil import rmtree
 
 from harmony.adapter import BaseHarmonyAdapter
-from harmony.message import Message
+from harmony.message import Message, Granule, Variable
 from .example_messages import minimal_message, minimal_source_message, full_message
 import harmony.util
 
@@ -94,10 +94,18 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
     @patch.object(harmony.util, 'stage', return_value='https://example.com/out')
     def test_completed_with_local_file_stages_the_local_file_and_redirects_to_it(self, stage, _callback_post):
         adapter = TestAdapter(full_message)
-        adapter.completed_with_local_file('tmp/output.tif', 'out.tif')
+        adapter.completed_with_local_file('tmp/output.tif', remote_filename='out.tif')
         stage.assert_called_with('tmp/output.tif', 'out.tif', 'image/tiff', adapter.logger)
         _callback_post.assert_called_with('/response?redirect=https%3A//example.com/out')
 
+    @patch.object(BaseHarmonyAdapter, '_callback_post')
+    @patch.object(harmony.util, 'stage', return_value='https://example.com/out')
+    def test_completed_with_local_file_uses_granule_file_naming(self, stage, _callback_post):
+        adapter = TestAdapter(full_message)
+        granule = adapter.message.sources[0].granules[0]
+        adapter.completed_with_local_file('tmp/output.tif', source_granule=granule, is_variable_subset=True, is_regridded=True, is_subsetted=True)
+        stage.assert_called_with('tmp/output.tif', 'example_granule_1_ExampleVar1_regridded_subsetted.tif', 'image/tiff', adapter.logger)
+        _callback_post.assert_called_with('/response?redirect=https%3A//example.com/out')
 
     @patch.object(BaseHarmonyAdapter, '_callback_post')
     def test_async_add_url_partial_result_for_async_incomplete_requests_posts_the_url(self, _callback_post):
@@ -143,4 +151,48 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         adapter.async_add_local_file_partial_result('tmp/output.tif', remote_filename='out.tif', title='my file', progress=50)
         stage.assert_called_with('tmp/output.tif', 'out.tif', 'image/tiff', adapter.logger)
         _callback_post.assert_called_with('/response?item[href]=https%3A//example.com/out&item[type]=image/tiff&item[title]=my%20file&progress=50')
+
+    @patch.object(BaseHarmonyAdapter, '_callback_post')
+    @patch.object(harmony.util, 'stage', return_value='https://example.com/out')
+    def test_async_add_local_file_partial_result_uses_granule_file_naming(self, stage, _callback_post):
+        adapter = TestAdapter(full_message)
+        adapter.message.isSynchronous = False
+        granule = adapter.message.sources[0].granules[0]
+        adapter.async_add_local_file_partial_result('tmp/output.tif', source_granule=granule, is_variable_subset=True, is_regridded=True, is_subsetted=True, title='my file', progress=50)
+        stage.assert_called_with('tmp/output.tif', 'example_granule_1_ExampleVar1_regridded_subsetted.tif', 'image/tiff', adapter.logger)
+        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com/out&item[type]=image/tiff&item[title]=my%20file&progress=50')
+
+    def test_filename_for_granule(self):
+        adapter = TestAdapter(minimal_message)
+        granule = Granule({'url': 'https://example.com/fake-path/abc.123.nc/?query=true'})
+        ext = 'zarr'
+
+        # Basic cases
+        self.assertEqual(adapter.filename_for_granule(granule, ext), 'abc.123.zarr')
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_subsetted=True), 'abc.123_subsetted.zarr')
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_regridded=True), 'abc.123_regridded.zarr')
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+
+        # Single variable cases
+        granule.variables.append(Variable({'name': 'VarA'}))
+        self.assertEqual(adapter.filename_for_granule(granule, ext), 'abc.123.zarr')
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True), 'abc.123_VarA.zarr')
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
+
+        # Multiple variable cases (no variable name in suffix)
+        granule.variables.append(Variable({'name': 'VarB'}))
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        granule.variables.pop()
+
+        # URL already containing a suffix
+        granule.url = 'https://example.com/fake-path/abc.123_regridded.zarr'
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_subsetted=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
+
+        # URL already containing all suffixes
+        granule.url = 'https://example.com/fake-path/abc.123_VarA_regridded_subsetted.zarr'
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
 

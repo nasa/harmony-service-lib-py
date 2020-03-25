@@ -15,7 +15,6 @@ import logging
 
 from abc import ABC, abstractmethod
 from tempfile import mkdtemp
-from uuid import uuid4
 from pythonjsonlogger import jsonlogger
 
 from . import util
@@ -107,7 +106,15 @@ class BaseHarmonyAdapter(ABC):
         for granule in granules:
             granule.local_filename = util.download(granule.url, temp_dir, self.logger)
 
-    def stage(self, local_file, remote_filename=None, mime=None):
+    def stage(
+        self,
+        local_file,
+        source_granule=None,
+        remote_filename=None,
+        is_variable_subset=False,
+        is_regridded=False,
+        is_subsetted=False,
+        mime=None):
         """
         Stages a file on the local filesystem to S3 with the given remote filename and mime type for
         user access.
@@ -116,8 +123,19 @@ class BaseHarmonyAdapter(ABC):
         ----------
         local_file : string
             The path and name of the file to stage
+        source_granule : message.Granule, optional
+            The granule from which the file was derived, if it was derived from a single granule.  This
+            will be used to produce a canonical filename
         remote_filename : string, optional
-            The name of the file when staged, by default a UUID with the same extension as the local file
+            The name of the file when staged, which will be visible to the user requesting data.
+            Specify this if not providing a source granule.  If neither remote_filename nor source_granule
+            is provided, the output file will use the file's basename
+        is_variable_subset : bool, optional
+            True if a variable subset operation has been performed (default: False)
+        is_regridded : bool, optional
+            True if a regridding operation has been performed (default: False)
+        is_subsetted : bool, optional
+            True if a subsetting operation has been performed (default: False)
         mime : string, optional
             The mime type of the file, by default the output mime type requested by Harmony
 
@@ -126,9 +144,11 @@ class BaseHarmonyAdapter(ABC):
         string
             A URI to the staged file
         """
-        # If no remote filename is provided, generate one with a UUID and the same extension as the local file
         if remote_filename is None:
-            remote_filename = str(uuid4()) + os.path.splitext(local_file)[1]
+            if source_granule:
+                remote_filename = self.filename_for_granule(source_granule, os.path.splitext(local_file)[1], is_variable_subset, is_regridded, is_subsetted)
+            else:
+                remote_filename = os.path.basename(local_file)
 
         if mime is None:
             mime = self.message.format.mime
@@ -176,7 +196,15 @@ class BaseHarmonyAdapter(ABC):
         self._callback_post('/response?redirect=%s' % (urllib.parse.quote(url)))
         self.is_complete = True
 
-    def completed_with_local_file(self, filename, remote_filename=None, mime=None):
+    def completed_with_local_file(
+        self,
+        filename,
+        source_granule=None,
+        remote_filename=None,
+        is_variable_subset=False,
+        is_regridded=False,
+        is_subsetted=False,
+        mime=None):
         """
         Indicates that the service has completed with the given file as its result.  Stages the
         provided local file to a user-accessible S3 location and instructs Harmony to redirect
@@ -186,9 +214,19 @@ class BaseHarmonyAdapter(ABC):
         ----------
         filename : string
             The path and name of the local file
+        source_granule : message.Granule, optional
+            The granule from which the file was derived, if it was derived from a single granule.  This
+            will be used to produce a canonical filename
         remote_filename : string, optional
             The name of the file when staged, which will be visible to the user requesting data.
-            By default a UUID with the same extension as the local file
+            Specify this if not providing a source granule.  If neither remote_filename nor source_granule
+            is provided, the output file will use the file's basename
+        is_variable_subset : bool, optional
+            True if a variable subset operation has been performed (default: False)
+        is_regridded : bool, optional
+            True if a regridding operation has been performed (default: False)
+        is_subsetted : bool, optional
+            True if a subsetting operation has been performed (default: False)
         mime : string, optional
             The mime type of the file, by default the output mime type requested by Harmony
 
@@ -197,13 +235,17 @@ class BaseHarmonyAdapter(ABC):
         Exception
             If a callback has already been performed
         """
-        url = self.stage(filename, remote_filename, mime)
+        url = self.stage(filename, source_granule, remote_filename, is_variable_subset, is_regridded, is_subsetted, mime)
         self.completed_with_redirect(url)
 
     def async_add_local_file_partial_result(
         self,
         filename,
+        source_granule=None,
         remote_filename=None,
+        is_variable_subset=False,
+        is_regridded=False,
+        is_subsetted=False,
         title=None,
         mime=None,
         progress=None):
@@ -216,9 +258,19 @@ class BaseHarmonyAdapter(ABC):
         ----------
         filename : string
             The path and name of the local file
+        source_granule : message.Granule, optional
+            The granule from which the file was derived, if it was derived from a single granule.  This
+            will be used to produce a canonical filename
         remote_filename : string, optional
             The name of the file when staged, which will be visible to the user requesting data.
-            By default a UUID with the same extension as the local file
+            Specify this if not providing a source granule.  If neither remote_filename nor source_granule
+            is provided, the output file will use the file's basename
+        is_variable_subset : bool, optional
+            True if a variable subset operation has been performed (default: False)
+        is_regridded : bool, optional
+            True if a regridding operation has been performed (default: False)
+        is_subsetted : bool, optional
+            True if a subsetting operation has been performed (default: False)
         title : string, optional
             Textual information to provide users along with the link
         mime : string, optional
@@ -231,7 +283,7 @@ class BaseHarmonyAdapter(ABC):
         Exception
             If the request is synchronous or the request has already been marked complete
         """
-        url = self.stage(filename, remote_filename, mime)
+        url = self.stage(filename, source_granule, remote_filename, is_variable_subset, is_regridded, is_subsetted, mime)
         self.async_add_url_partial_result(url, title, mime, progress)
 
     def async_add_url_partial_result(self, url, title=None, mime=None, progress=None):
@@ -283,9 +335,60 @@ class BaseHarmonyAdapter(ABC):
         if self.message.isSynchronous:
             raise Exception('Attempted to call back asynchronously to a synchronous request')
         if self.is_complete:
-            raise Exception('Attempted to add a result to an already-completed request: ' + url)
+            raise Exception('Attempted to call back for an already-completed request.')
         self._callback_post('/response?status=successful')
         self.is_complete = True
+
+    def filename_for_granule(self, granule, ext, is_variable_subset=False, is_regridded=False, is_subsetted=False):
+        """
+        Return an output filename for the given granules according to our naming conventions:
+        {original filename without suffix}(_{single var})?(_regridded)?(_subsetted)?.<ext>
+
+        Parameters
+        ----------
+            granule : message.Granule
+                The source granule for the output file
+            ext: string
+                The destination file extension
+            is_variable_subset : bool, optional
+                True if a variable subset operation has been performed (default: False)
+            is_regridded : bool, optional
+                True if a regridding operation has been performed (default: False)
+            is_subsetted : bool, optional
+                True if a subsetting operation has been performed (default: False)
+
+        Returns
+        -------
+            string
+                The output filename
+        """
+        url = granule.url
+        # Get everything between the last non-trailing '/' before the query and the first '?'
+        # Do this instead of using a URL parser, because our URLs are not complex in practice and
+        # it is useful to allow relative file paths to work for local testing.
+        original_filename = url.split('?')[0].rstrip('/').split('/')[-1]
+        original_basename = os.path.splitext(original_filename)[0]
+        if not ext.startswith('.'):
+            ext = '.' + ext
+
+        suffixes = []
+        if is_variable_subset and len(granule.variables) == 1:
+            suffixes.append('_' + granule.variables[0].name)
+        if is_regridded:
+            suffixes.append('_regridded')
+        if is_subsetted:
+            suffixes.append('_subsetted')
+        suffixes.append(ext)
+
+        result = original_basename
+        # Iterate suffixes in reverse, removing them from the result if they're at the end of the string
+        # This supports the case of chaining where one service regrids and another subsets but we don't
+        # want names to get mangled
+        for suffix in suffixes[::-1]:
+            if result.endswith(suffix):
+                result = result[:-len(suffix)]
+
+        return result + "".join(suffixes)
 
     def _callback_post(self, path):
         """
