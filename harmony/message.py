@@ -269,6 +269,28 @@ class Format(JsonObject):
         if self.scaleSize is not None:
             self.scaleSize = ScaleSize(self.scaleSize)
 
+class RemoteResource(JsonObject):
+    """
+    Remote resource
+
+    Attributes
+    ----------
+    uri : string
+        A string of the remote resource location
+    type : string
+        The resource's content type
+    """
+    def __init__(self, message_data):
+        """
+        Constructor
+
+        Parameters
+        ----------
+        message_data : dictionary
+            The Harmony message remote resource object to deserialize
+        """
+        super().__init__(message_data, properties=['href', 'type'])
+
 class Subset(JsonObject):
     """
     Subsetting parameters as found in a Harmony message's "subset" object
@@ -288,7 +310,9 @@ class Subset(JsonObject):
         message_data : dictionary
             The Harmony message "subset" object to deserialize
         """
-        super().__init__(message_data, properties=['bbox'])
+        super().__init__(message_data, properties=['bbox', 'shape'])
+        if self.shape is not None:
+            self.shape = RemoteResource(self.shape)
 
 class Temporal(JsonObject):
     """

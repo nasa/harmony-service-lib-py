@@ -8,7 +8,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_full_message_it_parses_it_into_objects(self):
         message = Message(full_message)
 
-        self.assertEqual(message.version, '0.5.0')
+        self.assertEqual(message.version, '0.6.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.user, 'jdoe')
         self.assertEqual(message.client, 'curl')
@@ -35,11 +35,14 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.temporal.start, '1999-01-01T10:00:00Z')
         self.assertEqual(message.temporal.end, '2020-02-20T15:00:00Z')
         self.assertEqual(message.subset.bbox, [-91.1, -45.0, 91.1, 45.0])
+        self.assertEqual(message.subset.shape.href, 's3://example-bucket/shapefiles/abcd.json')
+        self.assertEqual(message.subset.shape.type, 'application/geo+json')
+
 
     def test_when_provided_a_minimal_message_it_parses_it_into_objects(self):
         message = Message(minimal_message)
 
-        self.assertEqual(message.version, '0.5.0')
+        self.assertEqual(message.version, '0.6.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.user, 'jdoe')
         self.assertEqual(message.client, 'curl')
@@ -56,7 +59,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_message_with_minimal_source_it_parses_it_into_objects(self):
         message = Message(minimal_source_message)
 
-        self.assertEqual(message.version, '0.5.0')
+        self.assertEqual(message.version, '0.6.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.user, 'jdoe')
         self.assertEqual(message.sources[0].collection, 'C0001-EXAMPLE')

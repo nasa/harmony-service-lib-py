@@ -1,8 +1,8 @@
 
 minimal_message =  """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.5.0/data-operation-v0.5.0.json",
-        "version": "0.5.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.6.0/data-operation-v0.6.0.json",
+        "version": "0.6.0",
         "callback": "http://localhost/some-path",
         "user": "jdoe",
         "client": "curl",
@@ -18,8 +18,8 @@ minimal_message =  """
 
 minimal_source_message =  """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.5.0/data-operation-v0.5.0.json",
-        "version": "0.5.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.6.0/data-operation-v0.6.0.json",
+        "version": "0.6.0",
         "callback": "http://localhost/some-path",
         "user": "jdoe",
         "client": "curl",
@@ -40,8 +40,8 @@ minimal_source_message =  """
 
 full_message =  """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.5.0/data-operation-v0.5.0.json",
-        "version": "0.5.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.6.0/data-operation-v0.6.0.json",
+        "version": "0.6.0",
         "callback": "http://localhost/some-path",
         "user": "jdoe",
         "client": "curl",
@@ -110,7 +110,11 @@ full_message =  """
             -45.0,
             91.1,
             45.0
-            ]
+            ],
+            "shape": {
+                "href": "s3://example-bucket/shapefiles/abcd.json",
+                "type": "application/geo+json"
+            }
         }
     }
 """
