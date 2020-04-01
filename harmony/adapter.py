@@ -153,7 +153,7 @@ class BaseHarmonyAdapter(ABC):
         if mime is None:
             mime = self.message.format.mime
 
-        return util.stage(local_file, remote_filename, mime, self.logger)
+        return util.stage(local_file, remote_filename, mime, location=self.message.stagingLocation, logger=self.logger)
 
     def completed_with_error(self, error_message):
         """

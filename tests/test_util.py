@@ -45,3 +45,14 @@ class TestStage(unittest.TestCase):
         result = util.stage('file.txt', 'remote.txt', 'text/plain')
         s3.upload_file.assert_called_with('file.txt', 'example', 'staging/path/remote.txt', ExtraArgs={'ContentType': 'text/plain'})
         self.assertEqual(result, 's3://example/staging/path/remote.txt')
+
+    @patch('boto3.client')
+    @patch.dict(os.environ, { 'STAGING_BUCKET': 'example', 'STAGING_PATH' : 'staging/path', 'ENV' : 'not_test_we_swear' })
+    def uses_location_prefix_when_provided(self, client):
+        # Sets a non-test ENV environment variable to force things through the (mocked) download path
+        s3 = MagicMock()
+        s3.generate_presigned_url.return_value = 'https://example.com/presigned.txt'
+        client.return_value = s3
+        result = util.stage('file.txt', 'remote.txt', 'text/plain', location="s3://different-example/public/location/")
+        s3.upload_file.assert_called_with('file.txt', 'example', 'staging/path/remote.txt', ExtraArgs={'ContentType': 'text/plain'})
+        self.assertEqual(result, 's3://different-example/public/location/remote.txt')

@@ -10,6 +10,7 @@ class TestMessage(unittest.TestCase):
 
         self.assertEqual(message.version, '0.6.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
+        self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
         self.assertEqual(message.client, 'curl')
         self.assertEqual(message.requestId, '00001111-2222-3333-4444-555566667777')
@@ -44,6 +45,7 @@ class TestMessage(unittest.TestCase):
 
         self.assertEqual(message.version, '0.6.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
+        self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
         self.assertEqual(message.client, 'curl')
         self.assertEqual(message.requestId, '00001111-2222-3333-4444-555566667777')

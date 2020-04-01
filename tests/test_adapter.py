@@ -95,7 +95,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
     def test_completed_with_local_file_stages_the_local_file_and_redirects_to_it(self, stage, _callback_post):
         adapter = TestAdapter(full_message)
         adapter.completed_with_local_file('tmp/output.tif', remote_filename='out.tif')
-        stage.assert_called_with('tmp/output.tif', 'out.tif', 'image/tiff', adapter.logger)
+        stage.assert_called_with('tmp/output.tif', 'out.tif', 'image/tiff', location='s3://example-bucket/public/some-org/some-service/some-uuid/', logger=adapter.logger)
         _callback_post.assert_called_with('/response?redirect=https%3A//example.com/out')
 
     @patch.object(BaseHarmonyAdapter, '_callback_post')
@@ -104,7 +104,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         adapter = TestAdapter(full_message)
         granule = adapter.message.sources[0].granules[0]
         adapter.completed_with_local_file('tmp/output.tif', source_granule=granule, is_variable_subset=True, is_regridded=True, is_subsetted=True)
-        stage.assert_called_with('tmp/output.tif', 'example_granule_1_ExampleVar1_regridded_subsetted.tif', 'image/tiff', adapter.logger)
+        stage.assert_called_with('tmp/output.tif', 'example_granule_1_ExampleVar1_regridded_subsetted.tif', 'image/tiff', location='s3://example-bucket/public/some-org/some-service/some-uuid/', logger=adapter.logger)
         _callback_post.assert_called_with('/response?redirect=https%3A//example.com/out')
 
     @patch.object(BaseHarmonyAdapter, '_callback_post')
@@ -149,7 +149,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         adapter = TestAdapter(full_message)
         adapter.message.isSynchronous = False
         adapter.async_add_local_file_partial_result('tmp/output.tif', remote_filename='out.tif', title='my file', progress=50)
-        stage.assert_called_with('tmp/output.tif', 'out.tif', 'image/tiff', adapter.logger)
+        stage.assert_called_with('tmp/output.tif', 'out.tif', 'image/tiff', location='s3://example-bucket/public/some-org/some-service/some-uuid/', logger=adapter.logger)
         _callback_post.assert_called_with('/response?item[href]=https%3A//example.com/out&item[type]=image/tiff&item[title]=my%20file&progress=50')
 
     @patch.object(BaseHarmonyAdapter, '_callback_post')
@@ -159,7 +159,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         adapter.message.isSynchronous = False
         granule = adapter.message.sources[0].granules[0]
         adapter.async_add_local_file_partial_result('tmp/output.tif', source_granule=granule, is_variable_subset=True, is_regridded=True, is_subsetted=True, title='my file', progress=50)
-        stage.assert_called_with('tmp/output.tif', 'example_granule_1_ExampleVar1_regridded_subsetted.tif', 'image/tiff', adapter.logger)
+        stage.assert_called_with('tmp/output.tif', 'example_granule_1_ExampleVar1_regridded_subsetted.tif', 'image/tiff', location='s3://example-bucket/public/some-org/some-service/some-uuid/', logger=adapter.logger)
         _callback_post.assert_called_with('/response?item[href]=https%3A//example.com/out&item[type]=image/tiff&item[title]=my%20file&progress=50')
 
     def test_filename_for_granule(self):
