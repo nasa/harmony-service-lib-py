@@ -269,6 +269,28 @@ class Format(JsonObject):
         if self.scaleSize is not None:
             self.scaleSize = ScaleSize(self.scaleSize)
 
+class RemoteResource(JsonObject):
+    """
+    Remote resource
+
+    Attributes
+    ----------
+    uri : string
+        A string of the remote resource location
+    type : string
+        The resource's content type
+    """
+    def __init__(self, message_data):
+        """
+        Constructor
+
+        Parameters
+        ----------
+        message_data : dictionary
+            The Harmony message remote resource object to deserialize
+        """
+        super().__init__(message_data, properties=['href', 'type'])
+
 class Subset(JsonObject):
     """
     Subsetting parameters as found in a Harmony message's "subset" object
@@ -288,7 +310,9 @@ class Subset(JsonObject):
         message_data : dictionary
             The Harmony message "subset" object to deserialize
         """
-        super().__init__(message_data, properties=['bbox'])
+        super().__init__(message_data, properties=['bbox', 'shape'])
+        if self.shape is not None:
+            self.shape = RemoteResource(self.shape)
 
 class Temporal(JsonObject):
     """
@@ -330,6 +354,12 @@ class Message(JsonObject):
         The URL that services must POST to when their execution is complete.  Services
         should use the `completed_with_*` methods of a Harmony Adapter to perform
         callbacks to ensure compatibility, rather than directly using this URL
+    stagingLocation : string
+        An object store (S3) URL prefix under which services may elect to put their output.
+        Services must have write access to the Harmony staging bucket for the deployed
+        environment to use this value.  The location will be unique per Harmony request
+        but services are responsible for ensuring no name clashes occur within a single
+        request.  The prefix will end in a "/" character.
     isSynchronous : bool
         True if a user is awaiting an immediate response, False if the user is expecting
         the service to be performed at a later point.  This may influence prioritization
@@ -366,6 +396,7 @@ class Message(JsonObject):
             properties=[
                 'version',
                 'callback',
+                'stagingLocation',
                 'isSynchronous',
                 'user',
                 'client',

@@ -12,7 +12,7 @@ and how to authenticate to them as follows:
 Required when reading from or staging to S3:
     AWS_DEFAULT_REGION: The AWS region in which the S3 client is operating (default: "us-west-2")
 
-Required when staging to S3:
+Required when staging to S3 and not using the Harmony-provided stagingLocation prefix:
     STAGING_BUCKET: The bucket where staged files should be placed
     STAGING_PATH: The base path under which staged files should be placed
 
@@ -159,15 +159,13 @@ def download(url, destination_dir, logger=logging):
     return download_from_http(url, destination)
 
 
-def stage(local_filename, remote_filename, mime, logger=logging):
+def stage(local_filename, remote_filename, mime, logger=logging, location=None):
     """
     Stages the given local filename, including directory path, to an S3 location with the given
     filename and mime-type
 
     Requires the following environment variables:
         AWS_DEFAULT_REGION: The AWS region in which the S3 client is operating
-        STAGING_BUCKET: The bucket where staged files should be placed
-        STAGING_PATH: The base path under which staged files should be placed
 
    Parameters
     ----------
@@ -177,19 +175,29 @@ def stage(local_filename, remote_filename, mime, logger=logging):
         The basename to give to the remote file
     mime : string
         The mime type to apply to the staged file for use when it is served, e.g. "application/x-netcdf4"
+    location : string
+        The S3 prefix URL under which to place the output file.  If not provided, STAGING_BUCKET and
+        STAGING_PATH must be set in the environment
+    logger : logging
+        The logger to use
 
     Returns
     -------
     url : string
         An s3:// URL to the staged file
     """
-    staging_bucket = environ.get('STAGING_BUCKET')
-    staging_path = environ.get('STAGING_PATH')
 
-    if staging_path:
-        key = '%s/%s' % (staging_path, remote_filename)
+    if location is None:
+        staging_bucket = environ.get('STAGING_BUCKET')
+        staging_path = environ.get('STAGING_PATH')
+
+        if staging_path:
+            key = '%s/%s' % (staging_path, remote_filename)
+        else:
+            key = remote_filename
     else:
-        key = remote_filename
+        _, _, staging_bucket, staging_path = location.split('/', 3)
+        key = staging_path + remote_filename
 
     if environ.get('ENV') in ['dev', 'test'] and not USE_LOCALSTACK:
         logger.warn("ENV=" + environ['ENV'] + " and not using localstack, so we will not stage " + local_filename + " to " + key)

@@ -1,8 +1,11 @@
 {
-  "$schema": "../../harmony/app/schemas/data-operation/0.1.0/data-operation-v0.1.0.json",
-  "version": "0.1.0",
+  "$schema": "../../harmony/app/schemas/data-operation/0.6.0/data-operation-v0.6.0.json",
+  "version": "0.6.0",
   "callback": "http://localhost/some-path",
+  "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
   "user": "jdoe",
+  "client": "harmony-example",
+  "requestId": "00001111-2222-3333-4444-555566667777",
   "sources": [
     {
       "collection": "C0001-EXAMPLE",
