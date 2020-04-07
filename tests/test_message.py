@@ -8,7 +8,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_full_message_it_parses_it_into_objects(self):
         message = Message(full_message)
 
-        self.assertEqual(message.version, '0.6.0')
+        self.assertEqual(message.version, '0.7.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -21,6 +21,9 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.sources[0].granules[1].id, 'G0002-EXAMPLE')
         self.assertEqual(message.sources[0].granules[1].name, 'Example2')
         self.assertEqual(message.sources[0].granules[1].url, 'file://example/example_granule_2.txt')
+        self.assertEqual(message.sources[0].granules[1].temporal.start, '2003-03-03T03:03:03Z')
+        self.assertEqual(message.sources[0].granules[1].temporal.end, '2004-04-04T04:04:04Z')
+        self.assertEqual(message.sources[0].granules[1].bbox, [-5, -6, 7, 8])
         self.assertEqual(message.sources[1].collection, 'C0002-EXAMPLE')
         self.assertEqual(message.format.crs, 'CRS:84')
         self.assertEqual(message.format.isTransparent, True)
@@ -43,7 +46,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_minimal_message_it_parses_it_into_objects(self):
         message = Message(minimal_message)
 
-        self.assertEqual(message.version, '0.6.0')
+        self.assertEqual(message.version, '0.7.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -61,7 +64,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_message_with_minimal_source_it_parses_it_into_objects(self):
         message = Message(minimal_source_message)
 
-        self.assertEqual(message.version, '0.6.0')
+        self.assertEqual(message.version, '0.7.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.user, 'jdoe')
         self.assertEqual(message.sources[0].collection, 'C0001-EXAMPLE')

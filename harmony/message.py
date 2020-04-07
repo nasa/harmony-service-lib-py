@@ -132,6 +132,11 @@ class Granule(JsonObject):
         The granule's short name
     url: string
         The URL to the granule, preferentially an S3 URL.  Potentially behind EDL
+    bbox : list
+        A list of 4 floating point values corresponding to [West, South, East, North]
+        coordinates of the granule's spatial MBR
+    temporal: Temporal
+        The temporal extent of the granule
     """
     def __init__(self, message_data):
         """
@@ -142,10 +147,13 @@ class Granule(JsonObject):
         message_data : dictionary
             The Harmony message "granules" item to deserialize
         """
-        super().__init__(message_data, properties=['id', 'name', 'url'])
+        super().__init__(message_data, properties=['id', 'name', 'url', 'bbox', 'temporal'])
         self.local_filename = None
         self.collection = None
         self.variables = []
+        if self.temporal is not None:
+            self.temporal = Temporal(self.temporal)
+
 
 class MinMax(JsonObject):
     """
