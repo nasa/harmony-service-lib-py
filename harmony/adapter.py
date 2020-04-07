@@ -248,7 +248,9 @@ class BaseHarmonyAdapter(ABC):
         is_subsetted=False,
         title=None,
         mime=None,
-        progress=None):
+        progress=None,
+        temporal=None,
+        bbox=None):
         """
         For service requests that are asynchronous, stages the given filename and sends the staged
         URL as a progress update to Harmony.  Optionally also provides a numeric progress indicator.
@@ -260,7 +262,7 @@ class BaseHarmonyAdapter(ABC):
             The path and name of the local file
         source_granule : message.Granule, optional
             The granule from which the file was derived, if it was derived from a single granule.  This
-            will be used to produce a canonical filename
+            will be used to produce a canonical filename and assist when temporal and bbox are not specified
         remote_filename : string, optional
             The name of the file when staged, which will be visible to the user requesting data.
             Specify this if not providing a source granule.  If neither remote_filename nor source_granule
@@ -277,6 +279,12 @@ class BaseHarmonyAdapter(ABC):
             The mime type of the file, by default the output mime type requested by Harmony
         progress : integer, optional
             Numeric progress of the total request, 0-100
+        temporal : harmony.message.Temporal, optional
+            The temporal extent of the provided file.  If not provided, the source granule's temporal will be
+            used when a source granule is provided
+        bbox : list, optional
+            List of [West, South, East, North] for the MBR of the provided result.  If not provided, the source
+            granule's bbox will be used when a source granule is provided
 
         Raises
         ------
@@ -284,9 +292,9 @@ class BaseHarmonyAdapter(ABC):
             If the request is synchronous or the request has already been marked complete
         """
         url = self.stage(filename, source_granule, remote_filename, is_variable_subset, is_regridded, is_subsetted, mime)
-        self.async_add_url_partial_result(url, title, mime, progress)
+        self.async_add_url_partial_result(url, title, mime, progress, source_granule, temporal, bbox)
 
-    def async_add_url_partial_result(self, url, title=None, mime=None, progress=None):
+    def async_add_url_partial_result(self, url, title=None, mime=None, progress=None, source_granule=None, temporal=None, bbox=None):
         """
         For service requests that are asynchronous, stages the provides the given URL as a partial result.
         Optionally also provides a numeric progress indicator.
@@ -302,6 +310,13 @@ class BaseHarmonyAdapter(ABC):
             The mime type of the file, by default the output mime type requested by Harmony
         progress : integer, optional
             Numeric progress of the total request, 0-100
+        source_granule : message.Granule, optional
+            The granule from which the file was derived, if it was derived from a single granule.  This
+            will be used to produce a canonical filename and assist when temporal and bbox are not specified
+        temporal : harmony.message.Temporal, optional
+            The temporal extent of the provided file
+        bbox : list, optional
+            List of [West, South, East, North] for the MBR of the provided result
 
         Raises
         ------
@@ -314,11 +329,23 @@ class BaseHarmonyAdapter(ABC):
             raise Exception('Attempted to add a result to an already-completed request: ' + url)
         if mime is None:
             mime = self.message.format.mime
-        callback_url = '/response?item[href]=%s&item[type]=%s' % (urllib.parse.quote(url), mime)
+        if source_granule is not None:
+            temporal = temporal or source_granule.temporal
+            bbox = bbox or source_granule.bbox
+
+        params = { 'item[href]': url, 'item[type]': mime }
         if title is not None:
-            callback_url += '&item[title]=%s' % (urllib.parse.quote(title))
+            params['item[title]'] = title
         if progress is not None:
-            callback_url += '&progress=%d' % (progress)
+            params['progress'] = progress
+        if temporal is not None:
+            params['item[temporal]'] = ','.join([temporal.start, temporal.end])
+        if bbox is not None:
+            params['item[bbox]'] = ','.join([str(c) for c in bbox])
+
+        logging.warn('&'.join(['%s=%s' % (k, v) for k, v in params.items()]))
+        param_strs = [ '%s=%s' % (k, urllib.parse.quote(str(v))) for k, v in params.items() ]
+        callback_url = '/response?' + '&'.join(param_strs)
         self._callback_post(callback_url)
 
     def async_completed_successfully(self):

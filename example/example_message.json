@@ -4,6 +4,7 @@
   "callback": "http://localhost/some-path",
   "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
   "user": "jdoe",
+  "isSynchronous": false,
   "client": "harmony-example",
   "requestId": "00001111-2222-3333-4444-555566667777",
   "sources": [

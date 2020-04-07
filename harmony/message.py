@@ -333,16 +333,24 @@ class Temporal(JsonObject):
     end : string
         An ISO 8601 datetime string for the latest time for temporal subsetting
     """
-    def __init__(self, message_data):
+    def __init__(self, message_data=None, start=None, end=None):
         """
         Constructor
 
         Parameters
         ----------
-        message_data : dictionary
-            The Harmony message "subset" object to deserialize
+        message_data : dictionary, optional
+            The Harmony message "temporal" object to deserialize
+        start: string, optional
+            The temporal range start as RFC-3339 date/time string
+        start: end, optional
+            The temporal range end as RFC-3339 date/time string
         """
-        super().__init__(message_data, properties=['start', 'end'])
+        super().__init__(message_data or {}, properties=['start', 'end'])
+        if start is not None:
+            self.start = start
+        if end is not None:
+            self.end = end
 
 class Message(JsonObject):
     """

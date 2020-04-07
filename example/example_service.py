@@ -51,9 +51,29 @@ class ExampleAdapter(harmony.BaseHarmonyAdapter):
 
         output_file.close()
 
-        # 4. Stage the output file to a network-accessible location (signed S3 URL) and call back to Harmony
-        #    with that location.
-        self.completed_with_local_file(output_filename)
+        if self.message.isSynchronous:
+            # 4(a). For requests that produce a single file where a user is holding open a connection waiting a result,
+            #       Stage the output file to a network-accessible location (signed S3 URL) and call back to Harmony
+            #       with that location.
+            self.completed_with_local_file(output_filename)
+        else:
+            # 4(b). For requests that produce a multiple results or where a user is not waiting for a response,
+            #       Stage the output file to a network-accessible location (signed S3 URL) and call back to Harmony
+            #       with that location, including additional reference information on the result and operation
+            #       Services can and should do this as individual results are produced and update the progress indicator
+            #       ...
+            self.async_add_local_file_partial_result(output_filename,
+                is_variable_subset=True,
+                is_regridded=False,
+                is_subsetted=True,
+                title='Example data',
+                mime='text/plain',
+                progress=50,
+                temporal=harmony.Temporal(start='2020-01-01T00:00:00Z', end='2020-02-01T00:00:00Z'),
+                bbox=[-100, -40, 100, 40])
+
+            # 4(b). (Cont) Then call back once all files have been produced
+            self.async_completed_successfully()
 
         # 5. Remove temporary files produced during execution
         self.cleanup()
