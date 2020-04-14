@@ -1,8 +1,8 @@
 
 minimal_message =  """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.6.0/data-operation-v0.6.0.json",
-        "version": "0.6.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.7.0/data-operation-v0.7.0.json",
+        "version": "0.7.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -19,8 +19,8 @@ minimal_message =  """
 
 minimal_source_message =  """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.6.0/data-operation-v0.6.0.json",
-        "version": "0.6.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.7.0/data-operation-v0.7.0.json",
+        "version": "0.7.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -42,8 +42,8 @@ minimal_source_message =  """
 
 full_message =  """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.6.0/data-operation-v0.6.0.json",
-        "version": "0.6.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.7.0/data-operation-v0.7.0.json",
+        "version": "0.7.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -63,12 +63,22 @@ full_message =  """
                 {
                 "id": "G0001-EXAMPLE",
                 "name": "Example1",
-                "url": "file://example/example_granule_1.txt"
+                "url": "file://example/example_granule_1.txt",
+                "temporal": {
+                    "start": "2001-01-01T01:01:01Z",
+                    "end": "2002-02-02T02:02:02Z"
+                },
+                "bbox": [-1, -2, 3, 4]
                 },
                 {
                 "id": "G0002-EXAMPLE",
                 "name": "Example2",
-                "url": "file://example/example_granule_2.txt"
+                "url": "file://example/example_granule_2.txt",
+                "temporal": {
+                    "start": "2003-03-03T03:03:03Z",
+                    "end": "2004-04-04T04:04:04Z"
+                },
+                "bbox": [-5, -6, 7, 8]
                 }
             ]}, {
             "collection": "C0002-EXAMPLE",
@@ -82,12 +92,22 @@ full_message =  """
                 {
                 "id": "G0003-EXAMPLE",
                 "name": "Example3",
-                "url": "file://example/example_granule_3.txt"
+                "url": "file://example/example_granule_3.txt",
+                "temporal": {
+                    "start": "2005-05-05T05:05:05Z",
+                    "end": "2006-06-06T06:06:06Z"
+                },
+                "bbox": [-9, -10, 11, 12]
                 },
                 {
                 "id": "G0004-EXAMPLE",
                 "name": "Example4",
-                "url": "file://example/example_granule_4.txt"
+                "url": "file://example/example_granule_4.txt",
+                "temporal": {
+                    "start": "2007-07-07T07:07:07Z",
+                    "end": "2008-08-08T08:08:08Z"
+                },
+                "bbox": [-13, -14, 15, 16]
                 }
             ]
             }

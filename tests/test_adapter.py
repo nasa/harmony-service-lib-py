@@ -5,7 +5,7 @@ from os import path, remove
 from shutil import rmtree
 
 from harmony.adapter import BaseHarmonyAdapter
-from harmony.message import Message, Granule, Variable
+from harmony.message import Message, Granule, Variable, Temporal
 from .example_messages import minimal_message, minimal_source_message, full_message
 import harmony.util
 
@@ -126,6 +126,31 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         self.assertRaises(Exception, adapter.async_add_url_partial_result, 'https://example.com/2')
 
     @patch.object(BaseHarmonyAdapter, '_callback_post')
+    def test_async_add_url_partial_result_supplies_bbox_and_temporal_when_provided(self, _callback_post):
+        adapter = TestAdapter(full_message)
+        adapter.message.isSynchronous = False
+        temporal = Temporal(start='2011-11-11T11:11:11Z', end='2011-11-11T11:11:12Z')
+        adapter.async_add_url_partial_result('https://example.com', temporal=temporal, bbox=[1.1, 2.2, 3.3, 4.4])
+        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com&item[type]=image/tiff&item[temporal]=2011-11-11T11%3A11%3A11Z%2C2011-11-11T11%3A11%3A12Z&item[bbox]=1.1%2C2.2%2C3.3%2C4.4')
+
+    @patch.object(BaseHarmonyAdapter, '_callback_post')
+    def test_async_add_url_partial_result_uses_granule_bbox_and_temporal_when_provided(self, _callback_post):
+        adapter = TestAdapter(full_message)
+        adapter.message.isSynchronous = False
+        granule = adapter.message.sources[0].granules[0]
+        adapter.async_add_url_partial_result('https://example.com', source_granule=granule)
+        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com&item[type]=image/tiff&item[temporal]=2001-01-01T01%3A01%3A01Z%2C2002-02-02T02%3A02%3A02Z&item[bbox]=-1%2C-2%2C3%2C4')
+
+    @patch.object(BaseHarmonyAdapter, '_callback_post')
+    def test_async_add_url_partial_result_prefers_explicit_bbox_and_temporal_over_granule_values(self, _callback_post):
+        adapter = TestAdapter(full_message)
+        adapter.message.isSynchronous = False
+        granule = adapter.message.sources[0].granules[0]
+        temporal = Temporal(start='2011-11-11T11:11:11Z', end='2011-11-11T11:11:12Z')
+        adapter.async_add_url_partial_result('https://example.com', source_granule=granule, temporal=temporal, bbox=[1.1, 2.2, 3.3, 4.4])
+        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com&item[type]=image/tiff&item[temporal]=2011-11-11T11%3A11%3A11Z%2C2011-11-11T11%3A11%3A12Z&item[bbox]=1.1%2C2.2%2C3.3%2C4.4')
+
+    @patch.object(BaseHarmonyAdapter, '_callback_post')
     def test_async_completed_successfully_for_async_incomplete_requests_posts_the_completion_status(self, _callback_post):
         adapter = TestAdapter(full_message)
         adapter.message.isSynchronous = False
@@ -160,7 +185,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         granule = adapter.message.sources[0].granules[0]
         adapter.async_add_local_file_partial_result('tmp/output.tif', source_granule=granule, is_variable_subset=True, is_regridded=True, is_subsetted=True, title='my file', progress=50)
         stage.assert_called_with('tmp/output.tif', 'example_granule_1_ExampleVar1_regridded_subsetted.tif', 'image/tiff', location='s3://example-bucket/public/some-org/some-service/some-uuid/', logger=adapter.logger)
-        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com/out&item[type]=image/tiff&item[title]=my%20file&progress=50')
+        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com/out&item[type]=image/tiff&item[title]=my%20file&progress=50&item[temporal]=2001-01-01T01%3A01%3A01Z%2C2002-02-02T02%3A02%3A02Z&item[bbox]=-1%2C-2%2C3%2C4')
 
     def test_filename_for_granule(self):
         adapter = TestAdapter(minimal_message)

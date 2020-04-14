@@ -132,6 +132,11 @@ class Granule(JsonObject):
         The granule's short name
     url: string
         The URL to the granule, preferentially an S3 URL.  Potentially behind EDL
+    bbox : list
+        A list of 4 floating point values corresponding to [West, South, East, North]
+        coordinates of the granule's spatial MBR
+    temporal: Temporal
+        The temporal extent of the granule
     """
     def __init__(self, message_data):
         """
@@ -142,10 +147,13 @@ class Granule(JsonObject):
         message_data : dictionary
             The Harmony message "granules" item to deserialize
         """
-        super().__init__(message_data, properties=['id', 'name', 'url'])
+        super().__init__(message_data, properties=['id', 'name', 'url', 'bbox', 'temporal'])
         self.local_filename = None
         self.collection = None
         self.variables = []
+        if self.temporal is not None:
+            self.temporal = Temporal(self.temporal)
+
 
 class MinMax(JsonObject):
     """
@@ -325,16 +333,24 @@ class Temporal(JsonObject):
     end : string
         An ISO 8601 datetime string for the latest time for temporal subsetting
     """
-    def __init__(self, message_data):
+    def __init__(self, message_data=None, start=None, end=None):
         """
         Constructor
 
         Parameters
         ----------
-        message_data : dictionary
-            The Harmony message "subset" object to deserialize
+        message_data : dictionary, optional
+            The Harmony message "temporal" object to deserialize
+        start: string, optional
+            The temporal range start as RFC-3339 date/time string
+        start: end, optional
+            The temporal range end as RFC-3339 date/time string
         """
-        super().__init__(message_data, properties=['start', 'end'])
+        super().__init__(message_data or {}, properties=['start', 'end'])
+        if start is not None:
+            self.start = start
+        if end is not None:
+            self.end = end
 
 class Message(JsonObject):
     """
