@@ -343,7 +343,6 @@ class BaseHarmonyAdapter(ABC):
         if bbox is not None:
             params['item[bbox]'] = ','.join([str(c) for c in bbox])
 
-        logging.warn('&'.join(['%s=%s' % (k, v) for k, v in params.items()]))
         param_strs = [ '%s=%s' % (k, urllib.parse.quote(str(v))) for k, v in params.items() ]
         callback_url = '/response?' + '&'.join(param_strs)
         self._callback_post(callback_url)
