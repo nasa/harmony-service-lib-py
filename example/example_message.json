@@ -14,9 +14,7 @@
         {
           "id": "V0001-EXAMPLE",
           "name": "ExampleVar",
-          "longName": "Example Variable",
-          "alias": "example_alias",
-          "groupPath": "/example/group/path"
+          "fullPath": "example/group/path/ExampleVar"
         }
       ],
       "granules": [

@@ -57,9 +57,7 @@ full_message =  """
                 {
                 "id": "V0001-EXAMPLE",
                 "name": "ExampleVar1",
-                "longName": "Example Variable 1",
-                "alias": "example_alias_1",
-                "groupPath": "/example/path/1"
+                "fullPath": "example/path/ExampleVar1"
                 }
             ],
             "granules": [
@@ -89,7 +87,7 @@ full_message =  """
                 {
                 "id": "V0002-EXAMPLE",
                 "name": "ExampleVar2",
-                "longName": "Example Variable 2"
+                "fullPath": "example/path/ExampleVar2"
                 }
             ],
             "granules": [
