@@ -108,6 +108,8 @@ class Variable(JsonObject):
         The UMM-Var ID of the variable
     name : string
         The UMM-Var short name of the variable, typically identifies layer name found in the science data file
+    fullPath : string
+         The variable's absolute path within the file, including hierarchy.  Derived from UMM-Var group path combined with name.
     """
     def __init__(self, message_data):
         """
@@ -118,7 +120,7 @@ class Variable(JsonObject):
         message_data : dictionary
             The Harmony message "variables" item to deserialize
         """
-        super().__init__(message_data, properties=['id', 'name'])
+        super().__init__(message_data, properties=['id', 'name', 'fullPath'])
 
 class Granule(JsonObject):
     """

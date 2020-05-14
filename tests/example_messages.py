@@ -56,7 +56,8 @@ full_message =  """
             "variables": [
                 {
                 "id": "V0001-EXAMPLE",
-                "name": "ExampleVar1"
+                "name": "ExampleVar1",
+                "fullPath": "example/path/ExampleVar1"
                 }
             ],
             "granules": [
@@ -85,7 +86,8 @@ full_message =  """
             "variables": [
                 {
                 "id": "V0002-EXAMPLE",
-                "name": "ExampleVar2"
+                "name": "ExampleVar2",
+                "fullPath": "example/path/ExampleVar2"
                 }
             ],
             "granules": [
