@@ -34,10 +34,28 @@ from os import environ, path
 
 _s3 = None
 
-# Flag determining the use of LocalStack (for testing), which will influence how URLs are structured
-# and how S3 is accessed
-USE_LOCALSTACK = environ.get('USE_LOCALSTACK') == 'true'
+def _use_localstack():
+    """True when when running locally; influences how URLs are structured
+    and how S3 is accessed.
+    """
+    return environ.get('USE_LOCALSTACK') == 'true'
 
+
+def _s3_parameters():
+    region = environ.get('AWS_DEFAULT_REGION') or 'us-west-2'
+    if _use_localstack():
+        backend_host = environ.get('BACKEND_HOST') or 'localhost'
+        return {
+            'endpoint_url': f'http://{backend_host}:4572',
+            'use_ssl': False,
+            'aws_access_key_id': 'ACCESS_KEY',
+            'aws_secret_access_key': 'SECRET_KEY',
+            'region_name': region
+        } 
+    else:
+        return {
+            'region_name': region
+        }
 
 def _get_s3_client():
     """
@@ -52,16 +70,8 @@ def _get_s3_client():
     """
     if _s3 != None:
         return _s3
-    region = environ.get('AWS_DEFAULT_REGION') or 'us-west-2'
-    if USE_LOCALSTACK:
-        return boto3.client('s3',
-                            endpoint_url='http://host.docker.internal:4572',
-                            use_ssl=False,
-                            aws_access_key_id='ACCESS_KEY',
-                            aws_secret_access_key='SECRET_KEY',
-                            region_name=region)
-    else:
-        return boto3.client('s3', region_name=region)
+    s3_parameters = _s3_parameters()
+    return boto3.client('s3', **s3_parameters);
 
 
 def _setup_networking(logger=logging):
@@ -199,7 +209,7 @@ def stage(local_filename, remote_filename, mime, logger=logging, location=None):
         _, _, staging_bucket, staging_path = location.split('/', 3)
         key = staging_path + remote_filename
 
-    if environ.get('ENV') in ['dev', 'test'] and not USE_LOCALSTACK:
+    if environ.get('ENV') in ['dev', 'test'] and not _use_localstack():
         logger.warn("ENV=" + environ['ENV'] + " and not using localstack, so we will not stage " + local_filename + " to " + key)
         return "http://example.com/" + key
 

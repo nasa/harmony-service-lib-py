@@ -56,3 +56,65 @@ class TestStage(unittest.TestCase):
         result = util.stage('file.txt', 'remote.txt', 'text/plain', location="s3://different-example/public/location/")
         s3.upload_file.assert_called_with('file.txt', 'example', 'staging/path/remote.txt', ExtraArgs={'ContentType': 'text/plain'})
         self.assertEqual(result, 's3://different-example/public/location/remote.txt')
+
+class TestS3Parameters(unittest.TestCase):
+    @patch.dict(os.environ, { 'USE_LOCALSTACK': 'true', 'BACKEND_HOST': 'testhost' })
+    def test_using_localstack(self):
+        expected = {
+            'endpoint_url': 'http://testhost:4572',
+            'use_ssl': False,
+            'aws_access_key_id': 'ACCESS_KEY',
+            'aws_secret_access_key': 'SECRET_KEY',
+            'region_name': 'us-west-2'
+        }
+
+        actual = util._s3_parameters()
+
+        self.assertDictEqual(expected, actual)
+
+    @patch.dict(os.environ, { 'USE_LOCALSTACK': 'true', 'BACKEND_HOST': 'testhost', 'AWS_DEFAULT_REGION': 'tatooine-desert-1' })
+    def test_using_localstack(self):
+        expected = {
+            'endpoint_url': 'http://testhost:4572',
+            'use_ssl': False,
+            'aws_access_key_id': 'ACCESS_KEY',
+            'aws_secret_access_key': 'SECRET_KEY',
+            'region_name': 'tatooine-desert-1'
+        }
+
+        actual = util._s3_parameters()
+
+        self.assertDictEqual(expected, actual)
+
+    @patch.dict(os.environ, { 'USE_LOCALSTACK': 'true' })
+    def test_using_localstack_defaults_to_localhost(self):
+        expected = {
+            'endpoint_url': 'http://localhost:4572',
+            'use_ssl': False,
+            'aws_access_key_id': 'ACCESS_KEY',
+            'aws_secret_access_key': 'SECRET_KEY',
+            'region_name': 'us-west-2'
+        }
+
+        actual = util._s3_parameters()
+
+        self.assertDictEqual(expected, actual)
+
+    def test_not_using_localstack(self):
+        expected = {
+            'region_name': 'us-west-2'
+        }
+
+        actual = util._s3_parameters()
+
+        self.assertDictEqual(expected, actual)
+
+    @patch.dict(os.environ, { 'AWS_DEFAULT_REGION': 'westeros-north-3' })
+    def test_not_using_localstack_uses_region_envvar(self):
+        expected = {
+            'region_name': 'westeros-north-3'
+        }
+
+        actual = util._s3_parameters()
+
+        self.assertDictEqual(expected, actual)
