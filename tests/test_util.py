@@ -56,3 +56,34 @@ class TestStage(unittest.TestCase):
         result = util.stage('file.txt', 'remote.txt', 'text/plain', location="s3://different-example/public/location/")
         s3.upload_file.assert_called_with('file.txt', 'example', 'staging/path/remote.txt', ExtraArgs={'ContentType': 'text/plain'})
         self.assertEqual(result, 's3://different-example/public/location/remote.txt')
+
+class TestS3Parameters(unittest.TestCase):
+    def test_using_localstack(self):
+        use_localstack = True
+        backend_host = 'testhost'
+        region = 'tatooine-desert-1'
+
+        expected = {
+            'endpoint_url': f'http://{backend_host}:4572',
+            'use_ssl': False,
+            'aws_access_key_id': 'ACCESS_KEY',
+            'aws_secret_access_key': 'SECRET_KEY',
+            'region_name': f'{region}'
+        }
+
+        actual = util._s3_parameters(use_localstack, backend_host, region)
+
+        self.assertDictEqual(expected, actual)
+
+    def test_not_using_localstack(self):
+        use_localstack = False
+        backend_host = 'localhost'
+        region = 'westeros-north-3'
+
+        expected = {
+            'region_name': f'{region}'
+        }
+
+        actual = util._s3_parameters(use_localstack, backend_host, region)
+
+        self.assertDictEqual(expected, actual)
