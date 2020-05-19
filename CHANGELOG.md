@@ -1,4 +1,6 @@
-2020/5/19 CHANGES
+## 2020/5/19
+
+### Changed
 
 * Add a CHANGELOG.
 * Update the release instructions in README.
