@@ -41,10 +41,11 @@ def _use_localstack():
     return environ.get('USE_LOCALSTACK') == 'true'
 
 
-def _s3_parameters():
-    region = environ.get('AWS_DEFAULT_REGION') or 'us-west-2'
-    if _use_localstack():
-        backend_host = environ.get('BACKEND_HOST') or 'localhost'
+def _backend_host():
+    return environ.get('BACKEND_HOST') or 'localhost'
+
+def _s3_parameters(use_localstack, backend_host, region):
+    if use_localstack:
         return {
             'endpoint_url': f'http://{backend_host}:4572',
             'use_ssl': False,
@@ -68,9 +69,13 @@ def _get_s3_client():
     s3_client : boto3.S3.Client
         A client appropriate for accessing S3
     """
+    # TODO: Is the _s3 global needed?
     if _s3 != None:
         return _s3
-    s3_parameters = _s3_parameters()
+
+    region = environ.get('AWS_DEFAULT_REGION') or 'us-west-2'
+
+    s3_parameters = _s3_parameters(_use_localstack(), _backend_host(), region)
     return boto3.client('s3', **s3_parameters);
 
 
@@ -152,7 +157,7 @@ def download(url, destination_dir, logger=logging):
     filename = basename + '.' + ext
     destination = path.join(destination_dir, filename)
 
-    url = url.replace('//localhost', '//host.docker.internal')
+    url = url.replace('//localhost', _backend_host())
 
     # Allow faster local testing by referencing files directly
     url = url.replace('file://', '')
