@@ -32,8 +32,6 @@ from http.cookiejar import CookieJar
 from urllib import request
 from os import environ, path
 
-_s3 = None
-
 def _use_localstack():
     """True when when running locally; influences how URLs are structured
     and how S3 is accessed.
@@ -44,40 +42,43 @@ def _use_localstack():
 def _backend_host():
     return environ.get('BACKEND_HOST') or 'localhost'
 
-def _s3_parameters(use_localstack, backend_host, region):
+def _region():
+    return environ.get('AWS_DEFAULT_REGION') or 'us-west-2'
+
+def _aws_parameters(use_localstack, backend_host, region):
     if use_localstack:
         return {
-            'endpoint_url': f'http://{backend_host}:4572',
+            'endpoint_url': f'http://{backend_host}:4566',
             'use_ssl': False,
             'aws_access_key_id': 'ACCESS_KEY',
             'aws_secret_access_key': 'SECRET_KEY',
             'region_name': region
-        } 
+        }
     else:
         return {
             'region_name': region
         }
 
-def _get_s3_client():
+REGION = environ.get('AWS_DEFAULT_REGION') or 'us-west-2'
+
+def _get_aws_client(service):
     """
-    Returns a client for accessing S3.  Accesses S3 in us-west-2 unless "AWS_DEFAULT_REGION"
-    is set.  If the environment variable "USE_LOCALSTACK" is set to "true", it will return
-    a client that will access a LocalStack S3 instance instead of AWS.
+    Returns a boto3 client for accessing the provided service.  Accesses the service in us-west-2
+    unless "AWS_DEFAULT_REGION" is set.  If the environment variable "USE_LOCALSTACK" is set to "true",
+    it will return a client that will access a LocalStack instance instead of AWS.
+
+    Parameters
+    ----------
+    service : string
+        The AWS service name for which to construct a client, e.g. "s3" or "sqs"
 
     Returns
     -------
-    s3_client : boto3.S3.Client
-        A client appropriate for accessing S3
+    s3_client : boto3.*.Client
+        A client appropriate for accessing the provided service
     """
-    # TODO: Is the _s3 global needed?
-    if _s3 != None:
-        return _s3
-
-    region = environ.get('AWS_DEFAULT_REGION') or 'us-west-2'
-
-    s3_parameters = _s3_parameters(_use_localstack(), _backend_host(), region)
-    return boto3.client('s3', **s3_parameters);
-
+    service_params = _aws_parameters(_use_localstack(), _backend_host(), _region())
+    return boto3.client(service, **service_params);
 
 def _setup_networking(logger=logging):
     """
@@ -136,7 +137,7 @@ def download(url, destination_dir, logger=logging):
     def download_from_s3(url, destination):
         bucket = url.split('/')[2]
         key = '/'.join(url.split('/')[3:])
-        _get_s3_client().download_file(bucket, key, destination)
+        _get_aws_client('s3').download_file(bucket, key, destination)
         return destination
 
     def download_from_http(url, destination):
@@ -182,7 +183,7 @@ def stage(local_filename, remote_filename, mime, logger=logging, location=None):
     Requires the following environment variables:
         AWS_DEFAULT_REGION: The AWS region in which the S3 client is operating
 
-   Parameters
+    Parameters
     ----------
     local_filename : string
         A path and filename to the local file that should be staged
@@ -218,8 +219,73 @@ def stage(local_filename, remote_filename, mime, logger=logging, location=None):
         logger.warn("ENV=" + environ['ENV'] + " and not using localstack, so we will not stage " + local_filename + " to " + key)
         return "http://example.com/" + key
 
-    s3 = _get_s3_client()
+    s3 = _get_aws_client('s3')
     s3.upload_file(local_filename, staging_bucket, key,
                 ExtraArgs={'ContentType': mime})
 
     return 's3://%s/%s' % (staging_bucket, key)
+
+def receive_messages(queue_url, visibility_timeout_s=600):
+    """
+    Generates successive messages from reading the queue.  The caller
+    is responsible for deleting or returning each message to the queue
+
+    Parameters
+    ----------
+    queue_url : string
+        The URL of the queue to receive messages on
+    visibility_timeout_s : int
+        The number of seconds to wait for a received message to be deleted
+        before it is returned to the queue
+
+    Yields
+    ------
+    receiptHandle, body : string, string
+        A tuple of the receipt handle, used to delete or update messages,
+        and the contents of the message
+    """
+    sqs = _get_aws_client('sqs')
+    while True:
+        response = sqs.receive_message(
+            QueueUrl=queue_url,
+            VisibilityTimeout=visibility_timeout_s,
+            WaitTimeSeconds=60,
+            MaxNumberOfMessages=1)
+        messages = response.get('Messages') or []
+        if len(messages) == 1:
+            yield (messages[0]['ReceiptHandle'], messages[0]['Body'])
+
+def delete_message(queue_url, receipt_handle):
+    """
+    Deletes the message with the given receipt handle from the provided queue URL,
+    indicating successful processing
+
+    Parameters
+    ----------
+    queue_url : string
+        The queue from which the message originated
+    receipt_handle : string
+        The receipt handle of the message, as yielded by `receive_messages`
+    """
+    sqs = _get_aws_client('sqs')
+    sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
+
+def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s):
+    """
+    Updates the message visibility timeout of the message with the given receipt handle
+
+    Parameters
+    ----------
+    queue_url : string
+        The queue from which the message originated
+    receipt_handle : string
+        The receipt handle of the message, as yielded by `receive_messages`
+    visibility_timeout_s : int
+        The number of additional seconds to wait for a received message to be deleted
+        before it is returned to the queue
+    """
+    sqs = _get_aws_client('sqs')
+    sqs.change_message_visibility(
+        QueueUrl=queue_url,
+        ReceiptHandle=receipt_handle,
+        VisibilityTimeout=visibility_timeout_s)
