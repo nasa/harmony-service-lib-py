@@ -161,7 +161,7 @@ class TestCliStartAction(unittest.TestCase):
         sqs.receive_message.assert_called_with(
             QueueUrl='test-queue-url',
             VisibilityTimeout=600,
-            WaitTimeSeconds=60,
+            WaitTimeSeconds=20,
             MaxNumberOfMessages=1)
         self.assertListEqual(MockAdapter.messages, [])
         self.assertListEqual(MockAdapter.errors, [])
@@ -173,7 +173,7 @@ class TestCliStartAction(unittest.TestCase):
         sqs.receive_message.assert_called_with(
             QueueUrl='test-queue-url',
             VisibilityTimeout=100,
-            WaitTimeSeconds=60,
+            WaitTimeSeconds=20,
             MaxNumberOfMessages=1)
         self.assertListEqual(MockAdapter.messages, [])
         self.assertListEqual(MockAdapter.errors, [])
