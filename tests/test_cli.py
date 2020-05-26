@@ -12,7 +12,7 @@ def cli_test(*cli_args):
     """
     def cli_test_wrapper(func):
         def wrapper(self):
-            with patch.object(sys, 'argv', ['example', '--harmony-no-wrap-stdout'] + list(cli_args)):
+            with patch.object(sys, 'argv', ['example'] + list(cli_args)):
                 parser = argparse.ArgumentParser(prog='example', description='Run an example service')
                 cli.setup_cli(parser)
                 func(self, parser)
