@@ -9,7 +9,7 @@ Parses CLI arguments provided by Harmony and invokes the subsetter accordingly
 import sys
 import logging
 from harmony.message import Message
-from harmony.util import receive_messages, delete_message, change_message_visibility
+from harmony.util import receive_messages, delete_message, change_message_visibility, setup_stdout_log_formatting
 
 def setup_cli(parser):
     """
@@ -31,6 +31,10 @@ def setup_cli(parser):
                         type=int,
                         default=600,
                         help='the number of seconds the service is given to process a message before processing is assumed to have failed')
+    parser.add_argument('--harmony-no-wrap-stdout',
+                        action='store_const',
+                        const=True,
+                        help='Do not wrap STDOUT and STDERR in the Harmony log output format')
 
 def is_harmony_cli(args):
     """
@@ -117,6 +121,8 @@ def run_cli(parser, args, AdapterClass):
     AdapterClass : class
         The BaseHarmonyAdapter subclass to use to handle service invocations
     """
+    if not args.harmony_no_wrap_stdout:
+        setup_stdout_log_formatting()
 
     if args.harmony_action == 'invoke':
         if not bool(args.harmony_input):

@@ -126,6 +126,33 @@ def build_logger():
 
 _default_logger=build_logger()
 
+def setup_stdout_log_formatting():
+    """
+    Updates sys.stdout and sys.stderr to pass messages through the Harmony log formatter.
+    """
+    # See https://stackoverflow.com/questions/11124093/redirect-python-print-output-to-logger/11124247
+    class StreamToLogger(object):
+        def __init__(self, logger, log_level=logging.INFO):
+            self.logger = logger
+            self.log_level = log_level
+            self.linebuf = ''
+
+        def write(self, buf):
+            temp_linebuf = self.linebuf + buf
+            self.linebuf = ''
+            for line in temp_linebuf.splitlines(True):
+                if line[-1] == '\n':
+                    self.logger.log(self.log_level, line.rstrip())
+                else:
+                    self.linebuf += line
+
+        def flush(self):
+            if self.linebuf != '':
+                self.logger.log(self.log_level, self.linebuf.rstrip())
+            self.linebuf = ''
+    sys.stdout = StreamToLogger(_default_logger, logging.INFO)
+    sys.stderr = StreamToLogger(_default_logger, logging.ERROR)
+
 def _get_aws_client(service):
     """
     Returns a boto3 client for accessing the provided service.  Accesses the service in us-west-2
