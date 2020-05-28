@@ -1,7 +1,7 @@
 import unittest
 import sys
 import argparse
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from harmony import cli, BaseHarmonyAdapter
 
@@ -23,17 +23,22 @@ class MockAdapter(BaseHarmonyAdapter):
     """
     Dummy class to mock adapter calls and record the input messages
     """
-    message = None
-    error = None
+    messages = []
+    errors = []
+    cleaned_up = []
+
     def __init__(self, message):
-        MockAdapter.message = message
+        MockAdapter.messages.append(message.data)
+
 
     def invoke(self):
         self.is_complete = True
 
     def completed_with_error(self, error):
-        MockAdapter.error = error
+        MockAdapter.errors.append(error)
 
+    def cleanup(self):
+        MockAdapter.cleaned_up.append(True)
 
 class TestIsHarmonyCli(unittest.TestCase):
     @cli_test('--something-else', 'invoke')
@@ -52,23 +57,25 @@ class TestIsHarmonyCli(unittest.TestCase):
         args = parser.parse_args()
         self.assertFalse(cli.is_harmony_cli(args))
 
-class TestRunCli(unittest.TestCase):
+class TestCliInvokeAction(unittest.TestCase):
     def tearDown(self):
-        MockAdapter.message = None
-        MockAdapter.error = None
+        MockAdapter.messages = []
+        MockAdapter.errors = []
+        MockAdapter.cleaned_up = []
 
     @cli_test('--harmony-action', 'invoke')
     def test_when_harmony_input_is_not_provided_it_terminates_with_error(self, parser):
         with patch.object(parser, 'error') as error_method:
             args = parser.parse_args()
             cli.run_cli(parser, args, MockAdapter)
-            error_method.assert_called_once_with('--harmony-input must be provided for --harmony-action invoke')
+            error_method.assert_called_once_with('--harmony-input must be provided for --harmony-action=invoke')
 
     @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
     def test_when_harmony_input_is_provided_it_creates_and_invokes_an_adapter(self, parser):
         args = parser.parse_args()
+        print(args)
         cli.run_cli(parser, args, MockAdapter)
-        self.assertEqual({'test': 'input'}, MockAdapter.message.data)
+        self.assertListEqual([{'test': 'input'}], MockAdapter.messages)
 
     @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
     def test_when_the_backend_service_doesnt_respond_it_responds_with_an_error(self, parser):
@@ -81,7 +88,7 @@ class TestRunCli(unittest.TestCase):
             cli.run_cli(parser, args, MockImpl)
         except:
             pass
-        self.assertEqual(MockImpl.error, 'The backend service did not respond')
+        self.assertListEqual(MockImpl.errors, ['The backend service did not respond'])
 
     @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
     def test_when_the_backend_service_throws_an_exception_before_response_it_responds_with_an_error(self, parser):
@@ -95,7 +102,7 @@ class TestRunCli(unittest.TestCase):
             cli.run_cli(parser, args, MockImpl)
         except:
             pass
-        self.assertEqual(MockImpl.error, 'Service request failed with an unknown error')
+        self.assertListEqual(MockImpl.errors, ['Service request failed with an unknown error'])
 
     @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
     def test_when_the_backend_service_throws_an_exception_afterresponse_it_does_not_respond_again(self, parser):
@@ -109,8 +116,163 @@ class TestRunCli(unittest.TestCase):
             cli.run_cli(parser, args, MockImpl)
         except:
             pass
-        self.assertIsNone(MockImpl.error)
+        self.assertListEqual(MockImpl.errors, [])
 
+def mock_receive(client, parser, AdapterClass, *messages):
+    sqs = MagicMock()
+    side_effects = []
+
+    for i, message in enumerate(messages):
+        contents = []
+        if message:
+            contents.append({ 'Body': message, 'ReceiptHandle': i })
+        side_effects.append({ 'Messages': contents })
+
+    print(side_effects)
+    sqs.receive_message.side_effect = side_effects
+    client.return_value = sqs
+    args = parser.parse_args()
+    try:
+        cli.run_cli(parser, args, AdapterClass)
+    except RuntimeError as e:
+        if str(e) == 'generator raised StopIteration':
+            pass # Expection.  Happens every call when messages are exhausted, allowing us to stop iterating.
+        else:
+            raise
+    return sqs
+
+class TestCliStartAction(unittest.TestCase):
+    def tearDown(self):
+        MockAdapter.messages = []
+        MockAdapter.errors = []
+        MockAdapter.cleaned_up = []
+
+    @cli_test('--harmony-action', 'start')
+    def test_when_queue_url_is_not_provided_it_terminates_with_error(self, parser):
+        with patch.object(parser, 'error') as error_method:
+            args = parser.parse_args()
+            cli.run_cli(parser, args, MockAdapter)
+            error_method.assert_called_once_with('--harmony-queue-url must be provided for --harmony-action=start')
+
+    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
+    @patch('boto3.client')
+    def test_listens_on_the_provided_queue(self, parser, client):
+        sqs = mock_receive(client, parser, MockAdapter)
+        sqs.receive_message.assert_called_with(
+            QueueUrl='test-queue-url',
+            VisibilityTimeout=600,
+            WaitTimeSeconds=20,
+            MaxNumberOfMessages=1)
+        self.assertListEqual(MockAdapter.messages, [])
+        self.assertListEqual(MockAdapter.errors, [])
+
+    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url', '--harmony-visibility-timeout', '100')
+    @patch('boto3.client')
+    def test_uses_optional_visibility_timeouts_from_the_command_line(self, parser, client):
+        sqs = mock_receive(client, parser, MockAdapter)
+        sqs.receive_message.assert_called_with(
+            QueueUrl='test-queue-url',
+            VisibilityTimeout=100,
+            WaitTimeSeconds=20,
+            MaxNumberOfMessages=1)
+        self.assertListEqual(MockAdapter.messages, [])
+        self.assertListEqual(MockAdapter.errors, [])
+
+    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
+    @patch('boto3.client')
+    def test_sends_queue_messages_to_the_adapter(self, parser, client):
+        mock_receive(client, parser, MockAdapter, '{"test": "a"}', None, '{"test": "b"}')
+        self.assertEqual(MockAdapter.messages, [{'test': 'a'}, {'test': 'b'}])
+
+    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
+    @patch('boto3.client')
+    def test_when_the_adapter_completes_the_request_it_deletes_the_queue_message(self, parser, client):
+        sqs = mock_receive(client, parser, MockAdapter, '{"test": "a"}', None, '{"test": "b"}')
+        sqs.delete_message.assert_called_with(
+            QueueUrl='test-queue-url',
+            ReceiptHandle=2)
+
+    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
+    @patch('boto3.client')
+    def test_when_the_adapter_completes_the_request_it_calls_cleanup_on_the_adapter(self, parser, client):
+        mock_receive(client, parser, MockAdapter, '{"test": "a"}', None, '{"test": "b"}')
+        self.assertListEqual(MockAdapter.cleaned_up, [True, True])
+
+    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
+    @patch('boto3.client')
+    def test_when_the_adapter_runs_without_completing_the_request_it_returns_the_message_to_the_queue(self, parser, client):
+        class MockImpl(MockAdapter):
+            def invoke(self):
+                self.is_complete = False
+
+        sqs = mock_receive(client, parser, MockImpl, '{"test": "a"}', None, '{"test": "b"}')
+        sqs.delete_message.assert_not_called()
+        sqs.change_message_visibility.assert_called_with(
+            QueueUrl='test-queue-url',
+            VisibilityTimeout=0,
+            ReceiptHandle=2)
+
+    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
+    @patch('boto3.client')
+    def test_when_the_adapter_runs_without_completing_the_request_it_calls_cleanup_on_the_adapter(self, parser, client):
+        class MockImpl(MockAdapter):
+            def invoke(self):
+                self.is_complete = False
+
+        mock_receive(client, parser, MockImpl, '{"test": "a"}')
+        self.assertListEqual(MockImpl.cleaned_up, [True])
+
+    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
+    @patch('boto3.client')
+    def test_when_the_adapter_throws_before_completing_the_request_it_returns_the_message_to_the_queue(self, parser, client):
+        class MockImpl(MockAdapter):
+            def invoke(self):
+                self.is_complete = False
+                raise Exception('Something bad happened')
+
+        sqs = mock_receive(client, parser, MockImpl, '{"test": "a"}', None, '{"test": "b"}')
+        sqs.delete_message.assert_not_called()
+        sqs.change_message_visibility.assert_called_with(
+            QueueUrl='test-queue-url',
+            VisibilityTimeout=0,
+            ReceiptHandle=2)
+
+        self.assertListEqual(MockImpl.cleaned_up, [True, True])
+
+    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
+    @patch('boto3.client')
+    def test_when_the_adapter_throws_after_completing_the_request_it_deletes_the_queue_message(self, parser, client):
+        class MockImpl(MockAdapter):
+            def invoke(self):
+                self.is_complete = True
+                raise Exception('Something bad happened')
+
+        sqs = mock_receive(client, parser, MockImpl, '{"test": "a"}', None, '{"test": "b"}')
+        sqs.delete_message.assert_called_with(
+            QueueUrl='test-queue-url',
+            ReceiptHandle=2)
+        sqs.change_message_visibility.assert_not_called()
+
+    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
+    @patch('boto3.client')
+    def test_when_the_adapter_throws_it_calls_cleanup_on_the_adapter(self, parser, client):
+        class MockImpl(MockAdapter):
+            def invoke(self):
+                self.is_complete = False
+                raise Exception('Something bad happened')
+
+        sqs = mock_receive(client, parser, MockImpl, '{"test": "a"}', None, '{"test": "b"}')
+        self.assertListEqual(MockImpl.cleaned_up, [True, True])
+
+    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
+    @patch('boto3.client')
+    def test_when_cleanup_throws_it_continues_processing_queue_messages(self, parser, client):
+        class MockImpl(MockAdapter):
+            def cleanup(self):
+                raise Exception('Something bad happened')
+
+        sqs = mock_receive(client, parser, MockImpl, '{"test": "a"}', None, '{"test": "b"}')
+        self.assertEqual(MockAdapter.messages, [{'test': 'a'}, {'test': 'b'}])
 
 if __name__ == '__main__':
     unittest.main()

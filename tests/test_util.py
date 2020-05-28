@@ -48,13 +48,13 @@ class TestStage(unittest.TestCase):
 
     @patch('boto3.client')
     @patch.dict(os.environ, { 'STAGING_BUCKET': 'example', 'STAGING_PATH' : 'staging/path', 'ENV' : 'not_test_we_swear' })
-    def uses_location_prefix_when_provided(self, client):
+    def test_uses_location_prefix_when_provided(self, client):
         # Sets a non-test ENV environment variable to force things through the (mocked) download path
         s3 = MagicMock()
         s3.generate_presigned_url.return_value = 'https://example.com/presigned.txt'
         client.return_value = s3
         result = util.stage('file.txt', 'remote.txt', 'text/plain', location="s3://different-example/public/location/")
-        s3.upload_file.assert_called_with('file.txt', 'example', 'staging/path/remote.txt', ExtraArgs={'ContentType': 'text/plain'})
+        s3.upload_file.assert_called_with('file.txt', 'different-example', 'public/location/remote.txt', ExtraArgs={'ContentType': 'text/plain'})
         self.assertEqual(result, 's3://different-example/public/location/remote.txt')
 
 class TestS3Parameters(unittest.TestCase):
@@ -64,14 +64,14 @@ class TestS3Parameters(unittest.TestCase):
         region = 'tatooine-desert-1'
 
         expected = {
-            'endpoint_url': f'http://{backend_host}:4572',
+            'endpoint_url': f'http://{backend_host}:4566',
             'use_ssl': False,
             'aws_access_key_id': 'ACCESS_KEY',
             'aws_secret_access_key': 'SECRET_KEY',
             'region_name': f'{region}'
         }
 
-        actual = util._s3_parameters(use_localstack, backend_host, region)
+        actual = util._aws_parameters(use_localstack, backend_host, region)
 
         self.assertDictEqual(expected, actual)
 
@@ -84,6 +84,6 @@ class TestS3Parameters(unittest.TestCase):
             'region_name': f'{region}'
         }
 
-        actual = util._s3_parameters(use_localstack, backend_host, region)
+        actual = util._aws_parameters(use_localstack, backend_host, region)
 
         self.assertDictEqual(expected, actual)
