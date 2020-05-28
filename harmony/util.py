@@ -124,7 +124,7 @@ def build_logger():
     logger.propagate = False
     return logger
 
-_default_logger=build_logger()
+default_logger=build_logger()
 
 def setup_stdout_log_formatting():
     """
@@ -150,8 +150,8 @@ def setup_stdout_log_formatting():
             if self.linebuf != '':
                 self.logger.log(self.log_level, self.linebuf.rstrip())
             self.linebuf = ''
-    sys.stdout = StreamToLogger(_default_logger, logging.INFO)
-    sys.stderr = StreamToLogger(_default_logger, logging.ERROR)
+    sys.stdout = StreamToLogger(default_logger, logging.INFO)
+    sys.stderr = StreamToLogger(default_logger, logging.ERROR)
 
 def _get_aws_client(service):
     """
@@ -172,7 +172,7 @@ def _get_aws_client(service):
     service_params = _aws_parameters(_use_localstack(), _backend_host(), _region())
     return boto3.client(service, **service_params)
 
-def _setup_networking(logger=_default_logger):
+def _setup_networking(logger=default_logger):
     """
     Sets up HTTP(S) cookies and basic auth so that HTTP calls using urllib.request will
     use Earthdata Login (EDL) auth as appropriate.  Will allow Earthdata login auth only if
@@ -199,7 +199,7 @@ def _setup_networking(logger=_default_logger):
     except KeyError:
         logger.warn('Earthdata Login environment variables EDL_USERNAME and EDL_PASSWORD must be set up for authenticated downloads.  Requests will be unauthenticated.')
 
-def download(url, destination_dir, logger=_default_logger):
+def download(url, destination_dir, logger=default_logger):
     """
     Downloads the given URL to the given destination directory, using the basename of the URL
     as the filename in the destination directory.  Supports http://, https:// and s3:// schemes.
@@ -267,7 +267,7 @@ def download(url, destination_dir, logger=_default_logger):
     return download_from_http(url, destination)
 
 
-def stage(local_filename, remote_filename, mime, logger=_default_logger, location=None):
+def stage(local_filename, remote_filename, mime, logger=default_logger, location=None):
     """
     Stages the given local filename, including directory path, to an S3 location with the given
     filename and mime-type
@@ -317,7 +317,7 @@ def stage(local_filename, remote_filename, mime, logger=_default_logger, locatio
 
     return 's3://%s/%s' % (staging_bucket, key)
 
-def receive_messages(queue_url, visibility_timeout_s=600, logger=_default_logger):
+def receive_messages(queue_url, visibility_timeout_s=600, logger=default_logger):
     """
     Generates successive messages from reading the queue.  The caller
     is responsible for deleting or returning each message to the queue

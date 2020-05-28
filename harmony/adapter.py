@@ -51,8 +51,7 @@ class BaseHarmonyAdapter(ABC):
         self.temp_paths = []
         self.is_complete = False
 
-        logger = util.build_logger()
-        self.logger = logging.LoggerAdapter(logger, { 'user': message.user, 'requestId': message.requestId })
+        self.logger = logging.LoggerAdapter(util.default_logger, { 'user': message.user, 'requestId': message.requestId })
 
     @abstractmethod
     def invoke(self):
