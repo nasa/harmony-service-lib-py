@@ -58,32 +58,32 @@ class TestStage(unittest.TestCase):
         self.assertEqual(result, 's3://different-example/public/location/remote.txt')
 
 class TestS3Parameters(unittest.TestCase):
-    def test_using_localstack(self):
+    def test_when_using_localstack_it_uses_localstack_host(self):
         use_localstack = True
-        backend_host = 'testhost'
+        localstack_host = 'testhost'
         region = 'tatooine-desert-1'
 
         expected = {
-            'endpoint_url': f'http://{backend_host}:4566',
+            'endpoint_url': f'http://{localstack_host}:4566',
             'use_ssl': False,
             'aws_access_key_id': 'ACCESS_KEY',
             'aws_secret_access_key': 'SECRET_KEY',
             'region_name': f'{region}'
         }
 
-        actual = util._aws_parameters(use_localstack, backend_host, region)
+        actual = util._aws_parameters(use_localstack, localstack_host, region)
 
         self.assertDictEqual(expected, actual)
 
-    def test_not_using_localstack(self):
+    def test_when_not_using_localstack_it_ignores_localstack_host(self):
         use_localstack = False
-        backend_host = 'localhost'
+        localstack_host = 'localstack'
         region = 'westeros-north-3'
 
         expected = {
             'region_name': f'{region}'
         }
 
-        actual = util._aws_parameters(use_localstack, backend_host, region)
+        actual = util._aws_parameters(use_localstack, localstack_host, region)
 
         self.assertDictEqual(expected, actual)

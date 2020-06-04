@@ -62,17 +62,19 @@ def _use_localstack():
     """
     return get_env('USE_LOCALSTACK') == 'true'
 
-
 def _backend_host():
     return get_env('BACKEND_HOST') or 'localhost'
+
+def _localstack_host():
+    return get_env('LOCALSTACK_HOST') or _backend_host()
 
 def _region():
     return get_env('AWS_DEFAULT_REGION') or 'us-west-2'
 
-def _aws_parameters(use_localstack, backend_host, region):
+def _aws_parameters(use_localstack, localstack_host, region):
     if use_localstack:
         return {
-            'endpoint_url': f'http://{backend_host}:4566',
+            'endpoint_url': f'http://{localstack_host}:4566',
             'use_ssl': False,
             'aws_access_key_id': 'ACCESS_KEY',
             'aws_secret_access_key': 'SECRET_KEY',
@@ -169,7 +171,7 @@ def _get_aws_client(service):
     s3_client : boto3.*.Client
         A client appropriate for accessing the provided service
     """
-    service_params = _aws_parameters(_use_localstack(), _backend_host(), _region())
+    service_params = _aws_parameters(_use_localstack(), _localstack_host(), _region())
     return boto3.client(service, **service_params)
 
 def _setup_networking(logger=default_logger):
@@ -250,7 +252,7 @@ def download(url, destination_dir, logger=default_logger):
     filename = basename + '.' + ext
     destination = path.join(destination_dir, filename)
 
-    url = url.replace('//localhost', _backend_host())
+    url = url.replace('//localhost', _localstack_host())
 
     # Allow faster local testing by referencing files directly
     url = url.replace('file://', '')
