@@ -386,7 +386,7 @@ class BaseHarmonyAdapter(ABC):
 
         suffixes = []
         if is_variable_subset and len(granule.variables) == 1:
-            suffixes.append('_' + granule.variables[0].name)
+            suffixes.append('_' + granule.variables[0].name.replace('/', '_'))
         if is_regridded:
             suffixes.append('_regridded')
         if is_subsetted:

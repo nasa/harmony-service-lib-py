@@ -199,6 +199,11 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         self.assertEqual(adapter.filename_for_granule(granule, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
         self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
 
+        # Variable name contains full path with '/' ('/' replaced with '_')
+        granule.variables.append(Variable({'name': '/path/to/VarB'}))
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True, is_subsetted=True, is_regridded=True), 'abc.123__path_to_VarB_regridded_subsetted.zarr')
+        granule.variables.pop()
+
         # Single variable cases
         granule.variables.append(Variable({'name': 'VarA'}))
         self.assertEqual(adapter.filename_for_granule(granule, ext), 'abc.123.zarr')
