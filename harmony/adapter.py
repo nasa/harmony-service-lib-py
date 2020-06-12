@@ -17,6 +17,7 @@ from abc import ABC, abstractmethod
 from tempfile import mkdtemp
 
 from . import util
+from harmony.util import CanceledException
 
 class BaseHarmonyAdapter(ABC):
     """
@@ -419,11 +420,18 @@ class BaseHarmonyAdapter(ABC):
 
         url = self.message.callback + path
         if os.environ.get('ENV') in ['dev', 'test']:
-            self.logger.warn("ENV=" + os.environ['ENV'] + " so we will not reply to Harmony with POST " + url)
+            self.logger.warn('ENV=' + os.environ['ENV'] + ' so we will not reply to Harmony with POST ' + url)
         else:
             self.logger.info('Starting response: %s', url)
             request = urllib.request.Request(url, method='POST')
-            response = urllib.request.urlopen(request).read().decode('utf-8')
-            self.logger.info('Remote response: %s', response)
-            self.logger.info('Completed response: %s', url)
-
+            try:
+                response = urllib.request.urlopen(request).read().decode('utf-8')
+                self.logger.info('Remote response: %s', response)
+                self.logger.info('Completed response: %s', url)
+            except Exception as e:
+                body = e.read().decode()
+                self.logger.error('Harmony returned an error when updating the job: ' + body)
+                if 'canceled' in body:
+                    raise CanceledException
+                else:
+                    raise e
