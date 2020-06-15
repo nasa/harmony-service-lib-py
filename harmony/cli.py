@@ -101,9 +101,6 @@ def _start(AdapterClass, queue_url, visibility_timeout_s):
         adapter = AdapterClass(Message(message))
         try:
             adapter.invoke()
-        except CanceledException as e:
-          # If we see the request has been canceled do not try calling back to harmony again
-          logging.warn('Ending processing for message ID: ' + message.requestId + ' because the request was canceled.')
         except Exception:
             logging.error('Adapter threw an exception', exc_info=True)
         finally:
