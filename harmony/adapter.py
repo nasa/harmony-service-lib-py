@@ -433,7 +433,7 @@ class BaseHarmonyAdapter(ABC):
             except Exception as e:
                 body = e.read().decode()
                 self.logger.error('Harmony returned an error when updating the job: ' + body)
-                if 'canceled' in body:
+                if e.code == 409:
                     self.logger.warn('Harmony request was canceled.')
                     self.is_canceled = True
                     self.is_complete = True
