@@ -420,7 +420,7 @@ class BaseHarmonyAdapter(ABC):
 
         url = self.message.callback + path
         if os.environ.get('ENV') in ['dev', 'test']:
-            self.logger.warn('ENV=' + os.environ['ENV'] + ' so we will not reply to Harmony with POST ' + url)
+            self.logger.warning('ENV=' + os.environ['ENV'] + ' so we will not reply to Harmony with POST ' + url)
         elif self.is_canceled:
             self.logger.info('Ignoring making callback request because the request has been canceled.')
         else:
@@ -434,7 +434,7 @@ class BaseHarmonyAdapter(ABC):
                 body = e.read().decode()
                 self.logger.error('Harmony returned an error when updating the job: ' + body)
                 if e.code == 409:
-                    self.logger.warn('Harmony request was canceled.')
+                    self.logger.warning('Harmony request was canceled.')
                     self.is_canceled = True
                     self.is_complete = True
                     raise CanceledException
