@@ -34,6 +34,10 @@ from http.cookiejar import CookieJar
 from urllib import request
 from os import environ, path
 
+class CanceledException(Exception):
+    """Class for throwing an exception indicating a Harmony request has been canceled"""
+    pass
+
 def get_env(name):
     """
     Returns the environment variable with the given name, or None if none exists.  Removes quotes
