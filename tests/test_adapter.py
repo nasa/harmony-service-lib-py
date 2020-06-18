@@ -1,13 +1,17 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock, MagicMock
 from tempfile import NamedTemporaryFile, mkdtemp
+import os
 from os import path, remove
 from shutil import rmtree
+from urllib.error import HTTPError
+import urllib
 
 from harmony.adapter import BaseHarmonyAdapter
 from harmony.message import Message, Granule, Variable, Temporal
 from .example_messages import minimal_message, minimal_source_message, full_message
 import harmony.util
+from harmony.util import CanceledException
 
 # BaseHarmonyAdapter is abstract, so tests need a minimal concrete class
 class TestAdapter(BaseHarmonyAdapter):
@@ -16,6 +20,13 @@ class TestAdapter(BaseHarmonyAdapter):
 
     def invoke(self):
         pass
+
+class MockHTTPError(HTTPError):
+    def __init__(self, url='http://example.com', code=409, msg='Harmony canceled request', hdrs=[], fp=None):
+        super().__init__(url, code, msg, hdrs, fp)
+
+    def read(self):
+        return MagicMock(return_value='request body')
 
 class TestBaseHarmonyAdapter(unittest.TestCase):
     def test_cleanup_deletes_temporary_file_paths(self):
@@ -199,6 +210,11 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         self.assertEqual(adapter.filename_for_granule(granule, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
         self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
 
+        # Variable name contains full path with '/' ('/' replaced with '_')
+        granule.variables.append(Variable({'name': '/path/to/VarB'}))
+        self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True, is_subsetted=True, is_regridded=True), 'abc.123__path_to_VarB_regridded_subsetted.zarr')
+        granule.variables.pop()
+
         # Single variable cases
         granule.variables.append(Variable({'name': 'VarA'}))
         self.assertEqual(adapter.filename_for_granule(granule, ext), 'abc.123.zarr')
@@ -221,3 +237,11 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         granule.url = 'https://example.com/fake-path/abc.123_VarA_regridded_subsetted.zarr'
         self.assertEqual(adapter.filename_for_granule(granule, ext, is_variable_subset=True, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
 
+    @patch('urllib.request.urlopen')
+    @patch.dict(os.environ, { 'ENV' : 'not_test_we_swear' })
+    def test_cancel_request(self, urlopen):
+        adapter = TestAdapter(minimal_message)
+        urlopen.side_effect = MockHTTPError(url='http://example.com', code=409, msg='Harmony canceled request', hdrs=[], fp=None)
+        self.assertRaises(CanceledException, adapter.async_add_url_partial_result, 'https://example.com/2')
+        self.assertTrue(adapter.is_canceled)
+        self.assertTrue(adapter.is_complete)
