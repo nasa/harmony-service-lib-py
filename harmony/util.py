@@ -357,7 +357,6 @@ def receive_messages(queue_url, visibility_timeout_s=600, logger=default_logger)
 
         if 'HEALTH_CHECK_PATH' in environ:
             # touch the health.txt file to update its timestamp
-            logger.info('Touching health check file ' + environ.get('HEALTH_CHECK_PATH'))
             Path(environ.get('HEALTH_CHECK_PATH')).touch()
 
         if len(messages) == 1:
