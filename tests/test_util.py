@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock, mock_open
 import os
 import boto3
-from pathlib import Path
+import pathlib
 from harmony import util
 from tests.test_cli import MockAdapter, cli_test
 from tests.util import mock_receive
@@ -94,8 +94,22 @@ class TestS3Parameters(unittest.TestCase):
 class TestSQSReadHealthUpdate(unittest.TestCase):
     @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
     @patch('boto3.client')
-    @patch('pathlib.Path', autospec=True)
-    def test_when_reading_from_queue_succeeds_health_update_happens(self, parser, client, mock_path):
-        path_instance = mock_path.return_value
-        mock_receive(client, parser, MockAdapter, '{"test": "a"}', None, '{"test": "b"}')
-        path_instance.assert_called()
+    @patch.object(pathlib.Path, '__new__')
+    def test_when_reading_from_queue_health_update_happens(self, parser, mock_path, client):
+        all_test_cases = [
+            # message received
+            ['{"test": "a"}'],
+
+            # no message received
+            [None],
+
+            # error receiving message
+            [Exception()] 
+        ]
+        for messages in all_test_cases:
+            with self.subTest(messages=messages):
+                try:
+                    mock_receive(client, parser, MockAdapter, *messages)
+                except Exception:
+                    pass
+                mock_path.return_value.touch.assert_called()

@@ -352,10 +352,10 @@ def receive_messages(queue_url, visibility_timeout_s=600, logger=default_logger)
             WaitTimeSeconds=20,
             MaxNumberOfMessages=1
         )
+        touch_health_check_file()
         response = sqs.receive_message(**receive_params)
         messages = response.get('Messages') or []
 
-        touch_health_check_file()
 
         if len(messages) == 1:
             yield (messages[0]['ReceiptHandle'], messages[0]['Body'])

@@ -3,6 +3,7 @@ from unittest.mock import patch, Mock, MagicMock
 from tempfile import NamedTemporaryFile, mkdtemp
 import os
 from os import path, remove
+import pathlib
 from shutil import rmtree
 from urllib.error import HTTPError
 import urllib
@@ -245,3 +246,12 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         self.assertRaises(CanceledException, adapter.async_add_url_partial_result, 'https://example.com/2')
         self.assertTrue(adapter.is_canceled)
         self.assertTrue(adapter.is_complete)
+
+class TestCallbackPostHealthUpdate(unittest.TestCase):
+    @patch.object(pathlib.Path, '__new__')
+    def test_callback_post_updates_health_check_file(self, mock_path):
+        adapter = TestAdapter(full_message)
+        # adapter.completed_with_error('ohai there')
+        adapter._callback_post('fake_path')
+        mock_path.return_value.touch.assert_called()
+
