@@ -1,10 +1,8 @@
 import unittest
-import sys
 import argparse
 from unittest.mock import patch, MagicMock
 
 from harmony import cli
-
 
 def mock_receive(client, parser, AdapterClass, *messages):
     """

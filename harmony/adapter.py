@@ -14,7 +14,6 @@ import urllib
 import logging
 
 from abc import ABC, abstractmethod
-from pathlib import Path
 from tempfile import mkdtemp
 
 from . import util
