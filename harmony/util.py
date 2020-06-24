@@ -355,9 +355,7 @@ def receive_messages(queue_url, visibility_timeout_s=600, logger=default_logger)
         response = sqs.receive_message(**receive_params)
         messages = response.get('Messages') or []
 
-        if 'HEALTH_CHECK_PATH' in environ:
-            # touch the health.txt file to update its timestamp
-            Path(environ.get('HEALTH_CHECK_PATH')).touch()
+        touch_health_check_file()
 
         if len(messages) == 1:
             yield (messages[0]['ReceiptHandle'], messages[0]['Body'])
@@ -398,3 +396,11 @@ def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s):
         QueueUrl=queue_url,
         ReceiptHandle=receipt_handle,
         VisibilityTimeout=visibility_timeout_s)
+
+def touch_health_check_file():
+    """
+    Updates the mtime of the health check file
+    """
+    healthCheckPath = environ.get('HEALTH_CHECK_PATH') or '/tmp/health.txt'
+    # touch the health.txt file to update its timestamp
+    Path(healthCheckPath).touch()

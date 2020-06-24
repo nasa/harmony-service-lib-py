@@ -2,7 +2,10 @@ import unittest
 from unittest.mock import patch, MagicMock, mock_open
 import os
 import boto3
+from pathlib import Path
 from harmony import util
+from tests.test_cli import MockAdapter, cli_test
+from tests.util import mock_receive
 
 class TestDownload(unittest.TestCase):
     def setUp(self):
@@ -87,3 +90,12 @@ class TestS3Parameters(unittest.TestCase):
         actual = util._aws_parameters(use_localstack, localstack_host, region)
 
         self.assertDictEqual(expected, actual)
+
+class TestSQSReadHealthUpdate(unittest.TestCase):
+    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
+    @patch('boto3.client')
+    @patch('pathlib.Path', autospec=True)
+    def test_when_reading_from_queue_succeeds_health_update_happens(self, parser, client, mock_path):
+        path_instance = mock_path.return_value
+        mock_receive(client, parser, MockAdapter, '{"test": "a"}', None, '{"test": "b"}')
+        path_instance.assert_called()
