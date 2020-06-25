@@ -399,6 +399,6 @@ def touch_health_check_file():
     """
     Updates the mtime of the health check file
     """
-    healthCheckPath = environ.get('HEALTH_CHECK_PATH') or '/tmp/health.txt'
+    healthCheckPath = environ.get('HEALTH_CHECK_PATH', '/tmp/health.txt')
     # touch the health.txt file to update its timestamp
     Path(healthCheckPath).touch()
