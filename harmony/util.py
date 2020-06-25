@@ -31,6 +31,7 @@ import logging
 from datetime import datetime
 from pythonjsonlogger import jsonlogger
 from http.cookiejar import CookieJar
+from pathlib import Path
 from urllib import request
 from os import environ, path
 
@@ -351,6 +352,7 @@ def receive_messages(queue_url, visibility_timeout_s=600, logger=default_logger)
             WaitTimeSeconds=20,
             MaxNumberOfMessages=1
         )
+        touch_health_check_file()
         response = sqs.receive_message(**receive_params)
         messages = response.get('Messages') or []
         if len(messages) == 1:
@@ -392,3 +394,11 @@ def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s):
         QueueUrl=queue_url,
         ReceiptHandle=receipt_handle,
         VisibilityTimeout=visibility_timeout_s)
+
+def touch_health_check_file():
+    """
+    Updates the mtime of the health check file
+    """
+    healthCheckPath = environ.get('HEALTH_CHECK_PATH', '/tmp/health.txt')
+    # touch the health.txt file to update its timestamp
+    Path(healthCheckPath).touch()

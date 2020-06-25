@@ -17,7 +17,7 @@ from abc import ABC, abstractmethod
 from tempfile import mkdtemp
 
 from . import util
-from harmony.util import CanceledException
+from harmony.util import CanceledException, touch_health_check_file
 
 class BaseHarmonyAdapter(ABC):
     """
@@ -419,6 +419,7 @@ class BaseHarmonyAdapter(ABC):
         """
 
         url = self.message.callback + path
+        touch_health_check_file()
         if os.environ.get('ENV') in ['dev', 'test']:
             self.logger.warning('ENV=' + os.environ['ENV'] + ' so we will not reply to Harmony with POST ' + url)
         elif self.is_canceled:
