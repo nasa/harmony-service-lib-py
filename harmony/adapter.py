@@ -38,6 +38,12 @@ class BaseHarmonyAdapter(ABC):
     is_complete : boolean
         True if the service has provided a result to Harmony (and therefore must
         not provide another)
+    is_canceled: boolean
+        True if the request has been canceled by a Harmony user or operator
+    logger: Logger
+        Logger specific to this request
+    exit_code: int
+        The exit code for the process
     """
     def __init__(self, message):
         """
@@ -52,8 +58,8 @@ class BaseHarmonyAdapter(ABC):
         self.temp_paths = []
         self.is_complete = False
         self.is_canceled = False
-
         self.logger = logging.LoggerAdapter(util.default_logger, { 'user': message.user, 'requestId': message.requestId })
+        self.exit_code = 0
 
     @abstractmethod
     def invoke(self):
@@ -159,6 +165,7 @@ class BaseHarmonyAdapter(ABC):
         Exception
             If a callback has already been performed
         """
+        self.exit_code = 1
         if self.is_complete and not self.is_canceled:
             raise Exception('Attempted to error an already-complete service call with message ' + error_message)
         self._callback_post('/response?error=%s' % (urllib.parse.quote(error_message)))
@@ -432,6 +439,7 @@ class BaseHarmonyAdapter(ABC):
                 self.logger.info('Remote response: %s', response)
                 self.logger.info('Completed response: %s', url)
             except Exception as e:
+                self.exit_code = 1
                 body = e.read().decode()
                 self.logger.error('Harmony returned an error when updating the job: ' + body)
                 if e.code == 409:

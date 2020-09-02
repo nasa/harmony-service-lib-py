@@ -39,6 +39,10 @@ class CanceledException(Exception):
     """Class for throwing an exception indicating a Harmony request has been canceled"""
     pass
 
+class ForbiddenException(Exception):
+    """Class for throwing an exception indicating download failed due to not being able to access the data"""
+    pass
+
 def get_env(name):
     """
     Returns the environment variable with the given name, or None if none exists.  Removes quotes
@@ -242,14 +246,24 @@ def download(url, destination_dir, logger=default_logger):
     def download_from_http(url, destination):
         _setup_networking()
         # Open the url
-        f = request.urlopen(url)
-        logger.info('Downloading %s', url)
+        try:
+            logger.info('Downloading %s', url)
+            f = request.urlopen(url)
 
-        with open(destination, 'wb') as local_file:
-            local_file.write(f.read())
+            with open(destination, 'wb') as local_file:
+                local_file.write(f.read())
 
-        logger.info('Completed %s', url)
-        return destination
+            logger.info('Completed %s', url)
+            return destination
+        except Exception as e:
+            code = e.getcode()
+            logger.error('Download failed with status code: ' + str(code))
+            body = e.read().decode()
+            logger.error('Failed to download URL:' + body)
+            if (code == 401 or code == 403):
+              raise ForbiddenException(body)
+            else:
+              raise e
 
     basename = hashlib.sha256(url.encode('utf-8')).hexdigest()
     ext = path.basename(url).split('?')[0].split('.')[-1]

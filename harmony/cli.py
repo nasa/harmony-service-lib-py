@@ -9,7 +9,7 @@ Parses CLI arguments provided by Harmony and invokes the subsetter accordingly
 import sys
 import logging
 from harmony.message import Message
-from harmony.util import CanceledException, receive_messages, delete_message, change_message_visibility, setup_stdout_log_formatting
+from harmony.util import CanceledException, ForbiddenException, receive_messages, delete_message, change_message_visibility, setup_stdout_log_formatting
 
 def setup_cli(parser):
     """
@@ -71,15 +71,18 @@ def _invoke(AdapterClass, message_string):
             adapter.completed_with_error('The backend service did not respond')
     except CanceledException:
         # If we see the request has been canceled do not try calling back to harmony again
-        pass
         # Enable this logging after fixing HARMONY-410
         # logging.error('Service request canceled by Harmony, exiting')
+        pass
+    except ForbiddenException as e:
+        if not adapter.is_complete:
+            adapter.completed_with_error(str(e))
     except:
         # Make sure we always call back if the error is in a Harmony invocation and we have
         # successfully parsed enough that we know where to call back to
         if not adapter.is_complete:
             adapter.completed_with_error('Service request failed with an unknown error')
-        raise
+    return adapter.exit_code
 
 def _start(AdapterClass, queue_url, visibility_timeout_s):
     """
@@ -133,7 +136,9 @@ def run_cli(parser, args, AdapterClass):
         if not bool(args.harmony_input):
             parser.error('--harmony-input must be provided for --harmony-action=invoke')
         else:
-            return _invoke(AdapterClass, args.harmony_input)
+            exit_code = _invoke(AdapterClass, args.harmony_input)
+            if exit_code > 0:
+                raise
 
     if args.harmony_action == 'start':
         if not bool(args.harmony_queue_url):

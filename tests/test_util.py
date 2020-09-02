@@ -3,9 +3,17 @@ from unittest.mock import patch, MagicMock, mock_open
 import os
 import boto3
 import pathlib
+from urllib.error import HTTPError
 from harmony import util
 from tests.test_cli import MockAdapter, cli_test
 from tests.util import mock_receive
+
+class MockHTTPError(HTTPError):
+    def __init__(self, url='http://example.com', code=500, msg='Internal server error', hdrs=[], fp=None):
+        super().__init__(url, code, msg, hdrs, fp)
+
+    def read(self):
+        return MagicMock(return_value='request body')
 
 class TestDownload(unittest.TestCase):
     def setUp(self):
@@ -36,6 +44,31 @@ class TestDownload(unittest.TestCase):
 
     def test_when_given_a_file_path_it_returns_the_file_path(self):
         self.assertEqual(util.download('example/file.txt', 'tmp'), 'example/file.txt')
+
+    @patch('urllib.request.urlopen')
+    def test_when_the_url_returns_a_401_it_throws_a_forbidden_exception(self, urlopen):
+        url = 'https://example.com/file.txt'
+        urlopen.side_effect = MockHTTPError(url=url, code=401)
+        self.assertRaises(util.ForbiddenException, util.download, url, 'tmp')
+
+    @patch('urllib.request.urlopen')
+    def test_when_the_url_returns_a_403_it_throws_a_forbidden_exception(self, urlopen):
+        url = 'https://example.com/file.txt'
+        urlopen.side_effect = MockHTTPError(url=url, code=403)
+        self.assertRaises(util.ForbiddenException, util.download, url, 'tmp')
+
+    @patch('urllib.request.urlopen')
+    def test_when_the_url_returns_a_500_it_does_not_raise_a_forbidden_exception(self, urlopen):
+        url = 'https://example.com/file.txt'
+        urlopen.side_effect = MockHTTPError(url=url, code=500)
+        try:
+          util.download(url, 'tmp')
+          self.fail('An exception should have been raised')
+        except util.ForbiddenException:
+          self.fail('ForbiddenException raised when it should not have')
+        except Exception:
+          pass
+
 
 class TestStage(unittest.TestCase):
     @patch('boto3.client')
@@ -104,7 +137,7 @@ class TestSQSReadHealthUpdate(unittest.TestCase):
             [None],
 
             # error receiving message
-            [Exception()] 
+            [Exception()]
         ]
         for messages in all_test_cases:
             with self.subTest(messages=messages):
