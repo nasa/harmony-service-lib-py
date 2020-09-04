@@ -82,7 +82,7 @@ def _invoke(AdapterClass, message_string):
         # successfully parsed enough that we know where to call back to
         if not adapter.is_complete:
             adapter.completed_with_error('Service request failed with an unknown error')
-    return adapter.exit_code
+    return adapter.is_failed
 
 def _start(AdapterClass, queue_url, visibility_timeout_s):
     """
@@ -136,8 +136,8 @@ def run_cli(parser, args, AdapterClass):
         if not bool(args.harmony_input):
             parser.error('--harmony-input must be provided for --harmony-action=invoke')
         else:
-            exit_code = _invoke(AdapterClass, args.harmony_input)
-            if exit_code > 0:
+            is_failed = _invoke(AdapterClass, args.harmony_input)
+            if is_failed == True:
                 raise
 
     if args.harmony_action == 'start':
