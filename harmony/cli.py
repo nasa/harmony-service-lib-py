@@ -138,7 +138,7 @@ def run_cli(parser, args, AdapterClass):
         else:
             is_failed = _invoke(AdapterClass, args.harmony_input)
             if is_failed == True:
-                raise
+                raise Exception('Service operation failed')
 
     if args.harmony_action == 'start':
         if not bool(args.harmony_queue_url):
