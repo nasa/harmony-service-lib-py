@@ -9,7 +9,7 @@ Parses CLI arguments provided by Harmony and invokes the subsetter accordingly
 import sys
 import logging
 from harmony.message import Message
-from harmony.util import CanceledException, ForbiddenException, receive_messages, delete_message, change_message_visibility, setup_stdout_log_formatting
+from harmony.util import CanceledException, HarmonyException, receive_messages, delete_message, change_message_visibility, setup_stdout_log_formatting
 
 def setup_cli(parser):
     """
@@ -62,6 +62,9 @@ def _invoke(AdapterClass, message_string):
         The BaseHarmonyAdapter subclass to use to handle service invocations
     message_string : string
         The Harmony input message
+    Returns
+    -------
+    True if the operation completed successfully, False otherwise
     """
 
     adapter = AdapterClass(Message(message_string))
@@ -74,7 +77,7 @@ def _invoke(AdapterClass, message_string):
         # Enable this logging after fixing HARMONY-410
         # logging.error('Service request canceled by Harmony, exiting')
         pass
-    except ForbiddenException as e:
+    except HarmonyException as e:
         if not adapter.is_complete:
             adapter.completed_with_error(str(e))
     except:
@@ -82,7 +85,7 @@ def _invoke(AdapterClass, message_string):
         # successfully parsed enough that we know where to call back to
         if not adapter.is_complete:
             adapter.completed_with_error('Service request failed with an unknown error')
-    return adapter.is_failed
+    return not adapter.is_failed
 
 def _start(AdapterClass, queue_url, visibility_timeout_s):
     """
@@ -136,8 +139,8 @@ def run_cli(parser, args, AdapterClass):
         if not bool(args.harmony_input):
             parser.error('--harmony-input must be provided for --harmony-action=invoke')
         else:
-            is_failed = _invoke(AdapterClass, args.harmony_input)
-            if is_failed == True:
+            successful = _invoke(AdapterClass, args.harmony_input)
+            if not successful:
                 raise Exception('Service operation failed')
 
     if args.harmony_action == 'start':

@@ -8,12 +8,20 @@ from harmony import util
 from tests.test_cli import MockAdapter, cli_test
 from tests.util import mock_receive
 
+class MockDecode():
+  def __init__(self, msg):
+    self.message = msg
+
+  def decode(self):
+    return self.message
+
 class MockHTTPError(HTTPError):
     def __init__(self, url='http://example.com', code=500, msg='Internal server error', hdrs=[], fp=None):
         super().__init__(url, code, msg, hdrs, fp)
+        self.message = msg
 
     def read(self):
-        return MagicMock(return_value='request body')
+        return MockDecode(self.message)
 
 class TestDownload(unittest.TestCase):
     def setUp(self):
@@ -48,17 +56,32 @@ class TestDownload(unittest.TestCase):
     @patch('urllib.request.urlopen')
     def test_when_the_url_returns_a_401_it_throws_a_forbidden_exception(self, urlopen):
         url = 'https://example.com/file.txt'
-        urlopen.side_effect = MockHTTPError(url=url, code=401)
-        self.assertRaises(util.ForbiddenException, util.download, url, 'tmp')
+        urlopen.side_effect = MockHTTPError(url=url, code=401, msg='Forbidden 401 message')
+        with self.assertRaises(util.ForbiddenException) as cm:
+          util.download(url, 'tmp')
+          self.fail('An exception should have been raised')
+        self.assertEqual(str(cm.exception), 'Forbidden 401 message')
 
     @patch('urllib.request.urlopen')
     def test_when_the_url_returns_a_403_it_throws_a_forbidden_exception(self, urlopen):
         url = 'https://example.com/file.txt'
-        urlopen.side_effect = MockHTTPError(url=url, code=403)
-        self.assertRaises(util.ForbiddenException, util.download, url, 'tmp')
+        urlopen.side_effect = MockHTTPError(url=url, code=403, msg='Forbidden 403 message')
+        with self.assertRaises(util.ForbiddenException) as cm:
+          util.download(url, 'tmp')
+          self.fail('An exception should have been raised')
+        self.assertEqual(str(cm.exception), 'Forbidden 403 message')
 
     @patch('urllib.request.urlopen')
-    def test_when_the_url_returns_a_500_it_does_not_raise_a_forbidden_exception(self, urlopen):
+    def test_when_the_url_returns_a_eula_error_it_returns_a_human_readable_message(self, urlopen):
+        url = 'https://example.com/file.txt'
+        urlopen.side_effect = MockHTTPError(url=url, code=403, msg='{"status_code":403,"error_description":"EULA Acceptance Failure","resolution_url":"https://example.com/approve_app?client_id=foo"}')
+        with self.assertRaises(util.ForbiddenException) as cm:
+          util.download(url, 'tmp')
+          self.fail('An exception should have been raised')
+        self.assertEqual(str(cm.exception), 'Request could not be completed because you need to agree to the EULA at https://example.com/approve_app?client_id=foo')
+
+    @patch('urllib.request.urlopen')
+    def test_when_the_url_returns_a_500_it_does_not_raise_a_forbidden_exception_and_does_not_return_details_to_user(self, urlopen):
         url = 'https://example.com/file.txt'
         urlopen.side_effect = MockHTTPError(url=url, code=500)
         try:

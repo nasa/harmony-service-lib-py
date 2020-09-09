@@ -28,6 +28,7 @@ import sys
 import boto3
 import hashlib
 import logging
+import json
 from datetime import datetime
 from pythonjsonlogger import jsonlogger
 from http.cookiejar import CookieJar
@@ -275,9 +276,18 @@ def download(url, destination_dir, logger=default_logger):
             code = e.getcode()
             logger.error('Download failed with status code: ' + str(code))
             body = e.read().decode()
+
             logger.error('Failed to download URL:' + body)
             if (code == 401 or code == 403):
-              raise ForbiddenException(body)
+                try:
+                    # Try to determine if this is a EULA error
+                    json_object = json.loads(body)
+                    eula_error = "error_description" in json_object and "resolution_url" in json_object
+                    if eula_error:
+                        body = 'Request could not be completed because you need to agree to the EULA at ' + json_object['resolution_url']
+                except:
+                    pass
+                raise ForbiddenException(body)
             else:
               raise e
 
