@@ -28,6 +28,7 @@ import sys
 import boto3
 import hashlib
 import logging
+import json
 from datetime import datetime
 from pythonjsonlogger import jsonlogger
 from http.cookiejar import CookieJar
@@ -35,9 +36,29 @@ from pathlib import Path
 from urllib import request
 from os import environ, path
 
-class CanceledException(Exception):
+class HarmonyException(Exception):
+    """Base class for Harmony exceptions.
+
+    Attributes
+    ----------
+    message : string
+        Explanation of the error
+    category : string
+        Classification of the type of harmony error
+    """
+    def __init__(self, message, category):
+        self.message = message
+        self.category = category
+
+class CanceledException(HarmonyException):
     """Class for throwing an exception indicating a Harmony request has been canceled"""
-    pass
+    def __init__(self, message=None):
+        super().__init__(message, 'Canceled')
+
+class ForbiddenException(HarmonyException):
+    """Class for throwing an exception indicating download failed due to not being able to access the data"""
+    def __init__(self, message=None):
+        super().__init__(message, 'Forbidden')
 
 def get_env(name):
     """
@@ -242,14 +263,33 @@ def download(url, destination_dir, logger=default_logger):
     def download_from_http(url, destination):
         _setup_networking()
         # Open the url
-        f = request.urlopen(url)
-        logger.info('Downloading %s', url)
+        try:
+            logger.info('Downloading %s', url)
+            f = request.urlopen(url)
 
-        with open(destination, 'wb') as local_file:
-            local_file.write(f.read())
+            with open(destination, 'wb') as local_file:
+                local_file.write(f.read())
 
-        logger.info('Completed %s', url)
-        return destination
+            logger.info('Completed %s', url)
+            return destination
+        except Exception as e:
+            code = e.getcode()
+            logger.error('Download failed with status code: ' + str(code))
+            body = e.read().decode()
+
+            logger.error('Failed to download URL:' + body)
+            if (code == 401 or code == 403):
+                try:
+                    # Try to determine if this is a EULA error
+                    json_object = json.loads(body)
+                    eula_error = "error_description" in json_object and "resolution_url" in json_object
+                    if eula_error:
+                        body = 'Request could not be completed because you need to agree to the EULA at ' + json_object['resolution_url']
+                except:
+                    pass
+                raise ForbiddenException(body)
+            else:
+              raise e
 
     basename = hashlib.sha256(url.encode('utf-8')).hexdigest()
     ext = path.basename(url).split('?')[0].split('.')[-1]

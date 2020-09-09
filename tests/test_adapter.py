@@ -246,6 +246,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         self.assertRaises(CanceledException, adapter.async_add_url_partial_result, 'https://example.com/2')
         self.assertTrue(adapter.is_canceled)
         self.assertTrue(adapter.is_complete)
+        self.assertEqual(adapter.is_failed, 1)
 
 class TestCallbackPostHealthUpdate(unittest.TestCase):
     @patch.object(pathlib.Path, '__new__')

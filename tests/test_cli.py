@@ -34,6 +34,7 @@ class MockAdapter(BaseHarmonyAdapter):
 
     def invoke(self):
         self.is_complete = True
+        self.is_failed = False
 
     def completed_with_error(self, error):
         MockAdapter.errors.append(error)
