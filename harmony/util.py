@@ -24,20 +24,26 @@ Optional when reading from or staging to S3:
     USE_LOCALSTACK: 'true' if the S3 client should connect to a LocalStack instance instead of Amazon S3 (for testing)
 """
 
-import sys
-import boto3
-import hashlib
-import logging
+from base64 import b64decode
 from datetime import datetime
-from pythonjsonlogger import jsonlogger
+import hashlib
 from http.cookiejar import CookieJar
-from pathlib import Path
-from urllib import request
+import logging
 from os import environ, path
+from pathlib import Path
+import sys
+from urllib.request import (build_opener, install_opener, urlopen, Request,
+                            HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm, HTTPCookieProcessor, HTTPSHandler)
+
+import boto3
+from pythonjsonlogger import jsonlogger
+from nacl.secret import SecretBox
+
 
 class CanceledException(Exception):
     """Class for throwing an exception indicating a Harmony request has been canceled"""
     pass
+
 
 def get_env(name):
     """
@@ -61,20 +67,25 @@ def get_env(name):
         return value[1:-1].replace('\\"', '"')
     return value
 
+
 def _use_localstack():
     """True when when running locally; influences how URLs are structured
     and how S3 is accessed.
     """
     return get_env('USE_LOCALSTACK') == 'true'
 
+
 def _backend_host():
     return get_env('BACKEND_HOST') or 'localhost'
+
 
 def _localstack_host():
     return get_env('LOCALSTACK_HOST') or _backend_host()
 
+
 def _region():
     return get_env('AWS_DEFAULT_REGION') or 'us-west-2'
+
 
 def _aws_parameters(use_localstack, localstack_host, region):
     if use_localstack:
@@ -90,11 +101,14 @@ def _aws_parameters(use_localstack, localstack_host, region):
             'region_name': region
         }
 
+
 REGION = get_env('AWS_DEFAULT_REGION') or 'us-west-2'
+
 
 class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict):
-        super(HarmonyJsonFormatter, self).add_fields(log_record, record, message_dict)
+        super(HarmonyJsonFormatter, self).add_fields(
+            log_record, record, message_dict)
         if not log_record.get('timestamp'):
             now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
             log_record['timestamp'] = now
@@ -104,6 +118,7 @@ class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
             log_record['level'] = record.levelname
         if not log_record.get('application'):
             log_record['application'] = get_env('APP_NAME') or sys.argv[0]
+
 
 def build_logger():
     """
@@ -122,7 +137,8 @@ def build_logger():
     syslog = logging.StreamHandler()
     text_formatter = get_env('TEXT_LOGGER') == 'true'
     if text_formatter:
-        formatter = logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s.%(funcName)s:%(lineno)d] [%(user)s] %(message)s")
+        formatter = logging.Formatter(
+            "%(asctime)s [%(levelname)s] [%(name)s.%(funcName)s:%(lineno)d] [%(user)s] %(message)s")
     else:
         formatter = HarmonyJsonFormatter()
     syslog.setFormatter(formatter)
@@ -131,7 +147,9 @@ def build_logger():
     logger.propagate = False
     return logger
 
-default_logger=build_logger()
+
+default_logger = build_logger()
+
 
 def setup_stdout_log_formatting():
     """
@@ -160,6 +178,7 @@ def setup_stdout_log_formatting():
     sys.stdout = StreamToLogger(default_logger, logging.INFO)
     sys.stderr = StreamToLogger(default_logger, logging.ERROR)
 
+
 def _get_aws_client(service):
     """
     Returns a boto3 client for accessing the provided service.  Accesses the service in us-west-2
@@ -176,13 +195,15 @@ def _get_aws_client(service):
     s3_client : boto3.*.Client
         A client appropriate for accessing the provided service
     """
-    service_params = _aws_parameters(_use_localstack(), _localstack_host(), _region())
+    service_params = _aws_parameters(
+        _use_localstack(), _localstack_host(), _region())
     return boto3.client(service, **service_params)
 
-def _setup_networking(logger=default_logger):
+
+def _create_basic_auth_opener(logger=default_logger, accessToken=None):
     """
-    Sets up HTTP(S) cookies and basic auth so that HTTP calls using urllib.request will
-    use Earthdata Login (EDL) auth as appropriate.  Will allow Earthdata login auth only if
+    Creates an OpenerDirector that will use HTTP(S) cookies and basic auth to open a URL
+    using Earthdata Login (EDL) auth credentials.  Will use Earthdata Login creds only if
     the following environment variables are set and will print a warning if they are not:
 
     EDL_USERNAME: The username to be passed to Earthdata Login when challenged
@@ -190,35 +211,65 @@ def _setup_networking(logger=default_logger):
 
     Returns
     -------
-    None
+    opener : urllib.request.OpenerDirector
+        An OpenerDirector that can be used to to open a URL using the EDL credentials, if
+        they are available.
     """
     try:
-        manager = request.HTTPPasswordMgrWithDefaultRealm()
-        edl_endpoints = ['https://sit.urs.earthdata.nasa.gov', 'https://uat.urs.earthdata.nasa.gov', 'https://urs.earthdata.nasa.gov']
+        manager = HTTPPasswordMgrWithDefaultRealm()
+        edl_endpoints = ['https://sit.urs.earthdata.nasa.gov',
+                         'https://uat.urs.earthdata.nasa.gov', 'https://urs.earthdata.nasa.gov']
         for endpoint in edl_endpoints:
-            manager.add_password(None, endpoint, get_env('EDL_USERNAME'), get_env('EDL_PASSWORD'))
-        auth = request.HTTPBasicAuthHandler(manager)
+            manager.add_password(None, endpoint,
+                                 get_env('EDL_USERNAME'), get_env('EDL_PASSWORD'))
 
-        jar = CookieJar()
-        processor = request.HTTPCookieProcessor(jar)
-        opener = request.build_opener(auth, processor)
-        request.install_opener(opener)
+        auth = HTTPBasicAuthHandler(manager)
+        processor = HTTPCookieProcessor(CookieJar())
+
+        return build_opener(auth, processor)
     except KeyError:
         logger.warn('Earthdata Login environment variables EDL_USERNAME and EDL_PASSWORD must be set up for authenticated downloads.  Requests will be unauthenticated.')
+        return build_opener()
 
-def download(url, destination_dir, logger=default_logger):
+
+def _bearer_token_auth_header(accessToken):
+    """Returns a dictionary representing an HTTP Authorization header.
+
+    Conforms to RFC 6750: The OAuth 2.0 Authorization Framework: Bearer Token Usage
+    See: https://tools.ietf.org/html/rfc6750
+
+    Parameters
+    ----------
+    accessToken : string
+        The Earthdata Login token for the user making the request.
+
+    Returns
+    -------
+    authorization token : dict
+        A dictionary with the Authorization header key and Bearer token.
+    """
+    return {
+        'Authorization': f'Bearer {accessToken}'
+    }
+
+
+def download(url, destination_dir, logger=default_logger, accessToken=None):
     """
     Downloads the given URL to the given destination directory, using the basename of the URL
     as the filename in the destination directory.  Supports http://, https:// and s3:// schemes.
     When using the s3:// scheme, will run against us-west-2 unless the "AWS_DEFAULT_REGION"
-    environment variable is set. When using http:// or https:// schemes, expects the following
-    environment variables or will print a warning:
+    environment variable is set.
 
-    EDL_USERNAME: The username to be passed to Earthdata Login when challenged
-    EDL_PASSWORD: The password to be passed to Earthdata Login when challenged
+    When using http:// or https:// schemes, the accessToken will be used for authentication
+    if it is provided. If authentication with the accessToken fails, or if the accessToken
+    is not provided, the following environment variables will be used to authenticate
+    when downloading the data:
 
-    Note: The EDL environment variables are likely to be replaced by a token passed by the message
-        in the future
+      EDL_USERNAME: The username to be passed to Earthdata Login when challenged
+      EDL_PASSWORD: The password to be passed to Earthdata Login when challenged
+
+    If these are not provided, unauthenticated requests will be made to download the data,
+    with a warning message in the logs.
 
     Parameters
     ----------
@@ -226,6 +277,10 @@ def download(url, destination_dir, logger=default_logger):
         The URL to fetch
     destination_dir : string
         The directory in which to place the downloaded file
+    logger : Logger
+        A logger to which the function will write, if provided
+    accessToken :
+        The Earthdata Login token of the caller to use for downloads
 
     Returns
     -------
@@ -240,15 +295,26 @@ def download(url, destination_dir, logger=default_logger):
         return destination
 
     def download_from_http(url, destination):
-        _setup_networking()
-        # Open the url
-        f = request.urlopen(url)
         logger.info('Downloading %s', url)
 
+        response = None
+        if accessToken is not None:
+            headers = _bearer_token_auth_header(accessToken)
+            response = urlopen(Request(url, headers))
+
+        if accessToken is None or response.status != 200:
+            opener = _create_basic_auth_opener(logger)
+            response = opener.open(url)
+
+        if response is None or response.status != 200:
+            logger.error('Unable to download granule')
+            return None
+
         with open(destination, 'wb') as local_file:
-            local_file.write(f.read())
+            local_file.write(response.read())
 
         logger.info('Completed %s', url)
+
         return destination
 
     basename = hashlib.sha256(url.encode('utf-8')).hexdigest()
@@ -256,6 +322,9 @@ def download(url, destination_dir, logger=default_logger):
 
     filename = basename + '.' + ext
     destination = path.join(destination_dir, filename)
+    # Don't overwrite, as this can be called many times for a granule
+    if path.exists(destination):
+        return destination
 
     url = url.replace('//localhost', _localstack_host())
 
@@ -263,10 +332,6 @@ def download(url, destination_dir, logger=default_logger):
     url = url.replace('file://', '')
     if not url.startswith('http') and not url.startswith('s3'):
         return url
-
-    # Don't overwrite, as this can be called many times for a granule
-    if path.exists(destination):
-        return destination
 
     if url.startswith('s3'):
         return download_from_s3(url, destination)
@@ -315,14 +380,16 @@ def stage(local_filename, remote_filename, mime, logger=default_logger, location
         key = staging_path + remote_filename
 
     if get_env('ENV') in ['dev', 'test'] and not _use_localstack():
-        logger.warn("ENV=" + get_env('ENV') + " and not using localstack, so we will not stage " + local_filename + " to " + key)
+        logger.warn("ENV=" + get_env('ENV') +
+                    " and not using localstack, so we will not stage " + local_filename + " to " + key)
         return "http://example.com/" + key
 
     s3 = _get_aws_client('s3')
     s3.upload_file(local_filename, staging_bucket, key,
-                ExtraArgs={'ContentType': mime})
+                   ExtraArgs={'ContentType': mime})
 
     return 's3://%s/%s' % (staging_bucket, key)
+
 
 def receive_messages(queue_url, visibility_timeout_s=600, logger=default_logger):
     """
@@ -360,6 +427,7 @@ def receive_messages(queue_url, visibility_timeout_s=600, logger=default_logger)
         else:
             logger.info('No messages received.  Retrying.')
 
+
 def delete_message(queue_url, receipt_handle):
     """
     Deletes the message with the given receipt handle from the provided queue URL,
@@ -374,6 +442,7 @@ def delete_message(queue_url, receipt_handle):
     """
     sqs = _get_aws_client('sqs')
     sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
+
 
 def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s):
     """
@@ -395,6 +464,7 @@ def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s):
         ReceiptHandle=receipt_handle,
         VisibilityTimeout=visibility_timeout_s)
 
+
 def touch_health_check_file():
     """
     Updates the mtime of the health check file
@@ -402,3 +472,20 @@ def touch_health_check_file():
     healthCheckPath = environ.get('HEALTH_CHECK_PATH', '/tmp/health.txt')
     # touch the health.txt file to update its timestamp
     Path(healthCheckPath).touch()
+
+
+def create_decrypter(key=b'BAD KEY'):
+    box = SecretBox(key)
+
+    def decrypter(encrypted_msg_str):
+        parts = encrypted_msg_str.split(':')
+        nonce = b64decode(parts[0])
+        ciphertext = b64decode(parts[1])
+
+        return box.decrypt(ciphertext, nonce)
+
+    return decrypter
+
+
+def nop_decrypter(cyphertext):
+    return cyphertext

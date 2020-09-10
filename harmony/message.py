@@ -11,6 +11,7 @@ from the message JSON.
 import hashlib
 import json
 
+
 class JsonObject(object):
     """
     Base class for deserialized Harmony message objects
@@ -61,11 +62,13 @@ class JsonObject(object):
         try:
             spaces = '    ' * JsonObject.reprdepth
             result += '<' + self.__class__.__name__ + '\n'
-            result += '\n'.join(["%s%s = %s" % (spaces, p, repr(getattr(self, p))) for p in self.properties])
+            result += '\n'.join(["%s%s = %s" % (spaces, p,
+                                                repr(getattr(self, p))) for p in self.properties])
             result += '>'
         finally:
             JsonObject.reprdepth -= 1
         return result
+
 
 class Source(JsonObject):
     """
@@ -81,6 +84,7 @@ class Source(JsonObject):
     granules : list
         A list of Granule objects for the granules which should be operated on
     """
+
     def __init__(self, message_data):
         """
         Constructor
@@ -91,12 +95,14 @@ class Source(JsonObject):
             The Harmony message "sources" item to deserialize
         """
         super().__init__(message_data,
-            properties=['collection'],
-            list_properties={'variables': Variable, 'granules': Granule}
-        )
+                         properties=['collection'],
+                         list_properties={
+                             'variables': Variable, 'granules': Granule}
+                         )
         for granule in self.granules:
             granule.collection = self.collection
             granule.variables = self.variables
+
 
 class Variable(JsonObject):
     """
@@ -111,6 +117,7 @@ class Variable(JsonObject):
     fullPath : string
          The variable's absolute path within the file, including hierarchy.  Derived from UMM-Var group path combined with name.
     """
+
     def __init__(self, message_data):
         """
         Constructor
@@ -121,6 +128,7 @@ class Variable(JsonObject):
             The Harmony message "variables" item to deserialize
         """
         super().__init__(message_data, properties=['id', 'name', 'fullPath'])
+
 
 class Granule(JsonObject):
     """
@@ -140,6 +148,7 @@ class Granule(JsonObject):
     temporal: Temporal
         The temporal extent of the granule
     """
+
     def __init__(self, message_data):
         """
         Constructor
@@ -149,7 +158,8 @@ class Granule(JsonObject):
         message_data : dictionary
             The Harmony message "granules" item to deserialize
         """
-        super().__init__(message_data, properties=['id', 'name', 'url', 'bbox', 'temporal'])
+        super().__init__(message_data, properties=[
+            'id', 'name', 'url', 'bbox', 'temporal'])
         self.local_filename = None
         self.collection = None
         self.variables = []
@@ -168,6 +178,7 @@ class MinMax(JsonObject):
     max: float
         The max value for the attribute
     """
+
     def __init__(self, message_data):
         """
         Constructor
@@ -177,7 +188,8 @@ class MinMax(JsonObject):
         message_data : dictionary
             The Harmony message "format.scaleExtent.[x|y]" object to deserialize
         """
-        super().__init__(message_data, properties=['min','max'])
+        super().__init__(message_data, properties=['min', 'max'])
+
 
 class ScaleExtent(JsonObject):
     """
@@ -190,6 +202,7 @@ class ScaleExtent(JsonObject):
     y: message.MinMax
         The min and max values for the scale extent for the Y dimension
     """
+
     def __init__(self, message_data):
         """
         Constructor
@@ -205,6 +218,7 @@ class ScaleExtent(JsonObject):
         if self.y is not None:
             self.y = MinMax(self.y)
 
+
 class ScaleSize(JsonObject):
     """
     Scale size parameters as found in a Harmony message's "format.scaleSize" object
@@ -216,6 +230,7 @@ class ScaleSize(JsonObject):
     y: float
         The scale size for the Y dimension
     """
+
     def __init__(self, message_data):
         """
         Constructor
@@ -226,6 +241,7 @@ class ScaleSize(JsonObject):
             The Harmony message "format.scaleExtent" object to deserialize
         """
         super().__init__(message_data, properties=['x', 'y'])
+
 
 class Format(JsonObject):
     """
@@ -254,6 +270,7 @@ class Format(JsonObject):
     scaleSize: message.ScaleSize
         The scale size in the x and y dimensions
     """
+
     def __init__(self, message_data):
         """
         Constructor
@@ -279,6 +296,7 @@ class Format(JsonObject):
         if self.scaleSize is not None:
             self.scaleSize = ScaleSize(self.scaleSize)
 
+
 class RemoteResource(JsonObject):
     """
     Remote resource
@@ -290,6 +308,7 @@ class RemoteResource(JsonObject):
     type : string
         The resource's content type
     """
+
     def __init__(self, message_data):
         """
         Constructor
@@ -301,6 +320,7 @@ class RemoteResource(JsonObject):
         """
         super().__init__(message_data, properties=['href', 'type'])
 
+
 class Subset(JsonObject):
     """
     Subsetting parameters as found in a Harmony message's "subset" object
@@ -311,6 +331,7 @@ class Subset(JsonObject):
         A list of 4 floating point values corresponding to [West, South, East, North]
         coordinates
     """
+
     def __init__(self, message_data):
         """
         Constructor
@@ -324,6 +345,7 @@ class Subset(JsonObject):
         if self.shape is not None:
             self.shape = RemoteResource(self.shape)
 
+
 class Temporal(JsonObject):
     """
     Temporal subsetting parameters as found in a Harmony message's "temporal" object
@@ -335,6 +357,7 @@ class Temporal(JsonObject):
     end : string
         An ISO 8601 datetime string for the latest time for temporal subsetting
     """
+
     def __init__(self, message_data=None, start=None, end=None):
         """
         Constructor
@@ -353,6 +376,7 @@ class Temporal(JsonObject):
             self.start = start
         if end is not None:
             self.end = end
+
 
 class Message(JsonObject):
     """
@@ -385,6 +409,9 @@ class Message(JsonObject):
     user : string
         The username of the user requesting the service.  If the message is coming from
         Harmony, services can assume that the provided username has been authenticated
+    accessToken : string
+        The Earthdata Login token for the caller. If present, the token is used as the
+        identity for HTTP downloads.
     client : string
         A string indicating the client accessing the service, usually the harmony
         environment, e.g. "harmony-sit"
@@ -399,7 +426,8 @@ class Message(JsonObject):
     temporal: message.Temporal
         The Harmony message's temporal subsetting parameters
     """
-    def __init__(self, json_str):
+
+    def __init__(self, json_str, decrypter=lambda x: x):
         """
         Builds a Message object and all of its child objects by deserializing the
         provided JSON string and performing any necessary version interpretation.
@@ -411,26 +439,32 @@ class Message(JsonObject):
         """
         self.json = json_str
         super().__init__(json.loads(json_str),
-            properties=[
-                'version',
-                'callback',
-                'stagingLocation',
-                'isSynchronous',
-                'user',
-                'client',
-                'requestId',
-                'format',
-                'subset',
-                'temporal'
-                ],
+                         properties=[
+            'version',
+            'callback',
+            'stagingLocation',
+            'isSynchronous',
+            'user',
+            'accessToken',
+            'client',
+            'requestId',
+            'format',
+            'subset',
+            'temporal'
+        ],
             list_properties={'sources': Source}
         )
+
+        self.decrypter = decrypter
+
         if self.format is not None:
             self.format = Format(self.format)
         if self.subset is not None:
             self.subset = Subset(self.subset)
         if self.temporal is not None:
             self.temporal = Temporal(self.temporal)
+        if self.accessToken is not None:
+            self.accessToken = self.decrypter(self.accessToken)
 
     def digest(self):
         """

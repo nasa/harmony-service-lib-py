@@ -19,6 +19,7 @@ from tempfile import mkdtemp
 from . import util
 from harmony.util import CanceledException, touch_health_check_file
 
+
 class BaseHarmonyAdapter(ABC):
     """
     Abstract base class for Harmony service adapters.  Service implementations
@@ -39,6 +40,7 @@ class BaseHarmonyAdapter(ABC):
         True if the service has provided a result to Harmony (and therefore must
         not provide another)
     """
+
     def __init__(self, message):
         """
         Constructs the adapter
@@ -53,7 +55,8 @@ class BaseHarmonyAdapter(ABC):
         self.is_complete = False
         self.is_canceled = False
 
-        self.logger = logging.LoggerAdapter(util.default_logger, { 'user': message.user, 'requestId': message.requestId })
+        self.logger = logging.LoggerAdapter(
+            util.default_logger, {'user': message.user, 'requestId': message.requestId})
 
     @abstractmethod
     def invoke(self):
@@ -93,17 +96,18 @@ class BaseHarmonyAdapter(ABC):
 
         # Download the remote file
         for granule in granules:
-            granule.local_filename = util.download(granule.url, temp_dir, self.logger)
+            granule.local_filename = util.download(granule.url, temp_dir, self.logger,
+                                                   self.message.accessToken)
 
     def stage(
-        self,
-        local_file,
-        source_granule=None,
-        remote_filename=None,
-        is_variable_subset=False,
-        is_regridded=False,
-        is_subsetted=False,
-        mime=None):
+            self,
+            local_file,
+            source_granule=None,
+            remote_filename=None,
+            is_variable_subset=False,
+            is_regridded=False,
+            is_subsetted=False,
+            mime=None):
         """
         Stages a file on the local filesystem to S3 with the given remote filename and mime type for
         user access.
@@ -135,7 +139,8 @@ class BaseHarmonyAdapter(ABC):
         """
         if remote_filename is None:
             if source_granule:
-                remote_filename = self.filename_for_granule(source_granule, os.path.splitext(local_file)[1], is_variable_subset, is_regridded, is_subsetted)
+                remote_filename = self.filename_for_granule(source_granule, os.path.splitext(
+                    local_file)[1], is_variable_subset, is_regridded, is_subsetted)
             else:
                 remote_filename = os.path.basename(local_file)
 
@@ -160,8 +165,10 @@ class BaseHarmonyAdapter(ABC):
             If a callback has already been performed
         """
         if self.is_complete and not self.is_canceled:
-            raise Exception('Attempted to error an already-complete service call with message ' + error_message)
-        self._callback_post('/response?error=%s' % (urllib.parse.quote(error_message)))
+            raise Exception(
+                'Attempted to error an already-complete service call with message ' + error_message)
+        self._callback_post('/response?error=%s' %
+                            (urllib.parse.quote(error_message)))
         self.is_complete = True
 
     def completed_with_redirect(self, url):
@@ -180,19 +187,21 @@ class BaseHarmonyAdapter(ABC):
         """
 
         if self.is_complete:
-            raise Exception('Attempted to redirect an already-complete service call to ' + url)
-        self._callback_post('/response?redirect=%s' % (urllib.parse.quote(url)))
+            raise Exception(
+                'Attempted to redirect an already-complete service call to ' + url)
+        self._callback_post('/response?redirect=%s' %
+                            (urllib.parse.quote(url)))
         self.is_complete = True
 
     def completed_with_local_file(
-        self,
-        filename,
-        source_granule=None,
-        remote_filename=None,
-        is_variable_subset=False,
-        is_regridded=False,
-        is_subsetted=False,
-        mime=None):
+            self,
+            filename,
+            source_granule=None,
+            remote_filename=None,
+            is_variable_subset=False,
+            is_regridded=False,
+            is_subsetted=False,
+            mime=None):
         """
         Indicates that the service has completed with the given file as its result.  Stages the
         provided local file to a user-accessible S3 location and instructs Harmony to redirect
@@ -223,22 +232,23 @@ class BaseHarmonyAdapter(ABC):
         Exception
             If a callback has already been performed
         """
-        url = self.stage(filename, source_granule, remote_filename, is_variable_subset, is_regridded, is_subsetted, mime)
+        url = self.stage(filename, source_granule, remote_filename,
+                         is_variable_subset, is_regridded, is_subsetted, mime)
         self.completed_with_redirect(url)
 
     def async_add_local_file_partial_result(
-        self,
-        filename,
-        source_granule=None,
-        remote_filename=None,
-        is_variable_subset=False,
-        is_regridded=False,
-        is_subsetted=False,
-        title=None,
-        mime=None,
-        progress=None,
-        temporal=None,
-        bbox=None):
+            self,
+            filename,
+            source_granule=None,
+            remote_filename=None,
+            is_variable_subset=False,
+            is_regridded=False,
+            is_subsetted=False,
+            title=None,
+            mime=None,
+            progress=None,
+            temporal=None,
+            bbox=None):
         """
         For service requests that are asynchronous, stages the given filename and sends the staged
         URL as a progress update to Harmony.  Optionally also provides a numeric progress indicator.
@@ -279,8 +289,10 @@ class BaseHarmonyAdapter(ABC):
         Exception
             If the request is synchronous or the request has already been marked complete
         """
-        url = self.stage(filename, source_granule, remote_filename, is_variable_subset, is_regridded, is_subsetted, mime)
-        self.async_add_url_partial_result(url, title, mime, progress, source_granule, temporal, bbox)
+        url = self.stage(filename, source_granule, remote_filename,
+                         is_variable_subset, is_regridded, is_subsetted, mime)
+        self.async_add_url_partial_result(
+            url, title, mime, progress, source_granule, temporal, bbox)
 
     def async_add_url_partial_result(self, url, title=None, mime=None, progress=None, source_granule=None, temporal=None, bbox=None):
         """
@@ -312,16 +324,18 @@ class BaseHarmonyAdapter(ABC):
             If the request is synchronous or the request has already been marked complete
         """
         if self.message.isSynchronous:
-            raise Exception('Attempted to call back asynchronously to a synchronous request')
+            raise Exception(
+                'Attempted to call back asynchronously to a synchronous request')
         if self.is_complete:
-            raise Exception('Attempted to add a result to an already-completed request: ' + url)
+            raise Exception(
+                'Attempted to add a result to an already-completed request: ' + url)
         if mime is None:
             mime = self.message.format.mime
         if source_granule is not None:
             temporal = temporal or source_granule.temporal
             bbox = bbox or source_granule.bbox
 
-        params = { 'item[href]': url, 'item[type]': mime }
+        params = {'item[href]': url, 'item[type]': mime}
         if title is not None:
             params['item[title]'] = title
         if progress is not None:
@@ -331,7 +345,8 @@ class BaseHarmonyAdapter(ABC):
         if bbox is not None:
             params['item[bbox]'] = ','.join([str(c) for c in bbox])
 
-        param_strs = [ '%s=%s' % (k, urllib.parse.quote(str(v))) for k, v in params.items() ]
+        param_strs = ['%s=%s' % (k, urllib.parse.quote(str(v)))
+                      for k, v in params.items()]
         callback_url = '/response?' + '&'.join(param_strs)
         self._callback_post(callback_url)
 
@@ -347,9 +362,11 @@ class BaseHarmonyAdapter(ABC):
             If the request is synchronous or the request has already been marked complete
         """
         if self.message.isSynchronous:
-            raise Exception('Attempted to call back asynchronously to a synchronous request')
+            raise Exception(
+                'Attempted to call back asynchronously to a synchronous request')
         if self.is_complete:
-            raise Exception('Attempted to call back for an already-completed request.')
+            raise Exception(
+                'Attempted to call back for an already-completed request.')
         self._callback_post('/response?status=successful')
         self.is_complete = True
 
@@ -421,19 +438,23 @@ class BaseHarmonyAdapter(ABC):
         url = self.message.callback + path
         touch_health_check_file()
         if os.environ.get('ENV') in ['dev', 'test']:
-            self.logger.warning('ENV=' + os.environ['ENV'] + ' so we will not reply to Harmony with POST ' + url)
+            self.logger.warning(
+                'ENV=' + os.environ['ENV'] + ' so we will not reply to Harmony with POST ' + url)
         elif self.is_canceled:
-            self.logger.info('Ignoring making callback request because the request has been canceled.')
+            self.logger.info(
+                'Ignoring making callback request because the request has been canceled.')
         else:
             self.logger.info('Starting response: %s', url)
             request = urllib.request.Request(url, method='POST')
             try:
-                response = urllib.request.urlopen(request).read().decode('utf-8')
+                response = urllib.request.urlopen(
+                    request).read().decode('utf-8')
                 self.logger.info('Remote response: %s', response)
                 self.logger.info('Completed response: %s', url)
             except Exception as e:
                 body = e.read().decode()
-                self.logger.error('Harmony returned an error when updating the job: ' + body)
+                self.logger.error(
+                    'Harmony returned an error when updating the job: ' + body)
                 if e.code == 409:
                     self.logger.warning('Harmony request was canceled.')
                     self.is_canceled = True

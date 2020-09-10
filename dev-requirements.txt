@@ -1,0 +1,9 @@
+autopep8
+coverage ~= 4.5
+flake8
+ipython
+jedi
+ptvsd
+pytest ~= 5.1
+python-language-server
+safety ~= 1.8
