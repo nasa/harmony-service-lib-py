@@ -474,7 +474,7 @@ def touch_health_check_file():
     Path(healthCheckPath).touch()
 
 
-def create_decrypter(key=b'BAD KEY'):
+def create_decrypter(key=b'_THIS_IS_MY_32_CHARS_SECRET_KEY_'):
     box = SecretBox(key)
 
     def decrypter(encrypted_msg_str):

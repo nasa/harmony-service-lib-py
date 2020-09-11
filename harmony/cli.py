@@ -68,9 +68,10 @@ def _invoke(AdapterClass, message_string):
         The Harmony input message
     """
 
-    secret_key = get_env('SHARED_SECRET_KEY')
+    # TODO: Use the key from the environment
+    # secret_key = get_env('SHARED_SECRET_KEY')
     adapter = AdapterClass(
-        Message(message_string, create_decrypter(secret_key)))
+        Message(message_string, create_decrypter()))  # Use key, above
 
     try:
         adapter.invoke()
