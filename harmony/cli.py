@@ -71,10 +71,9 @@ def _invoke(AdapterClass, message_string):
     True if the operation completed successfully, False otherwise
     """
 
-    # TODO: Use the key from the environment
-    # secret_key = get_env('SHARED_SECRET_KEY')
+    secret_key = get_env('SHARED_SECRET_KEY')
     adapter = AdapterClass(
-        Message(message_string, create_decrypter()))  # Use key, above
+        Message(message_string, create_decrypter(bytes(secret_key, 'utf-8'))))
 
     try:
         adapter.invoke()
