@@ -1,4 +1,4 @@
 boto3 ~= 1.9
-pynacl
+pynacl ~= 1.4.0
 pytest ~= 5.1
 python-json-logger ~= 0.1

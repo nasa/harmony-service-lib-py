@@ -18,7 +18,8 @@ DEPENDENCIES = [
     'setuptools >= 21.0.0',
     'pytest >= 5.1.2',
     'boto3 >= 1.9.0',
-    'python-json-logger >= 0.1.11'
+    'python-json-logger >= 0.1.11',
+    'pynacl >= 1.4.0'
 ]
 DEV_DEPENDENCIES = [
     'safety >= 1.8.5',
