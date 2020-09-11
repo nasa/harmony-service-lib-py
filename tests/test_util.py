@@ -112,8 +112,8 @@ class TestDecrypter(unittest.TestCase):
         nonce = random(SecretBox.NONCE_SIZE)
         shared_key = random(SecretBox.KEY_SIZE)
         box = SecretBox(shared_key)
-        plaintext = b'The ship has arrived at the port'
-        encrypted_msg = box.encrypt(plaintext, nonce)
+        plaintext = 'The ship has arrived at the port'
+        encrypted_msg = box.encrypt(bytes(plaintext, 'utf-8'), nonce)
         nonce_str = b64encode(encrypted_msg.nonce).decode("utf-8")
         encrypted_msg_str = b64encode(encrypted_msg.ciphertext).decode("utf-8")
         message = f'{nonce_str}:{encrypted_msg_str}'
