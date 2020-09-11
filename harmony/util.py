@@ -321,9 +321,13 @@ def download(url, destination_dir, logger=default_logger, accessToken=None):
             response = None
             if accessToken is not None:
                 headers = _bearer_token_auth_header(accessToken)
-                response = urlopen(Request(url, headers=headers))
+                try:
+                    response = urlopen(Request(url, headers=headers))
+                except Exception as e:
+                    logger.warn('Failed to download using access token due to ' + str(e)
+                        + ' Trying with EDL_USERNAME and EDL_PASSWORD', str(e))
 
-            if accessToken is None or response.status != 200:
+            if accessToken is None or response is None or response.status != 200:
                 opener = _create_basic_auth_opener(logger)
                 response = opener.open(url)
 
