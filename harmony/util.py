@@ -40,9 +40,29 @@ from pythonjsonlogger import jsonlogger
 from nacl.secret import SecretBox
 
 
-class CanceledException(Exception):
+class HarmonyException(Exception):
+    """Base class for Harmony exceptions.
+
+    Attributes
+    ----------
+    message : string
+        Explanation of the error
+    category : string
+        Classification of the type of harmony error
+    """
+    def __init__(self, message, category):
+        self.message = message
+        self.category = category
+
+class CanceledException(HarmonyException):
     """Class for throwing an exception indicating a Harmony request has been canceled"""
-    pass
+    def __init__(self, message=None):
+        super().__init__(message, 'Canceled')
+
+class ForbiddenException(HarmonyException):
+    """Class for throwing an exception indicating download failed due to not being able to access the data"""
+    def __init__(self, message=None):
+        super().__init__(message, 'Forbidden')
 
 
 def get_env(name):
@@ -295,27 +315,46 @@ def download(url, destination_dir, logger=default_logger, accessToken=None):
         return destination
 
     def download_from_http(url, destination):
-        logger.info('Downloading %s', url)
+        try:
+            logger.info('Downloading %s', url)
 
-        response = None
-        if accessToken is not None:
-            headers = _bearer_token_auth_header(accessToken)
-            response = urlopen(Request(url, headers))
+            response = None
+            if accessToken is not None:
+                headers = _bearer_token_auth_header(accessToken)
+                response = urlopen(Request(url, headers))
 
-        if accessToken is None or response.status != 200:
-            opener = _create_basic_auth_opener(logger)
-            response = opener.open(url)
+            if accessToken is None or response.status != 200:
+                opener = _create_basic_auth_opener(logger)
+                response = opener.open(url)
 
-        if response is None or response.status != 200:
-            logger.error('Unable to download granule')
-            return None
+            if response is None or response.status != 200:
+                logger.error('Unable to download granule')
+                return None
 
-        with open(destination, 'wb') as local_file:
-            local_file.write(response.read())
+            with open(destination, 'wb') as local_file:
+                local_file.write(response.read())
 
-        logger.info('Completed %s', url)
+            logger.info('Completed %s', url)
 
-        return destination
+            return destination
+        except Exception as e:
+            code = e.getcode()
+            logger.error('Download failed with status code: ' + str(code))
+            body = e.read().decode()
+
+            logger.error('Failed to download URL:' + body)
+            if (code == 401 or code == 403):
+                try:
+                    # Try to determine if this is a EULA error
+                    json_object = json.loads(body)
+                    eula_error = "error_description" in json_object and "resolution_url" in json_object
+                    if eula_error:
+                        body = 'Request could not be completed because you need to agree to the EULA at ' + json_object['resolution_url']
+                except:
+                    pass
+                raise ForbiddenException(body)
+            else:
+              raise e
 
     basename = hashlib.sha256(url.encode('utf-8')).hexdigest()
     ext = path.basename(url).split('?')[0].split('.')[-1]
