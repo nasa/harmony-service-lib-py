@@ -86,11 +86,13 @@ def _invoke(AdapterClass, message_string):
         # logging.error('Service request canceled by Harmony, exiting')
         pass
     except HarmonyException as e:
+        logging.error(e, exc_info=1)
         if not adapter.is_complete:
             adapter.completed_with_error(str(e))
-    except:
+    except Exception as e:
         # Make sure we always call back if the error is in a Harmony invocation and we have
         # successfully parsed enough that we know where to call back to
+        logging.error(e, exc_info=1)
         if not adapter.is_complete:
             adapter.completed_with_error('Service request failed with an unknown error')
     return not adapter.is_failed

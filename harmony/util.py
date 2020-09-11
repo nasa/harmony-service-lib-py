@@ -321,7 +321,7 @@ def download(url, destination_dir, logger=default_logger, accessToken=None):
             response = None
             if accessToken is not None:
                 headers = _bearer_token_auth_header(accessToken)
-                response = urlopen(Request(url, headers))
+                response = urlopen(Request(url, headers=headers))
 
             if accessToken is None or response.status != 200:
                 opener = _create_basic_auth_opener(logger)
@@ -521,7 +521,7 @@ def create_decrypter(key=b'_THIS_IS_MY_32_CHARS_SECRET_KEY_'):
         nonce = b64decode(parts[0])
         ciphertext = b64decode(parts[1])
 
-        return box.decrypt(ciphertext, nonce)
+        return box.decrypt(ciphertext, nonce).decode('utf-8')
 
     return decrypter
 
