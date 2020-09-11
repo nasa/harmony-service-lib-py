@@ -34,7 +34,7 @@ from pathlib import Path
 import sys
 from urllib.request import (build_opener, install_opener, urlopen, Request,
                             HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm, HTTPCookieProcessor, HTTPSHandler)
-
+import json
 import boto3
 from pythonjsonlogger import jsonlogger
 from nacl.secret import SecretBox
@@ -330,10 +330,6 @@ def download(url, destination_dir, logger=default_logger, accessToken=None):
             if accessToken is None or response is None or response.status != 200:
                 opener = _create_basic_auth_opener(logger)
                 response = opener.open(url)
-
-            if response is None or response.status != 200:
-                logger.error('Unable to download granule')
-                return None
 
             with open(destination, 'wb') as local_file:
                 local_file.write(response.read())

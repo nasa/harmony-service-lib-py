@@ -43,7 +43,7 @@ class TestDownload(unittest.TestCase):
         self.assertEqual(path, 'file.txt')
         self.assertEqual(filename.split('.')[-1], 'txt')
 
-    @patch('urllib.request.urlopen')
+    @patch('urllib.request.OpenerDirector.open')
     @patch.dict(os.environ, { 'EDL_USERNAME' : 'jdoe', 'EDL_PASSWORD': 'abc' })
     def test_when_given_an_http_url_it_downloads_the_url(self, urlopen):
         mopen = mock_open()
@@ -58,7 +58,7 @@ class TestDownload(unittest.TestCase):
     def test_when_given_a_file_path_it_returns_the_file_path(self):
         self.assertEqual(util.download('example/file.txt', 'tmp'), 'example/file.txt')
 
-    @patch('urllib.request.urlopen')
+    @patch('urllib.request.OpenerDirector.open')
     def test_when_the_url_returns_a_401_it_throws_a_forbidden_exception(self, urlopen):
         url = 'https://example.com/file.txt'
         urlopen.side_effect = MockHTTPError(url=url, code=401, msg='Forbidden 401 message')
@@ -67,7 +67,7 @@ class TestDownload(unittest.TestCase):
           self.fail('An exception should have been raised')
         self.assertEqual(str(cm.exception), 'Forbidden 401 message')
 
-    @patch('urllib.request.urlopen')
+    @patch('urllib.request.OpenerDirector.open')
     def test_when_the_url_returns_a_403_it_throws_a_forbidden_exception(self, urlopen):
         url = 'https://example.com/file.txt'
         urlopen.side_effect = MockHTTPError(url=url, code=403, msg='Forbidden 403 message')
@@ -76,7 +76,7 @@ class TestDownload(unittest.TestCase):
           self.fail('An exception should have been raised')
         self.assertEqual(str(cm.exception), 'Forbidden 403 message')
 
-    @patch('urllib.request.urlopen')
+    @patch('urllib.request.OpenerDirector.open')
     def test_when_the_url_returns_a_eula_error_it_returns_a_human_readable_message(self, urlopen):
         url = 'https://example.com/file.txt'
         urlopen.side_effect = MockHTTPError(url=url, code=403, msg='{"status_code":403,"error_description":"EULA Acceptance Failure","resolution_url":"https://example.com/approve_app?client_id=foo"}')
@@ -85,7 +85,7 @@ class TestDownload(unittest.TestCase):
           self.fail('An exception should have been raised')
         self.assertEqual(str(cm.exception), 'Request could not be completed because you need to agree to the EULA at https://example.com/approve_app?client_id=foo')
 
-    @patch('urllib.request.urlopen')
+    @patch('urllib.request.OpenerDirector.open')
     def test_when_the_url_returns_a_500_it_does_not_raise_a_forbidden_exception_and_does_not_return_details_to_user(self, urlopen):
         url = 'https://example.com/file.txt'
         urlopen.side_effect = MockHTTPError(url=url, code=500)
