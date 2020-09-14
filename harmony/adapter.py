@@ -62,8 +62,12 @@ class BaseHarmonyAdapter(ABC):
         self.is_canceled = False
         self.is_failed = False
 
-        self.logger = logging.LoggerAdapter(
-            util.default_logger, {'user': message.user, 'requestId': message.requestId})
+        logging_context = {
+            'user': message.user,
+            'requestId': message.requestId
+        }
+        self.logger = \
+            logging.LoggerAdapter(util.default_logger, logging_context)
 
     @abstractmethod
     def invoke(self):
@@ -299,8 +303,8 @@ class BaseHarmonyAdapter(ABC):
         """
         url = self.stage(filename, source_granule, remote_filename,
                          is_variable_subset, is_regridded, is_subsetted, mime)
-        self.async_add_url_partial_result(
-            url, title, mime, progress, source_granule, temporal, bbox)
+        self.async_add_url_partial_result(url, title, mime, progress, source_granule,
+                                          temporal, bbox)
 
     def async_add_url_partial_result(self, url, title=None, mime=None, progress=None, source_granule=None, temporal=None, bbox=None):
         """
@@ -449,21 +453,21 @@ class BaseHarmonyAdapter(ABC):
             self.logger.warning(
                 'ENV=' + os.environ['ENV'] + ' so we will not reply to Harmony with POST ' + url)
         elif self.is_canceled:
-            self.logger.info(
-                'Ignoring making callback request because the request has been canceled.')
+            msg = 'Ignoring making callback request because the request has been canceled.'
+            self.logger.info(msg)
         else:
             self.logger.info('Starting response: %s', url)
             request = urllib.request.Request(url, method='POST')
             try:
-                response = urllib.request.urlopen(
-                    request).read().decode('utf-8')
+                response = \
+                    urllib.request.urlopen(request).read().decode('utf-8')
                 self.logger.info('Remote response: %s', response)
                 self.logger.info('Completed response: %s', url)
             except Exception as e:
                 self.is_failed = True
                 body = e.read().decode()
-                self.logger.error(
-                    'Harmony returned an error when updating the job: ' + body)
+                msg = f'Harmony returned an error when updating the job: {body}'
+                self.logger.error(msg)
                 if e.code == 409:
                     self.logger.warning('Harmony request was canceled.')
                     self.is_canceled = True

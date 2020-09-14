@@ -62,8 +62,8 @@ class JsonObject(object):
         try:
             spaces = '    ' * JsonObject.reprdepth
             result += '<' + self.__class__.__name__ + '\n'
-            result += '\n'.join(["%s%s = %s" % (spaces, p,
-                                                repr(getattr(self, p))) for p in self.properties])
+            result += '\n'.join(["%s%s = %s" % (spaces, p, repr(getattr(self, p)))
+                                 for p in self.properties])
             result += '>'
         finally:
             JsonObject.reprdepth -= 1
