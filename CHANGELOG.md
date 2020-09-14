@@ -1,7 +1,8 @@
-## [v0.0.?] - 2020/09/09
+## [v0.0.11] - 2020/09/09
 
 * Adds ability to accept an Earthdata Login access token and make download requests
-  using that token, falling back to the application credentials if it isn't provided.
+  using that token, falling back to the application's EDL username / password
+  credentials if the token isn't provided.
 
 ## [v0.0.10] - 2020/06/18
 
