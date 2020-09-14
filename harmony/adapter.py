@@ -110,15 +110,8 @@ class BaseHarmonyAdapter(ABC):
             granule.local_filename = util.download(granule.url, temp_dir, self.logger,
                                                    self.message.accessToken)
 
-    def stage(
-            self,
-            local_file,
-            source_granule=None,
-            remote_filename=None,
-            is_variable_subset=False,
-            is_regridded=False,
-            is_subsetted=False,
-            mime=None):
+    def stage(self, local_file, source_granule=None, remote_filename=None, is_variable_subset=False,
+              is_regridded=False, is_subsetted=False, mime=None):
         """
         Stages a file on the local filesystem to S3 with the given remote filename and mime type for
         user access.
