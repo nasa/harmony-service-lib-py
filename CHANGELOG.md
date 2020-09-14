@@ -1,3 +1,9 @@
+## [v0.0.11] - 2020/09/09
+
+* Adds ability to accept an Earthdata Login access token and make download requests
+  using that token, falling back to the application's EDL username / password
+  credentials if the token isn't provided.
+
 ## [v0.0.10] - 2020/06/18
 
 * Updates the install instructions in the README that use the Earthdata Maven repository

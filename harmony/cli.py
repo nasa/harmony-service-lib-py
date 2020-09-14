@@ -9,7 +9,9 @@ Parses CLI arguments provided by Harmony and invokes the subsetter accordingly
 import sys
 import logging
 from harmony.message import Message
-from harmony.util import CanceledException, HarmonyException, receive_messages, delete_message, change_message_visibility, setup_stdout_log_formatting
+from harmony.util import (CanceledException, HarmonyException, receive_messages, delete_message,
+                          change_message_visibility, setup_stdout_log_formatting, get_env, create_decrypter)
+
 
 def setup_cli(parser):
     """
@@ -36,6 +38,7 @@ def setup_cli(parser):
                         const=True,
                         help='Do not wrap STDOUT and STDERR in the Harmony log output format')
 
+
 def is_harmony_cli(args):
     """
     Returns True if the passed parsed CLI arguments constitute a Harmony CLI invocation, False otherwise
@@ -52,6 +55,7 @@ def is_harmony_cli(args):
     """
     return args.harmony_action != None
 
+
 def _invoke(AdapterClass, message_string):
     """
     Handles --harmony-action=invoke by invoking the adapter for the given input message
@@ -67,7 +71,10 @@ def _invoke(AdapterClass, message_string):
     True if the operation completed successfully, False otherwise
     """
 
-    adapter = AdapterClass(Message(message_string))
+    secret_key = get_env('SHARED_SECRET_KEY')
+    adapter = AdapterClass(
+        Message(message_string, create_decrypter(bytes(secret_key, 'utf-8'))))
+
     try:
         adapter.invoke()
         if not adapter.is_complete:
@@ -78,14 +85,18 @@ def _invoke(AdapterClass, message_string):
         # logging.error('Service request canceled by Harmony, exiting')
         pass
     except HarmonyException as e:
+        logging.error(e, exc_info=1)
         if not adapter.is_complete:
             adapter.completed_with_error(str(e))
-    except:
+    except BaseException as e:
         # Make sure we always call back if the error is in a Harmony invocation and we have
         # successfully parsed enough that we know where to call back to
+        logging.error(e, exc_info=1)
         if not adapter.is_complete:
-            adapter.completed_with_error('Service request failed with an unknown error')
+            msg = 'Service request failed with an unknown error'
+            adapter.completed_with_error(msg)
     return not adapter.is_failed
+
 
 def _start(AdapterClass, queue_url, visibility_timeout_s):
     """
@@ -117,7 +128,9 @@ def _start(AdapterClass, queue_url, visibility_timeout_s):
             try:
                 adapter.cleanup()
             except Exception:
-                logging.error('Adapter threw an exception on cleanup', exc_info=True)
+                logging.error(
+                    'Adapter threw an exception on cleanup', exc_info=True)
+
 
 def run_cli(parser, args, AdapterClass):
     """
@@ -137,7 +150,8 @@ def run_cli(parser, args, AdapterClass):
 
     if args.harmony_action == 'invoke':
         if not bool(args.harmony_input):
-            parser.error('--harmony-input must be provided for --harmony-action=invoke')
+            parser.error(
+                '--harmony-input must be provided for --harmony-action=invoke')
         else:
             successful = _invoke(AdapterClass, args.harmony_input)
             if not successful:
@@ -145,6 +159,7 @@ def run_cli(parser, args, AdapterClass):
 
     if args.harmony_action == 'start':
         if not bool(args.harmony_queue_url):
-            parser.error('--harmony-queue-url must be provided for --harmony-action=start')
+            parser.error(
+                '--harmony-queue-url must be provided for --harmony-action=start')
         else:
             return _start(AdapterClass, args.harmony_queue_url, args.harmony_visibility_timeout)

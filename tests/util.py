@@ -1,8 +1,8 @@
-import unittest
 import argparse
 from unittest.mock import patch, MagicMock
 
 from harmony import cli
+
 
 def mock_receive(client, parser, AdapterClass, *messages):
     """
@@ -14,13 +14,13 @@ def mock_receive(client, parser, AdapterClass, *messages):
     for i, message in enumerate(messages):
         contents = []
         if message:
-            contents.append({ 'Body': message, 'ReceiptHandle': i })
+            contents.append({'Body': message, 'ReceiptHandle': i})
         # this allows us to test what happens when receiving a message from the queue fails
         if isinstance(message, Exception):
-          side_effects = message
-          break
+            side_effects = message
+            break
         else:
-          side_effects.append({ 'Messages': contents })
+            side_effects.append({'Messages': contents})
 
     print(side_effects)
     sqs.receive_message.side_effect = side_effects
@@ -30,8 +30,8 @@ def mock_receive(client, parser, AdapterClass, *messages):
         cli.run_cli(parser, args, AdapterClass)
     except RuntimeError as e:
         if str(e) == 'generator raised StopIteration':
-            pass # Expection.  Happens every call when messages are exhausted, allowing us to stop iterating.
+            # Expection.  Happens every call when messages are exhausted, allowing us to stop iterating.
+            pass
         else:
             raise
     return sqs
-  

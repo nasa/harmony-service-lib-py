@@ -1,10 +1,14 @@
-import unittest
-import sys
 import argparse
+import os
+import sys
+import unittest
 from unittest.mock import patch, MagicMock
 
 from harmony import cli, BaseHarmonyAdapter
 from tests.util import mock_receive
+
+os.environ['SHARED_SECRET_KEY'] = '_THIS_IS_MY_32_CHARS_SECRET_KEY_'
+
 
 def cli_test(*cli_args):
     """
@@ -14,11 +18,13 @@ def cli_test(*cli_args):
     def cli_test_wrapper(func):
         def wrapper(self):
             with patch.object(sys, 'argv', ['example'] + list(cli_args)):
-                parser = argparse.ArgumentParser(prog='example', description='Run an example service')
+                parser = argparse.ArgumentParser(
+                    prog='example', description='Run an example service')
                 cli.setup_cli(parser)
                 func(self, parser)
         return wrapper
     return cli_test_wrapper
+
 
 class MockAdapter(BaseHarmonyAdapter):
     """
@@ -31,7 +37,6 @@ class MockAdapter(BaseHarmonyAdapter):
     def __init__(self, message):
         MockAdapter.messages.append(message.data)
 
-
     def invoke(self):
         self.is_complete = True
         self.is_failed = False
@@ -42,7 +47,12 @@ class MockAdapter(BaseHarmonyAdapter):
     def cleanup(self):
         MockAdapter.cleaned_up.append(True)
 
+
 class TestIsHarmonyCli(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        os.environ['SHARED_SECRET_KEY'] = '_THIS_IS_MY_32_CHARS_SECRET_KEY_'
+
     @cli_test('--something-else', 'invoke')
     def test_when_not_passing_harmony_action_it_returns_false(self, parser):
         parser.add_argument('--something-else')
@@ -59,6 +69,7 @@ class TestIsHarmonyCli(unittest.TestCase):
         args = parser.parse_args()
         self.assertFalse(cli.is_harmony_cli(args))
 
+
 class TestCliInvokeAction(unittest.TestCase):
     def tearDown(self):
         MockAdapter.messages = []
@@ -70,7 +81,8 @@ class TestCliInvokeAction(unittest.TestCase):
         with patch.object(parser, 'error') as error_method:
             args = parser.parse_args()
             cli.run_cli(parser, args, MockAdapter)
-            error_method.assert_called_once_with('--harmony-input must be provided for --harmony-action=invoke')
+            error_method.assert_called_once_with(
+                '--harmony-input must be provided for --harmony-action=invoke')
 
     @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
     def test_when_harmony_input_is_provided_it_creates_and_invokes_an_adapter(self, parser):
@@ -90,7 +102,8 @@ class TestCliInvokeAction(unittest.TestCase):
             cli.run_cli(parser, args, MockImpl)
         except:
             pass
-        self.assertListEqual(MockImpl.errors, ['The backend service did not respond'])
+        self.assertListEqual(
+            MockImpl.errors, ['The backend service did not respond'])
 
     @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
     def test_when_the_backend_service_throws_an_exception_before_response_it_responds_with_an_error(self, parser):
@@ -104,7 +117,8 @@ class TestCliInvokeAction(unittest.TestCase):
             cli.run_cli(parser, args, MockImpl)
         except:
             pass
-        self.assertListEqual(MockImpl.errors, ['Service request failed with an unknown error'])
+        self.assertListEqual(
+            MockImpl.errors, ['Service request failed with an unknown error'])
 
     @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
     def test_when_the_backend_service_throws_an_exception_afterresponse_it_does_not_respond_again(self, parser):
@@ -120,6 +134,7 @@ class TestCliInvokeAction(unittest.TestCase):
             pass
         self.assertListEqual(MockImpl.errors, [])
 
+
 class TestCliStartAction(unittest.TestCase):
     def tearDown(self):
         MockAdapter.messages = []
@@ -131,7 +146,8 @@ class TestCliStartAction(unittest.TestCase):
         with patch.object(parser, 'error') as error_method:
             args = parser.parse_args()
             cli.run_cli(parser, args, MockAdapter)
-            error_method.assert_called_once_with('--harmony-queue-url must be provided for --harmony-action=start')
+            error_method.assert_called_once_with(
+                '--harmony-queue-url must be provided for --harmony-action=start')
 
     @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
     @patch('boto3.client')
@@ -160,13 +176,15 @@ class TestCliStartAction(unittest.TestCase):
     @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
     @patch('boto3.client')
     def test_sends_queue_messages_to_the_adapter(self, parser, client):
-        mock_receive(client, parser, MockAdapter, '{"test": "a"}', None, '{"test": "b"}')
+        mock_receive(client, parser, MockAdapter,
+                     '{"test": "a"}', None, '{"test": "b"}')
         self.assertEqual(MockAdapter.messages, [{'test': 'a'}, {'test': 'b'}])
 
     @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
     @patch('boto3.client')
     def test_when_the_adapter_completes_the_request_it_deletes_the_queue_message(self, parser, client):
-        sqs = mock_receive(client, parser, MockAdapter, '{"test": "a"}', None, '{"test": "b"}')
+        sqs = mock_receive(client, parser, MockAdapter,
+                           '{"test": "a"}', None, '{"test": "b"}')
         sqs.delete_message.assert_called_with(
             QueueUrl='test-queue-url',
             ReceiptHandle=2)
@@ -174,7 +192,8 @@ class TestCliStartAction(unittest.TestCase):
     @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
     @patch('boto3.client')
     def test_when_the_adapter_completes_the_request_it_calls_cleanup_on_the_adapter(self, parser, client):
-        mock_receive(client, parser, MockAdapter, '{"test": "a"}', None, '{"test": "b"}')
+        mock_receive(client, parser, MockAdapter,
+                     '{"test": "a"}', None, '{"test": "b"}')
         self.assertListEqual(MockAdapter.cleaned_up, [True, True])
 
     @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
@@ -184,7 +203,8 @@ class TestCliStartAction(unittest.TestCase):
             def invoke(self):
                 self.is_complete = False
 
-        sqs = mock_receive(client, parser, MockImpl, '{"test": "a"}', None, '{"test": "b"}')
+        sqs = mock_receive(client, parser, MockImpl,
+                           '{"test": "a"}', None, '{"test": "b"}')
         sqs.delete_message.assert_not_called()
         sqs.change_message_visibility.assert_called_with(
             QueueUrl='test-queue-url',
@@ -209,7 +229,8 @@ class TestCliStartAction(unittest.TestCase):
                 self.is_complete = False
                 raise Exception('Something bad happened')
 
-        sqs = mock_receive(client, parser, MockImpl, '{"test": "a"}', None, '{"test": "b"}')
+        sqs = mock_receive(client, parser, MockImpl,
+                           '{"test": "a"}', None, '{"test": "b"}')
         sqs.delete_message.assert_not_called()
         sqs.change_message_visibility.assert_called_with(
             QueueUrl='test-queue-url',
@@ -226,7 +247,8 @@ class TestCliStartAction(unittest.TestCase):
                 self.is_complete = True
                 raise Exception('Something bad happened')
 
-        sqs = mock_receive(client, parser, MockImpl, '{"test": "a"}', None, '{"test": "b"}')
+        sqs = mock_receive(client, parser, MockImpl,
+                           '{"test": "a"}', None, '{"test": "b"}')
         sqs.delete_message.assert_called_with(
             QueueUrl='test-queue-url',
             ReceiptHandle=2)
@@ -240,7 +262,8 @@ class TestCliStartAction(unittest.TestCase):
                 self.is_complete = False
                 raise Exception('Something bad happened')
 
-        sqs = mock_receive(client, parser, MockImpl, '{"test": "a"}', None, '{"test": "b"}')
+        sqs = mock_receive(client, parser, MockImpl,
+                           '{"test": "a"}', None, '{"test": "b"}')
         self.assertListEqual(MockImpl.cleaned_up, [True, True])
 
     @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
@@ -250,8 +273,11 @@ class TestCliStartAction(unittest.TestCase):
             def cleanup(self):
                 raise Exception('Something bad happened')
 
-        sqs = mock_receive(client, parser, MockImpl, '{"test": "a"}', None, '{"test": "b"}')
+        sqs = mock_receive(client, parser, MockImpl,
+                           '{"test": "a"}', None, '{"test": "b"}')
         self.assertEqual(MockAdapter.messages, [{'test': 'a'}, {'test': 'b'}])
+
 
 if __name__ == '__main__':
     unittest.main()
+
