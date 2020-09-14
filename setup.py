@@ -16,11 +16,11 @@ from setuptools import find_packages, setup
 
 DEPENDENCIES = []
 with open("requirements.txt", "r") as f:
-    DEPENDENCIES = f.read().split()
+    DEPENDENCIES = f.read().strip().split('\n')
 
 DEV_DEPENDENCIES = []
 with open("dev-requirements.txt", "r") as f:
-    DEV_DEPENDENCIES = f.read().split()
+    DEV_DEPENDENCIES = f.read().strip().split('\n')
 
 EXCLUDE_FROM_PACKAGES = ["contrib", "docs", "tests*"]
 CURDIR = os.path.abspath(os.path.dirname(__file__))
@@ -57,7 +57,6 @@ setup(
     zip_safe=False,
     install_requires=DEPENDENCIES,
     extras_require={
-        # Run `pip install -e .[dev]` to install dev dependencies
         'dev': DEV_DEPENDENCIES
     },
     test_suite="tests",
