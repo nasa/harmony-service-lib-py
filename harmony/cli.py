@@ -95,6 +95,7 @@ def _invoke(AdapterClass, message_string):
         if not adapter.is_complete:
             msg = 'Service request failed with an unknown error'
             adapter.completed_with_error(msg)
+        raise
     return not adapter.is_failed
 
 
