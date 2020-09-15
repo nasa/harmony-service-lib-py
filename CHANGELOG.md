@@ -1,4 +1,9 @@
-## [v0.0.11] - 2020/09/09
+## [v0.0.22] - 2020/09/15
+
+* Fixes regression: when the Adapter raises an exception, the cli will re-raise
+  the exception so that it retains the details of the original error.
+
+## [v0.0.21] - 2020/09/09
 
 * Adds ability to accept an Earthdata Login access token and make download requests
   using that token, falling back to the application's EDL username / password
