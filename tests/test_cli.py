@@ -113,10 +113,10 @@ class TestCliInvokeAction(unittest.TestCase):
                 raise Exception('Something bad happened')
 
         args = parser.parse_args()
-        try:
+        with self.assertRaises(Exception) as context:
             cli.run_cli(parser, args, MockImpl)
-        except:
-            pass
+
+        self.assertTrue('Something bad happened' in str(context.exception))
         self.assertListEqual(
             MockImpl.errors, ['Service request failed with an unknown error'])
 
@@ -280,4 +280,3 @@ class TestCliStartAction(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

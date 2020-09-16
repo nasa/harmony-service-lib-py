@@ -4,5 +4,6 @@ flake8 ~= 3.8
 ipython ~= 7.17
 jedi ~= 0.17
 ptvsd ~= 4.3
+pytest ~= 5.4
 python-language-server ~= 0.35
 safety ~= 1.8
