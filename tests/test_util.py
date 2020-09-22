@@ -49,7 +49,20 @@ class TestDownload(unittest.TestCase):
         mopen = mock_open()
         with patch('builtins.open', mopen):
             util.download('https://example.com/file.txt', 'tmp')
-            urlopen.assert_called_with('https://example.com/file.txt')
+            urlopen.assert_called_with('https://example.com/file.txt', data=None)
+            mopen.assert_called()
+
+    @patch('urllib.request.OpenerDirector.open')
+    @patch.dict(os.environ, {'EDL_USERNAME': 'jdoe', 'EDL_PASSWORD': 'abc'})
+    def test_when_given_a_url_and_data_it_downloads_with_query_string(self, urlopen):
+        mopen = mock_open()
+
+        data = {'param': 'value'}
+
+        with patch('builtins.open', mopen):
+            util.download('https://example.com/file.txt', 'tmp', data=data)
+            urlopen.assert_called_with('https://example.com/file.txt',
+                                       data=b'param=value')
             mopen.assert_called()
 
     def test_when_given_a_file_url_it_returns_the_file_path(self):

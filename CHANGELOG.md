@@ -1,3 +1,8 @@
+## [v0.0.?] - 2020/09/18
+
+* Add POST functionality to the `harmony.util.download` function when query
+  parameters are included in the function call.
+
 ## [v0.0.22] - 2020/09/15
 
 * Fixes regression: when the Adapter raises an exception, the cli will re-raise

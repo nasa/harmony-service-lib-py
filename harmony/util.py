@@ -29,8 +29,10 @@ from datetime import datetime
 import hashlib
 from http.cookiejar import CookieJar
 import logging
-from os import environ, path
 from pathlib import Path
+from urllib import request
+from urllib.parse import urlencode
+from os import environ, path
 import sys
 from urllib.request import (build_opener, install_opener, urlopen, Request,
                             HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm, HTTPCookieProcessor, HTTPSHandler)
@@ -273,7 +275,8 @@ def _bearer_token_auth_header(accessToken):
     }
 
 
-def download(url, destination_dir, logger=default_logger, accessToken=None):
+def download(url, destination_dir, logger=default_logger, accessToken=None,
+             data=None):
     """
     Downloads the given URL to the given destination directory, using the basename of the URL
     as the filename in the destination directory.  Supports http://, https:// and s3:// schemes.
@@ -301,6 +304,13 @@ def download(url, destination_dir, logger=default_logger, accessToken=None):
         A logger to which the function will write, if provided
     accessToken :
         The Earthdata Login token of the caller to use for downloads
+    data : dict or Tuple[str, str]
+        Optional parameter for additional data to
+        send to the server when making a HTTP POST request through
+        urllib.get.urlopen. These data will be URL encoded to a query string
+        containing a series of `key=value` pairs, separated by ampersands. If
+        None (the default), urllib.get.urlopen will use the  GET
+        method.
 
     Returns
     -------
@@ -314,22 +324,29 @@ def download(url, destination_dir, logger=default_logger, accessToken=None):
         _get_aws_client('s3').download_file(bucket, key, destination)
         return destination
 
-    def download_from_http(url, destination):
+    def download_from_http(url, destination, data=None):
         try:
             logger.info('Downloading %s', url)
 
             response = None
+            if data is not None:
+                logger.info('Query parameters supplied, will use POST method.')
+                encoded_data = urlencode(data).encode('utf-8')
+            else:
+                encoded_data = None
+
             if accessToken is not None:
                 headers = _bearer_token_auth_header(accessToken)
                 try:
-                    response = urlopen(Request(url, headers=headers))
+                    response = urlopen(Request(url, headers=headers,
+                                               data=encoded_data))
                 except Exception as e:
                     logger.warn('Failed to download using access token due to ' + str(e)
                         + ' Trying with EDL_USERNAME and EDL_PASSWORD', str(e))
 
             if accessToken is None or response is None or response.status != 200:
                 opener = _create_basic_auth_opener(logger)
-                response = opener.open(url)
+                response = opener.open(url, data=encoded_data)
 
             with open(destination, 'wb') as local_file:
                 local_file.write(response.read())
@@ -375,7 +392,7 @@ def download(url, destination_dir, logger=default_logger, accessToken=None):
     if url.startswith('s3'):
         return download_from_s3(url, destination)
 
-    return download_from_http(url, destination)
+    return download_from_http(url, destination, data)
 
 
 def stage(local_filename, remote_filename, mime, logger=default_logger, location=None):
