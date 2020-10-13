@@ -87,9 +87,32 @@ class TestCliInvokeAction(unittest.TestCase):
     @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
     def test_when_harmony_input_is_provided_it_creates_and_invokes_an_adapter(self, parser):
         args = parser.parse_args()
-        print(args)
         cli.run_cli(parser, args, MockAdapter)
         self.assertListEqual([{'test': 'input'}], MockAdapter.messages)
+
+    @cli_test(
+        '--harmony-action', 'invoke',
+        '--harmony-input', '{"test": "input"}',
+        '--harmony-sources', os.path.join(os.path.dirname(__file__), 'resources', 'sources.json'))
+    def test_when_harmony_sources_are_provided_it_merges_with_harmony_input(self, parser):
+        args = parser.parse_args()
+        cli.run_cli(parser, args, MockAdapter)
+        self.assertListEqual([{
+            'test': 'input',
+            'sources': [{'collection': 'C000-TEST', 'granules': [{'id': 'G000-TEST', 'name': 'test.nc'}]}]
+        }], MockAdapter.messages)
+
+    @cli_test(
+        '--harmony-action', 'invoke',
+        '--harmony-input', '{"test": "input", "sources": [{"to": "overwrite"}]}',
+        '--harmony-sources', os.path.join(os.path.dirname(__file__), 'resources', 'sources.json'))
+    def test_when_harmony_sources_are_provided_it_overwrites_duplicate_keys_in_harmony_input(self, parser):
+        args = parser.parse_args()
+        cli.run_cli(parser, args, MockAdapter)
+        self.assertListEqual([{
+            'test': 'input',
+            'sources': [{'collection': 'C000-TEST', 'granules': [{'id': 'G000-TEST', 'name': 'test.nc'}]}]
+        }], MockAdapter.messages)
 
     @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
     def test_when_the_backend_service_doesnt_respond_it_responds_with_an_error(self, parser):
