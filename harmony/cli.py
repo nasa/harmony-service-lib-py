@@ -7,6 +7,7 @@ Parses CLI arguments provided by Harmony and invokes the subsetter accordingly
 """
 
 import sys
+import json
 import logging
 from harmony.message import Message
 from harmony.util import (CanceledException, HarmonyException, receive_messages, delete_message,
@@ -27,6 +28,8 @@ def setup_cli(parser):
                         help='the action Harmony needs to perform, "invoke" to run once and quit, "start" to listen to a queue')
     parser.add_argument('--harmony-input',
                         help='the input data for the action provided by Harmony, required for --harmony-action=invoke')
+    parser.add_argument('--harmony-sources',
+                        help='optional file path that contains a JSON object with a "sources" key to be added to the --harmony-input')
     parser.add_argument('--harmony-queue-url',
                         help='the queue URL to listen on, required for --harmony-action=start')
     parser.add_argument('--harmony-visibility-timeout',
@@ -56,7 +59,7 @@ def is_harmony_cli(args):
     return args.harmony_action != None
 
 
-def _invoke(AdapterClass, message_string):
+def _invoke(AdapterClass, message_string, sources_path):
     """
     Handles --harmony-action=invoke by invoking the adapter for the given input message
 
@@ -66,14 +69,23 @@ def _invoke(AdapterClass, message_string):
         The BaseHarmonyAdapter subclass to use to handle service invocations
     message_string : string
         The Harmony input message
+    sources_path : string
+        A file location with a JSON object containing the "sources" key for the harmony message.
+        If provided, this file will get parsed and replace any sources in the original message.
     Returns
     -------
     True if the operation completed successfully, False otherwise
     """
 
     secret_key = get_env('SHARED_SECRET_KEY')
-    adapter = AdapterClass(
-        Message(message_string, create_decrypter(bytes(secret_key, 'utf-8'))))
+    decrypter = create_decrypter(bytes(secret_key, 'utf-8'))
+
+    message_data = json.loads(message_string)
+    # If sources are provided in a separate file, update the message with them
+    if sources_path is not None:
+        with open(sources_path) as f:
+            message_data.update(json.load(f))
+    adapter = AdapterClass(Message(message_data, decrypter))
 
     try:
         adapter.invoke()
@@ -154,7 +166,7 @@ def run_cli(parser, args, AdapterClass):
             parser.error(
                 '--harmony-input must be provided for --harmony-action=invoke')
         else:
-            successful = _invoke(AdapterClass, args.harmony_input)
+            successful = _invoke(AdapterClass, args.harmony_input, args.harmony_sources)
             if not successful:
                 raise Exception('Service operation failed')
 
