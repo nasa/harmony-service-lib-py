@@ -21,25 +21,55 @@ Recommended when using HTTPS, allowing Earthdata Login auth.  Prints a warning i
     EDL_PASSWORD: The password to be passed to Earthdata Login when challenged
 
 Optional when reading from or staging to S3:
-    USE_LOCALSTACK: 'true' if the S3 client should connect to a LocalStack instance instead of Amazon S3 (for testing)
+    USE_LOCALSTACK: 'true' if the S3 client should connect to a LocalStack instance instead of
+                    Amazon S3 (for testing)
 """
 
 from base64 import b64decode
 from datetime import datetime
 import hashlib
 from http.cookiejar import CookieJar
+import http.client
+import json
 import logging
 from pathlib import Path
-from urllib import request
+import re
 from urllib.parse import urlencode
 from os import environ, path
 import sys
-from urllib.request import (build_opener, install_opener, urlopen, Request,
-                            HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm, HTTPCookieProcessor, HTTPSHandler)
-import json
+from urllib.request import (build_opener, Request,
+                            HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm,
+                            HTTPCookieProcessor, HTTPSHandler)
+
 import boto3
 from pythonjsonlogger import jsonlogger
 from nacl.secret import SecretBox
+
+http.client.HTTPConnection.debuglevel = 5
+
+
+class TEAHTTPCookieProcessor(HTTPCookieProcessor):
+    """
+    TEA-specific cookie processor that only adds cookies if the
+    redirect location is not an AWS S3 URL.
+    """
+    s3_location = re.compile(r's3\..*\.amazonaws.com')
+
+    def http_request(self, request):
+        url = request.get_full_url()
+        match = TEAHTTPCookieProcessor.s3_location.search(url)
+        if match is None:
+            request = super().http_request(request)
+        else:
+            request.remove_header("Authorization")
+
+        return request
+
+    def http_response(self, request, response):
+        return super().http_response(request, response)
+
+    https_request = http_request
+    https_response = http_response
 
 
 class HarmonyException(Exception):
@@ -52,17 +82,22 @@ class HarmonyException(Exception):
     category : string
         Classification of the type of harmony error
     """
+
     def __init__(self, message, category):
         self.message = message
         self.category = category
 
+
 class CanceledException(HarmonyException):
     """Class for throwing an exception indicating a Harmony request has been canceled"""
+
     def __init__(self, message=None):
         super().__init__(message, 'Canceled')
 
+
 class ForbiddenException(HarmonyException):
     """Class for throwing an exception indicating download failed due to not being able to access the data"""
+
     def __init__(self, message=None):
         super().__init__(message, 'Forbidden')
 
@@ -217,12 +252,18 @@ def _get_aws_client(service):
     s3_client : boto3.*.Client
         A client appropriate for accessing the provided service
     """
-    service_params = _aws_parameters(
-        _use_localstack(), _localstack_host(), _region())
+    service_params = _aws_parameters(_use_localstack(), _localstack_host(), _region())
     return boto3.client(service, **service_params)
 
 
-def _create_basic_auth_opener(logger=default_logger, accessToken=None):
+def _create_opener():
+    cookie_processor = TEAHTTPCookieProcessor(CookieJar())
+    https_handler = HTTPSHandler(debuglevel=5)
+
+    return build_opener(cookie_processor, https_handler)
+
+
+def _create_basic_auth_opener(logger=default_logger):
     """
     Creates an OpenerDirector that will use HTTP(S) cookies and basic auth to open a URL
     using Earthdata Login (EDL) auth credentials.  Will use Earthdata Login creds only if
@@ -238,23 +279,24 @@ def _create_basic_auth_opener(logger=default_logger, accessToken=None):
         they are available.
     """
     try:
-        manager = HTTPPasswordMgrWithDefaultRealm()
+        auth_handler = HTTPBasicAuthHandler(HTTPPasswordMgrWithDefaultRealm())
         edl_endpoints = ['https://sit.urs.earthdata.nasa.gov',
-                         'https://uat.urs.earthdata.nasa.gov', 'https://urs.earthdata.nasa.gov']
-        for endpoint in edl_endpoints:
-            manager.add_password(None, endpoint,
-                                 get_env('EDL_USERNAME'), get_env('EDL_PASSWORD'))
+                         'https://uat.urs.earthdata.nasa.gov',
+                         'https://urs.earthdata.nasa.gov']
+        auth_handler.add_password(None, edl_endpoints,
+                                  get_env('EDL_USERNAME'), get_env('EDL_PASSWORD'))
 
-        auth = HTTPBasicAuthHandler(manager)
-        processor = HTTPCookieProcessor(CookieJar())
+        cookie_processor = TEAHTTPCookieProcessor(CookieJar())
 
-        return build_opener(auth, processor)
+        return build_opener(auth_handler, cookie_processor)
+
     except KeyError:
-        logger.warn('Earthdata Login environment variables EDL_USERNAME and EDL_PASSWORD must be set up for authenticated downloads.  Requests will be unauthenticated.')
+        logger.warning('Earthdata Login environment variables EDL_USERNAME and EDL_PASSWORD must '
+                       'be set up for authenticated downloads. Requests will be unauthenticated.')
         return build_opener()
 
 
-def _bearer_token_auth_header(accessToken):
+def _bearer_token_auth_header(access_token):
     """Returns a dictionary representing an HTTP Authorization header.
 
     Conforms to RFC 6750: The OAuth 2.0 Authorization Framework: Bearer Token Usage
@@ -262,7 +304,7 @@ def _bearer_token_auth_header(accessToken):
 
     Parameters
     ----------
-    accessToken : string
+    access_token : string
         The Earthdata Login token for the user making the request.
 
     Returns
@@ -271,20 +313,19 @@ def _bearer_token_auth_header(accessToken):
         A dictionary with the Authorization header key and Bearer token.
     """
     return {
-        'Authorization': f'Bearer {accessToken}'
+        'Authorization': f'Bearer {access_token}'
     }
 
 
-def download(url, destination_dir, logger=default_logger, accessToken=None,
-             data=None):
+def download(url, destination_dir, logger=default_logger, access_token=None, data=None):
     """
     Downloads the given URL to the given destination directory, using the basename of the URL
     as the filename in the destination directory.  Supports http://, https:// and s3:// schemes.
     When using the s3:// scheme, will run against us-west-2 unless the "AWS_DEFAULT_REGION"
     environment variable is set.
 
-    When using http:// or https:// schemes, the accessToken will be used for authentication
-    if it is provided. If authentication with the accessToken fails, or if the accessToken
+    When using http:// or https:// schemes, the access_token will be used for authentication
+    if it is provided. If authentication with the access_token fails, or if the access_token
     is not provided, the following environment variables will be used to authenticate
     when downloading the data:
 
@@ -302,7 +343,7 @@ def download(url, destination_dir, logger=default_logger, accessToken=None,
         The directory in which to place the downloaded file
     logger : Logger
         A logger to which the function will write, if provided
-    accessToken :
+    access_token :
         The Earthdata Login token of the caller to use for downloads
     data : dict or Tuple[str, str]
         Optional parameter for additional data to
@@ -325,6 +366,8 @@ def download(url, destination_dir, logger=default_logger, accessToken=None,
         return destination
 
     def download_from_http(url, destination, data=None):
+        response = None
+
         try:
             logger.info('Downloading %s', url)
 
@@ -335,16 +378,18 @@ def download(url, destination_dir, logger=default_logger, accessToken=None,
             else:
                 encoded_data = None
 
-            if accessToken is not None:
-                headers = _bearer_token_auth_header(accessToken)
+            if access_token is not None:
+                headers = _bearer_token_auth_header(access_token)
                 try:
-                    response = urlopen(Request(url, headers=headers,
-                                               data=encoded_data))
+                    opener = _create_opener()
+                    request = Request(url, headers=headers, data=encoded_data)
+                    response = opener.open(request)
                 except Exception as e:
-                    logger.warn('Failed to download using access token due to ' + str(e)
-                        + ' Trying with EDL_USERNAME and EDL_PASSWORD', str(e))
+                    msg = ('Failed to download using access token due to ' + str(e) +
+                           ' Trying with EDL_USERNAME and EDL_PASSWORD', str(e))
+                    logger.exception(msg, exc_info=e)
 
-            if accessToken is None or response is None or response.status != 200:
+            if access_token is None or response is None or response.status != 200:
                 opener = _create_basic_auth_opener(logger)
                 response = opener.open(url, data=encoded_data)
 
@@ -355,9 +400,9 @@ def download(url, destination_dir, logger=default_logger, accessToken=None,
 
             return destination
         except Exception as e:
-            code = e.getcode()
+            code = response.getcode()
             logger.error('Download failed with status code: ' + str(code))
-            body = e.read().decode()
+            body = response.read().decode()
 
             logger.error('Failed to download URL:' + body)
             if (code == 401 or code == 403):
@@ -366,12 +411,13 @@ def download(url, destination_dir, logger=default_logger, accessToken=None,
                     json_object = json.loads(body)
                     eula_error = "error_description" in json_object and "resolution_url" in json_object
                     if eula_error:
-                        body = 'Request could not be completed because you need to agree to the EULA at ' + json_object['resolution_url']
+                        body = 'Request could not be completed because you need to agree to the EULA at ' + \
+                            json_object['resolution_url']
                 except:
                     pass
                 raise ForbiddenException(body)
             else:
-              raise e
+                raise e
 
     basename = hashlib.sha256(url.encode('utf-8')).hexdigest()
     ext = path.basename(url).split('?')[0].split('.')[-1]
