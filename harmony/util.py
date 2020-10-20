@@ -48,30 +48,6 @@ from pythonjsonlogger import jsonlogger
 from nacl.secret import SecretBox
 
 
-class TEAHTTPCookieProcessor(HTTPCookieProcessor):
-    """
-    TEA-specific cookie processor that only adds cookies if the
-    redirect location is not an AWS S3 URL.
-    """
-    # TODO: Add _why_ we're doing this above
-
-    # TODO: Is there a general pattern we should use for detecting s3?
-    s3_location = re.compile(r's3\..*\.amazonaws.com')
-
-    def http_request(self, request):
-        # TODO: Simplify?
-        url = request.get_full_url()
-        match = TEAHTTPCookieProcessor.s3_location.search(url)
-        if match is None:
-            request = super().http_request(request)
-        else:
-            request.remove_header("Authorization")
-
-        return request
-
-    https_request = http_request
-
-
 class HarmonyException(Exception):
     """Base class for Harmony exceptions.
 
@@ -258,19 +234,31 @@ def _get_aws_client(service):
 
 @lru_cache
 def _create_opener():
-    # TODO: docstring
-    cookie_processor = TEAHTTPCookieProcessor(CookieJar())
-    https_handler = HTTPSHandler()
+    """Creates a urllib.request.OpenerDirector suitable for use with TEA.
 
-    return build_opener(cookie_processor, https_handler)
+    This opener will handle cookies, which is necessary for the JWT
+    cookie that TEA sends on a redirect. If this cookie is not sent to
+    TEA when redirected, TEA will fail to deliver the data.
+
+    Returns
+    -------
+    opener : urllib.request.OpenerDirector
+        An OpenerDirector that can be used to to open a URL using the
+        EDL credentials, if they are available. The OpenerDirector is
+        memoized so that subsequent calls use the same opener and
+        cookie(s).
+    """
+    cookie_processor = HTTPCookieProcessor(CookieJar())
+    return build_opener(cookie_processor)
 
 
 @lru_cache
 def _create_basic_auth_opener(logger=default_logger):
-    """
-    Creates an OpenerDirector that will use HTTP(S) cookies and basic auth to open a URL
-    using Earthdata Login (EDL) auth credentials.  Will use Earthdata Login creds only if
-    the following environment variables are set and will print a warning if they are not:
+    """Creates an OpenerDirector that will use HTTP(S) cookies and basic auth to open a URL
+    using Earthdata Login (EDL) auth credentials.
+
+    Will use Earthdata Login creds only if the following environment
+    variables are set and will print a warning if they are not:
 
     EDL_USERNAME: The username to be passed to Earthdata Login when challenged
     EDL_PASSWORD: The password to be passed to Earthdata Login when challenged
@@ -278,8 +266,10 @@ def _create_basic_auth_opener(logger=default_logger):
     Returns
     -------
     opener : urllib.request.OpenerDirector
-        An OpenerDirector that can be used to to open a URL using the EDL credentials, if
-        they are available.
+        An OpenerDirector that can be used to to open a URL using the
+        EDL credentials, if they are available. The OpenerDirector is
+        memoized so that subsequent calls use the same opener and
+        cookie(s).
     """
     try:
         auth_handler = HTTPBasicAuthHandler(HTTPPasswordMgrWithDefaultRealm())
@@ -289,7 +279,7 @@ def _create_basic_auth_opener(logger=default_logger):
         auth_handler.add_password(None, edl_endpoints,
                                   get_env('EDL_USERNAME'), get_env('EDL_PASSWORD'))
 
-        cookie_processor = TEAHTTPCookieProcessor(CookieJar())
+        cookie_processor = HTTPCookieProcessor(CookieJar())
 
         return build_opener(auth_handler, cookie_processor)
 
@@ -300,7 +290,7 @@ def _create_basic_auth_opener(logger=default_logger):
 
 
 def _bearer_token_auth_header(access_token):
-    """Returns a dictionary representing an HTTP Authorization header.
+    """Returns a tuple representing an HTTP Authorization header.
 
     Conforms to RFC 6750: The OAuth 2.0 Authorization Framework: Bearer Token Usage
     See: https://tools.ietf.org/html/rfc6750
@@ -312,12 +302,10 @@ def _bearer_token_auth_header(access_token):
 
     Returns
     -------
-    authorization token : dict
-        A dictionary with the Authorization header key and Bearer token.
+    authorization token : tuple
+        A tuple with the Authorization header name and Bearer token value.
     """
-    return {
-        'Authorization': f'Bearer {access_token}'
-    }
+    return ('Authorization', f'Bearer {access_token}')
 
 
 def download(url, destination_dir, logger=default_logger, access_token=None, data=None):
@@ -382,12 +370,25 @@ def download(url, destination_dir, logger=default_logger, access_token=None, dat
                 encoded_data = None
 
             if access_token is not None:
-                headers = _bearer_token_auth_header(access_token)
                 try:
+                    # The Bearer token should not be included in a
+                    # redirect; doing so can result in a 401 error if
+                    # the redirect URL from TEA is a pre-signed S3
+                    # URL, as it will be if TEA receives an in-region
+                    # request (the requester is in the same region as
+                    # the TEA app).
+                    request = Request(url, data=encoded_data)
+                    auth_header = _bearer_token_auth_header(access_token)
+                    request.add_unredirected_header(*auth_header)
+
                     opener = _create_opener()
-                    request = Request(url, headers=headers, data=encoded_data)
                     response = opener.open(request)
                 except Exception as e:
+                    # As a fallback, try using basic auth with the
+                    # application username and password. This should
+                    # only happen in cases where the backend server
+                    # does not yet support the EDL Bearer token
+                    # authentication.
                     msg = ('Failed to download using access token due to ' + str(e) +
                            ' Trying with EDL_USERNAME and EDL_PASSWORD', str(e))
                     logger.exception(msg, exc_info=e)
