@@ -4,7 +4,15 @@
   downloads from TEA work whether or not TEA is in the same AWS region
   as the app making the request.
 
-## [v0.0.?] - 2020/09/18
+## [v0.0.24] - 2020/10/13
+
+* Add optional --harmony-sources command line parameter that specifies an external
+  JSON file containing a "sources" key to be added to the --harmony-input message.
+  As our supported granule count grows, we need to externalize the list of file URLs
+  or we run into limits on command length.  We are currently keeping the remainder of
+  the message directly on the CLI to allow easier manipulation in workflow definitions.
+
+## [v0.0.23] - 2020/09/22
 
 * Add POST functionality to the `harmony.util.download` function when query
   parameters are included in the function call.

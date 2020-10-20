@@ -11,7 +11,6 @@ from the message JSON.
 import hashlib
 import json
 
-
 class JsonObject(object):
     """
     Base class for deserialized Harmony message objects
@@ -427,18 +426,25 @@ class Message(JsonObject):
         The Harmony message's temporal subsetting parameters
     """
 
-    def __init__(self, json_str, decrypter=lambda x: x):
+    def __init__(self, json_str_or_dict, decrypter=lambda x: x):
         """
         Builds a Message object and all of its child objects by deserializing the
         provided JSON string and performing any necessary version interpretation.
 
         Parameters
         ----------
-        json_str : string
-            The incoming Harmony message string
+        json_str_or_dict : string | Object
+            The incoming Harmony message as a JSON string or dict as parsed by `json.load()`
+        decrypter : function
+            A function that takes an encrypted value and returns it decrypted
         """
-        self.json = json_str
-        super().__init__(json.loads(json_str),
+
+        if isinstance(json_str_or_dict, str):
+            json_obj = json.loads(json_str_or_dict)
+        else:
+            json_obj = json_str_or_dict
+
+        super().__init__(json_obj,
                          properties=[
             'version',
             'callback',
@@ -465,6 +471,10 @@ class Message(JsonObject):
             self.temporal = Temporal(self.temporal)
         if self.accessToken is not None:
             self.accessToken = self.decrypter(self.accessToken)
+
+    @property
+    def json(self):
+        return json.dumps(self.data)
 
     def digest(self):
         """
