@@ -34,6 +34,7 @@ import json
 import logging
 from pathlib import Path
 import re
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from os import environ, path
 import sys
@@ -399,10 +400,10 @@ def download(url, destination_dir, logger=default_logger, access_token=None, dat
             logger.info('Completed %s', url)
 
             return destination
-        except Exception as e:
-            code = response.getcode()
+        except HTTPError as http_error:
+            code = http_error.getcode()
             logger.error('Download failed with status code: ' + str(code))
-            body = response.read().decode()
+            body = http_error.read().decode()
 
             logger.error('Failed to download URL:' + body)
             if (code == 401 or code == 403):
