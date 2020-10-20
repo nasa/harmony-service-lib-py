@@ -1,3 +1,9 @@
+## 2020/10/20
+
+* Bug fix: Handle Authentication HTTP headers & cookies correctly so
+  downloads from TEA work whether or not TEA is in the same AWS region
+  as the app making the request.
+
 ## [v0.0.?] - 2020/09/18
 
 * Add POST functionality to the `harmony.util.download` function when query
@@ -33,7 +39,7 @@
 * Replace '/' with '_' in filenames when a variable contains slashes such as /science/grids/data/amplitude
 * Handles canceled jobs
 
-## [v0.0.7] 
+## [v0.0.7]
 
 ### Changed
 
