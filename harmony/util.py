@@ -232,7 +232,7 @@ def _get_aws_client(service):
     return boto3.client(service, **service_params)
 
 
-@lru_cache
+@lru_cache(maxsize=None)
 def _create_opener():
     """Creates a urllib.request.OpenerDirector suitable for use with TEA.
 
@@ -252,7 +252,7 @@ def _create_opener():
     return build_opener(cookie_processor)
 
 
-@lru_cache
+@lru_cache(maxsize=None)
 def _create_basic_auth_opener(logger=default_logger):
     """Creates an OpenerDirector that will use HTTP(S) cookies and basic auth to open a URL
     using Earthdata Login (EDL) auth credentials.
