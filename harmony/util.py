@@ -414,11 +414,11 @@ def download(url, destination_dir, logger=default_logger, access_token=None, dat
                     if eula_error:
                         body = 'Request could not be completed because you need to agree to the EULA at ' + \
                             json_object['resolution_url']
-                except:
+                except Exception:
                     pass
-                raise ForbiddenException(body)
+                raise ForbiddenException(body) from http_error
             else:
-                raise e
+                raise
 
     basename = hashlib.sha256(url.encode('utf-8')).hexdigest()
     ext = path.basename(url).split('?')[0].split('.')[-1]
