@@ -30,18 +30,15 @@ from datetime import datetime
 from functools import lru_cache
 import hashlib
 from http.cookiejar import CookieJar
-import http.client
 import json
 import logging
 from pathlib import Path
-import re
-from urllib.error import HTTPError
-from urllib.parse import urlencode
 from os import environ, path
 import sys
+from urllib.error import HTTPError
 from urllib.request import (build_opener, Request,
-                            HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm,
-                            HTTPCookieProcessor, HTTPSHandler)
+                            HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm, HTTPCookieProcessor)
+from urllib.parse import urlencode
 
 import boto3
 from pythonjsonlogger import jsonlogger
