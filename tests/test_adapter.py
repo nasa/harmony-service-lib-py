@@ -1,18 +1,17 @@
 import unittest
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, MagicMock
 from tempfile import NamedTemporaryFile, mkdtemp
 import os
 from os import path, remove
 import pathlib
 from shutil import rmtree
 from urllib.error import HTTPError
-import urllib
 
 from harmony.adapter import BaseHarmonyAdapter
 from harmony.message import Message, Granule, Variable, Temporal
-from .example_messages import minimal_message, minimal_source_message, full_message
 import harmony.util
 from harmony.util import CanceledException
+from .example_messages import minimal_message, full_message
 
 # BaseHarmonyAdapter is abstract, so tests need a minimal concrete class
 class TestAdapter(BaseHarmonyAdapter):
@@ -95,7 +94,15 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
     def test_completed_with_redirect_when_no_callback_has_been_made_it_posts_the_redirect(self, _callback_post):
         adapter = TestAdapter(full_message)
         adapter.completed_with_redirect('https://example.com')
-        _callback_post.assert_called_with('/response?redirect=https%3A//example.com')
+        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com&item[type]=image/tiff&status=successful')
+
+    @patch.object(BaseHarmonyAdapter, '_callback_post')
+    def test_completed_with_redirect_accepts_item_metadata(self, _callback_post):
+        adapter = TestAdapter(full_message)
+        granule = adapter.message.sources[0].granules[0]
+        temporal = Temporal(start='2011-11-11T11:11:11Z', end='2011-11-11T11:11:12Z')
+        adapter.completed_with_redirect('https://example.com', title='hi', mime='image/tiff', source_granule=granule, temporal=temporal, bbox=[1.1, 2.2, 3.3, 4.4])
+        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com&item[type]=image/tiff&item[temporal]=2001-01-01T01%3A01%3A01Z%2C2002-02-02T02%3A02%3A02Z&item[bbox]=-1%2C-2%2C3%2C4&status=successful')
 
     def test_completed_with_redirect_when_a_callback_has_been_made_it_throws_an_exception(self):
         adapter = TestAdapter(full_message)
@@ -108,7 +115,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         adapter = TestAdapter(full_message)
         adapter.completed_with_local_file('tmp/output.tif', remote_filename='out.tif')
         stage.assert_called_with('tmp/output.tif', 'out.tif', 'image/tiff', location='s3://example-bucket/public/some-org/some-service/some-uuid/', logger=adapter.logger)
-        _callback_post.assert_called_with('/response?redirect=https%3A//example.com/out')
+        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com/out&item[type]=image/tiff&status=successful')
 
     @patch.object(BaseHarmonyAdapter, '_callback_post')
     @patch.object(harmony.util, 'stage', return_value='https://example.com/out')
@@ -117,7 +124,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         granule = adapter.message.sources[0].granules[0]
         adapter.completed_with_local_file('tmp/output.tif', source_granule=granule, is_variable_subset=True, is_regridded=True, is_subsetted=True)
         stage.assert_called_with('tmp/output.tif', 'example_granule_1_ExampleVar1_regridded_subsetted.tif', 'image/tiff', location='s3://example-bucket/public/some-org/some-service/some-uuid/', logger=adapter.logger)
-        _callback_post.assert_called_with('/response?redirect=https%3A//example.com/out')
+        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com/out&item[type]=image/tiff&item[temporal]=2001-01-01T01%3A01%3A01Z%2C2002-02-02T02%3A02%3A02Z&item[bbox]=-1%2C-2%2C3%2C4&status=successful')
 
     @patch.object(BaseHarmonyAdapter, '_callback_post')
     def test_async_add_url_partial_result_for_async_incomplete_requests_posts_the_url(self, _callback_post):
@@ -197,7 +204,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         granule = adapter.message.sources[0].granules[0]
         adapter.async_add_local_file_partial_result('tmp/output.tif', source_granule=granule, is_variable_subset=True, is_regridded=True, is_subsetted=True, title='my file', progress=50)
         stage.assert_called_with('tmp/output.tif', 'example_granule_1_ExampleVar1_regridded_subsetted.tif', 'image/tiff', location='s3://example-bucket/public/some-org/some-service/some-uuid/', logger=adapter.logger)
-        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com/out&item[type]=image/tiff&item[title]=my%20file&progress=50&item[temporal]=2001-01-01T01%3A01%3A01Z%2C2002-02-02T02%3A02%3A02Z&item[bbox]=-1%2C-2%2C3%2C4')
+        _callback_post.assert_called_with('/response?item[href]=https%3A//example.com/out&item[type]=image/tiff&item[title]=my%20file&item[temporal]=2001-01-01T01%3A01%3A01Z%2C2002-02-02T02%3A02%3A02Z&item[bbox]=-1%2C-2%2C3%2C4&progress=50')
 
     def test_filename_for_granule(self):
         adapter = TestAdapter(minimal_message)

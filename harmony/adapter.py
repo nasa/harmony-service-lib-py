@@ -16,8 +16,8 @@ import logging
 from abc import ABC, abstractmethod
 from tempfile import mkdtemp
 
-from . import util
 from harmony.util import CanceledException, touch_health_check_file
+from . import util
 
 
 class BaseHarmonyAdapter(ABC):
@@ -172,11 +172,17 @@ class BaseHarmonyAdapter(ABC):
         if self.is_complete and not self.is_canceled:
             raise Exception(
                 'Attempted to error an already-complete service call with message ' + error_message)
-        self._callback_post('/response?error=%s' %
-                            (urllib.parse.quote(error_message)))
+        self._callback_response({'error': error_message})
         self.is_complete = True
 
-    def completed_with_redirect(self, url):
+    def completed_with_redirect(
+            self,
+            url,
+            title=None,
+            mime=None,
+            source_granule=None,
+            temporal=None,
+            bbox=None):
         """
         Performs a callback instructing Harmony to redirect the service user to the given URL
 
@@ -184,6 +190,16 @@ class BaseHarmonyAdapter(ABC):
         ----------
         url : string
             The URL where the service user should be redirected
+        mime : string, optional
+            The mime type of the file, by default the output mime type requested by Harmony
+        title : string, optional
+            Textual information to provide users along with the link
+        temporal : harmony.message.Temporal, optional
+            The temporal extent of the provided file.  If not provided, the source granule's
+            temporal will be used when a source granule is provided
+        bbox : list, optional
+            List of [West, South, East, North] for the MBR of the provided result.  If not provided,
+            the source granule's bbox will be used when a source granule is provided
 
         Raises
         ------
@@ -194,8 +210,9 @@ class BaseHarmonyAdapter(ABC):
         if self.is_complete:
             raise Exception(
                 'Attempted to redirect an already-complete service call to ' + url)
-        self._callback_post('/response?redirect=%s' %
-                            (urllib.parse.quote(url)))
+        params = self._build_callback_item_params(url, mime=mime, source_granule=source_granule)
+        params['status'] = 'successful'
+        self._callback_response(params)
         self.is_complete = True
 
     def completed_with_local_file(
@@ -206,7 +223,10 @@ class BaseHarmonyAdapter(ABC):
             is_variable_subset=False,
             is_regridded=False,
             is_subsetted=False,
-            mime=None):
+            mime=None,
+            title=None,
+            temporal=None,
+            bbox=None):
         """
         Indicates that the service has completed with the given file as its result.  Stages the
         provided local file to a user-accessible S3 location and instructs Harmony to redirect
@@ -231,6 +251,14 @@ class BaseHarmonyAdapter(ABC):
             True if a subsetting operation has been performed (default: False)
         mime : string, optional
             The mime type of the file, by default the output mime type requested by Harmony
+        title : string, optional
+            Textual information to provide users along with the link
+        temporal : harmony.message.Temporal, optional
+            The temporal extent of the provided file.  If not provided, the source granule's
+            temporal will be used when a source granule is provided
+        bbox : list, optional
+            List of [West, South, East, North] for the MBR of the provided result.  If not provided,
+            the source granule's bbox will be used when a source granule is provided
 
         Raises
         ------
@@ -239,7 +267,7 @@ class BaseHarmonyAdapter(ABC):
         """
         url = self.stage(filename, source_granule, remote_filename,
                          is_variable_subset, is_regridded, is_subsetted, mime)
-        self.completed_with_redirect(url)
+        self.completed_with_redirect(url, title, mime, source_granule, temporal, bbox)
 
     def async_add_local_file_partial_result(
             self,
@@ -283,11 +311,11 @@ class BaseHarmonyAdapter(ABC):
         progress : integer, optional
             Numeric progress of the total request, 0-100
         temporal : harmony.message.Temporal, optional
-            The temporal extent of the provided file.  If not provided, the source granule's temporal will be
-            used when a source granule is provided
+            The temporal extent of the provided file.  If not provided, the source granule's
+            temporal will be used when a source granule is provided
         bbox : list, optional
-            List of [West, South, East, North] for the MBR of the provided result.  If not provided, the source
-            granule's bbox will be used when a source granule is provided
+            List of [West, South, East, North] for the MBR of the provided result.  If not provided,
+            the source granule's bbox will be used when a source granule is provided
 
         Raises
         ------
@@ -319,9 +347,11 @@ class BaseHarmonyAdapter(ABC):
             The granule from which the file was derived, if it was derived from a single granule.  This
             will be used to produce a canonical filename and assist when temporal and bbox are not specified
         temporal : harmony.message.Temporal, optional
-            The temporal extent of the provided file
+            The temporal extent of the provided file.  If not provided, the source granule's
+            temporal will be used when a source granule is provided
         bbox : list, optional
-            List of [West, South, East, North] for the MBR of the provided result
+            List of [West, South, East, North] for the MBR of the provided result.  If not provided,
+            the source granule's bbox will be used when a source granule is provided
 
         Raises
         ------
@@ -334,26 +364,11 @@ class BaseHarmonyAdapter(ABC):
         if self.is_complete:
             raise Exception(
                 'Attempted to add a result to an already-completed request: ' + url)
-        if mime is None:
-            mime = self.message.format.mime
-        if source_granule is not None:
-            temporal = temporal or source_granule.temporal
-            bbox = bbox or source_granule.bbox
-
-        params = {'item[href]': url, 'item[type]': mime}
-        if title is not None:
-            params['item[title]'] = title
+        params = self._build_callback_item_params(url, title, mime, source_granule, temporal, bbox)
         if progress is not None:
             params['progress'] = progress
-        if temporal is not None:
-            params['item[temporal]'] = ','.join([temporal.start, temporal.end])
-        if bbox is not None:
-            params['item[bbox]'] = ','.join([str(c) for c in bbox])
 
-        param_strs = ['%s=%s' % (k, urllib.parse.quote(str(v)))
-                      for k, v in params.items()]
-        callback_url = '/response?' + '&'.join(param_strs)
-        self._callback_post(callback_url)
+        self._callback_response(params)
 
     def async_completed_successfully(self):
         """
@@ -372,7 +387,7 @@ class BaseHarmonyAdapter(ABC):
         if self.is_complete:
             raise Exception(
                 'Attempted to call back for an already-completed request.')
-        self._callback_post('/response?status=successful')
+        self._callback_response({'status': 'successful'})
         self.is_complete = True
 
     def filename_for_granule(self, granule, ext, is_variable_subset=False, is_regridded=False, is_subsetted=False):
@@ -425,6 +440,74 @@ class BaseHarmonyAdapter(ABC):
                 result = result[:-len(suffix)]
 
         return result + "".join(suffixes)
+
+    def _build_callback_item_params(
+            self,
+            url,
+            title=None,
+            mime=None,
+            source_granule=None,
+            temporal=None,
+            bbox=None):
+        """
+        Builds the "item[...]" parameters required for a callback to Harmony for the given
+        params, returning them as a string param / string value dict.
+
+        Parameters
+        ----------
+        url : string
+            The URL where the service user should be redirected
+        title : string, optional
+            Textual information to provide users along with the link
+        mime : string, optional
+            The mime type of the file, by default the output mime type requested by Harmony
+        source_granule : message.Granule, optional
+            The granule from which the file was derived, if it was derived from a single granule.  This
+            will be used to produce a canonical filename and assist when temporal and bbox are not specified
+        temporal : harmony.message.Temporal, optional
+            The temporal extent of the provided file.  If not provided, the source granule's
+            temporal will be used when a source granule is provided
+        bbox : list, optional
+            List of [West, South, East, North] for the MBR of the provided result.  If not provided,
+            the source granule's bbox will be used when a source granule is provided
+
+        Returns
+        -------
+        dict
+            A dictionary containing a mapping of query parameters to value for the given params
+        """
+        if mime is None:
+            mime = self.message.format.mime
+        if source_granule is not None:
+            temporal = temporal or source_granule.temporal
+            bbox = bbox or source_granule.bbox
+
+        params = {'item[href]': url, 'item[type]': mime}
+        if title is not None:
+            params['item[title]'] = title
+        if temporal is not None:
+            params['item[temporal]'] = ','.join([temporal.start, temporal.end])
+        if bbox is not None:
+            params['item[bbox]'] = ','.join([str(c) for c in bbox])
+        return params
+
+    def _callback_response(self, query_params):
+        """
+        POSTs to the Harmony callback URL at the given path with the given params
+
+        Parameters
+        ----------
+        query_params : dict
+            A mapping of string key to string value query params to send to the callback
+
+        Returns
+        -------
+        None
+        """
+
+        param_strs = ['%s=%s' % (k, urllib.parse.quote(str(v)))
+                      for k, v in query_params.items()]
+        self._callback_post('/response?' + '&'.join(param_strs))
 
     def _callback_post(self, path):
         """
