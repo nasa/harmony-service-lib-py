@@ -3,7 +3,7 @@ import unittest
 from base64 import b64encode
 from nacl.secret import SecretBox
 from nacl.utils import random
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import mock_open, patch, MagicMock, Mock
 import os
 import boto3
 import pathlib
@@ -20,6 +20,7 @@ class MockDecode():
   def decode(self):
     return self.message
 
+
 class MockHTTPError(HTTPError):
     def __init__(self, url='http://example.com', code=500, msg='Internal server error', hdrs=[], fp=None):
         super().__init__(url, code, msg, hdrs, fp)
@@ -27,6 +28,17 @@ class MockHTTPError(HTTPError):
 
     def read(self):
         return MockDecode(self.message)
+
+
+class BearerTokenHeader(unittest.TestCase):
+    def test_when_provided_an_access_token_it_creates_a_proper_auth_header(self):
+        access_token = 'AHIGHLYRANDOMSTRING'
+        expected = ('Authorization', f'Bearer {access_token}')
+
+        actual = util._bearer_token_auth_header(access_token)
+
+        self.assertEqual(expected, actual)
+
 
 class TestDownload(unittest.TestCase):
     def setUp(self):
@@ -109,6 +121,71 @@ class TestDownload(unittest.TestCase):
           self.fail('ForbiddenException raised when it should not have')
         except Exception:
           pass
+
+    @patch('urllib.request.OpenerDirector.open')
+    @patch.object(util, '_create_opener')
+    @patch.object(util, '_bearer_token_auth_header')
+    def test_when_given_an_access_token_it_creates_bearer_token_and_downloads(
+        self,
+        _bearer_token_auth_header,
+        _create_opener,
+        urlopen
+    ):
+        url = 'https://example.com/file.txt'
+        access_token='OPENSESAME'
+        _bearer_token_auth_header.return_value = ('Authorization', 'Bearer foobar')
+        mock_opener = Mock()
+        _create_opener.return_value = mock_opener
+        mopen = mock_open()
+
+        with patch('builtins.open', mopen):
+            util.download(url, 'tmp', access_token=access_token)
+
+            _bearer_token_auth_header.assert_called_with(access_token)
+            _create_opener.assert_called()
+            mock_opener.open.assert_called()
+            mock_opener.open.return_value = "Response"
+            mopen.assert_called()
+
+    @patch('urllib.request.OpenerDirector.open')
+    @patch.object(util, '_create_basic_auth_opener')
+    def test_when_provided_an_access_token_and_the_url_returns_an_error_it_falls_back_to_basic_auth(
+        self,
+        _create_basic_auth_opener,
+        urlopen
+    ):
+        url = 'https://example.com/file.txt'
+        access_token='OPENSESAME'
+        urlopen.side_effect = MockHTTPError(url=url, code=400, msg='Forbidden 400 message')
+        mock_opener = Mock()
+        _create_basic_auth_opener.return_value = mock_opener
+
+        with patch('builtins.open'):
+            util.download(url, 'tmp', access_token=access_token)
+
+            _create_basic_auth_opener.assert_called()
+            mock_opener.open.assert_called_with(url, data=None)
+
+    @patch.object(util, '_create_basic_auth_opener')
+    @patch.object(util, '_create_opener')
+    @patch.object(util, '_bearer_token_auth_header')
+    def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads(
+        self,
+        _bearer_token_auth_header,
+        _create_opener,
+        _create_basic_auth_opener
+    ):
+        url = 'https://example.com/file.txt'
+        mock_opener = Mock()
+        _create_basic_auth_opener.return_value = mock_opener
+
+        with patch('builtins.open'):
+            util.download(url, 'tmp')
+
+            _bearer_token_auth_header.assert_not_called()
+            _create_opener.assert_not_called()
+            _create_basic_auth_opener.assert_called()
+            mock_opener.open.assert_called_with(url, data=None)
 
 
 class TestDecrypter(unittest.TestCase):

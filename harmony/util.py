@@ -354,8 +354,6 @@ def download(url, destination_dir, logger=default_logger, access_token=None, dat
         return destination
 
     def download_from_http(url, destination, data=None):
-        response = None
-
         try:
             logger.info('Downloading %s', url)
 
@@ -379,7 +377,7 @@ def download(url, destination_dir, logger=default_logger, access_token=None, dat
                     request.add_unredirected_header(*auth_header)
 
                     opener = _create_opener()
-                    response = opener.open(request)
+                    response = opener.open(request, data=encoded_data)
                 except Exception as e:
                     # As a fallback, try using basic auth with the
                     # application username and password. This should
