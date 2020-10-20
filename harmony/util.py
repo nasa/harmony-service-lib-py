@@ -53,9 +53,13 @@ class TEAHTTPCookieProcessor(HTTPCookieProcessor):
     TEA-specific cookie processor that only adds cookies if the
     redirect location is not an AWS S3 URL.
     """
+    # TODO: Add _why_ we're doing this above
+
+    # TODO: Is there a general pattern we should use for detecting s3?
     s3_location = re.compile(r's3\..*\.amazonaws.com')
 
     def http_request(self, request):
+        # TODO: Simplify?
         url = request.get_full_url()
         match = TEAHTTPCookieProcessor.s3_location.search(url)
         if match is None:
@@ -65,11 +69,7 @@ class TEAHTTPCookieProcessor(HTTPCookieProcessor):
 
         return request
 
-    def http_response(self, request, response):
-        return super().http_response(request, response)
-
     https_request = http_request
-    https_response = http_response
 
 
 class HarmonyException(Exception):
@@ -258,6 +258,7 @@ def _get_aws_client(service):
 
 @lru_cache
 def _create_opener():
+    # TODO: docstring
     cookie_processor = TEAHTTPCookieProcessor(CookieJar())
     https_handler = HTTPSHandler()
 
