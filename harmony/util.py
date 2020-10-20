@@ -27,6 +27,7 @@ Optional when reading from or staging to S3:
 
 from base64 import b64decode
 from datetime import datetime
+from functools import lru_cache
 import hashlib
 from http.cookiejar import CookieJar
 import http.client
@@ -45,8 +46,6 @@ from urllib.request import (build_opener, Request,
 import boto3
 from pythonjsonlogger import jsonlogger
 from nacl.secret import SecretBox
-
-http.client.HTTPConnection.debuglevel = 5
 
 
 class TEAHTTPCookieProcessor(HTTPCookieProcessor):
@@ -257,13 +256,15 @@ def _get_aws_client(service):
     return boto3.client(service, **service_params)
 
 
+@lru_cache
 def _create_opener():
     cookie_processor = TEAHTTPCookieProcessor(CookieJar())
-    https_handler = HTTPSHandler(debuglevel=5)
+    https_handler = HTTPSHandler()
 
     return build_opener(cookie_processor, https_handler)
 
 
+@lru_cache
 def _create_basic_auth_opener(logger=default_logger):
     """
     Creates an OpenerDirector that will use HTTP(S) cookies and basic auth to open a URL
