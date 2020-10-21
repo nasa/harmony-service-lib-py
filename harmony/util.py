@@ -305,6 +305,33 @@ def _bearer_token_auth_header(access_token):
     return ('Authorization', f'Bearer {access_token}')
 
 
+def _request_with_bearer_token_auth_header(url, access_token, encoded_data):
+    """Returns a Request for a given URL with a non-redirecting
+    Authorization header containing the Bearer token.
+
+    The Bearer token should not be included in a redirect; doing so
+    can result in a 400 error if the redirect URL from TEA (or other
+    backend) is a pre-signed S3 URL, as it will be if TEA receives an
+    in-region request (the requester is in the same region as the TEA
+    app).
+
+    Parameters
+    ----------
+    url : string
+        The URL to fetch
+    access_token :
+        The Earthdata Login token of the caller to use for downloads
+    data : dict or Tuple[str, str]
+        Optional parameter for additional data to send to the server
+        when making a HTTP POST request.
+    """
+    request = Request(url, data=encoded_data)
+    auth_header = _bearer_token_auth_header(access_token)
+    request.add_unredirected_header(*auth_header)
+
+    return request
+
+
 def download(url, destination_dir, logger=default_logger, access_token=None, data=None):
     """
     Downloads the given URL to the given destination directory, using the basename of the URL
@@ -353,44 +380,54 @@ def download(url, destination_dir, logger=default_logger, access_token=None, dat
         _get_aws_client('s3').download_file(bucket, key, destination)
         return destination
 
+    def download_from_http_with_bearer_token(url, access_token, encoded_data, logger):
+        try:
+            request = _request_with_bearer_token_auth_header(url, access_token, encoded_data)
+            opener = _create_opener()
+            return opener.open(request)
+        except HTTPError as http_error:
+            msg = (f'Failed to download using access token due to {str(http_error)}. '
+                   'Trying with EDL_USERNAME and EDL_PASSWORD.')
+            logger.exception(msg, exc_info=http_error)
+            if 400 >= http_error.getcode() < 500:
+                return download_from_http_with_basic_auth(url, encoded_data, logger)
+            raise
+
+    def download_from_http_with_basic_auth(url, encoded_data, logger):
+        """Fallback: Use basic auth with the application username and password.
+
+        This should only happen in cases where the backend server does
+        not yet support the EDL Bearer token authentication.
+        """
+        request = Request(url, data=encoded_data)
+        opener = _create_basic_auth_opener(logger)
+        return opener.open(request)
+
+    def handle_possible_eula_error(http_error, body):
+        try:
+            # Try to determine if this is a EULA error
+            json_object = json.loads(body)
+            eula_error = "error_description" in json_object and "resolution_url" in json_object
+            if eula_error:
+                body = (f"Request could not be completed because you need to agree to the EULA "
+                        f"at {json_object['resolution_url']}")
+        finally:
+            raise ForbiddenException(body) from http_error
+
     def download_from_http(url, destination, data=None):
         try:
             logger.info('Downloading %s', url)
 
             response = None
+            encoded_data = None
             if data is not None:
                 logger.info('Query parameters supplied, will use POST method.')
                 encoded_data = urlencode(data).encode('utf-8')
-            else:
-                encoded_data = None
 
             if access_token is not None:
-                try:
-                    # The Bearer token should not be included in a
-                    # redirect; doing so can result in a 401 error if
-                    # the redirect URL from TEA is a pre-signed S3
-                    # URL, as it will be if TEA receives an in-region
-                    # request (the requester is in the same region as
-                    # the TEA app).
-                    request = Request(url, data=encoded_data)
-                    auth_header = _bearer_token_auth_header(access_token)
-                    request.add_unredirected_header(*auth_header)
-
-                    opener = _create_opener()
-                    response = opener.open(request, data=encoded_data)
-                except Exception as e:
-                    # As a fallback, try using basic auth with the
-                    # application username and password. This should
-                    # only happen in cases where the backend server
-                    # does not yet support the EDL Bearer token
-                    # authentication.
-                    msg = ('Failed to download using access token due to ' + str(e) +
-                           ' Trying with EDL_USERNAME and EDL_PASSWORD', str(e))
-                    logger.exception(msg, exc_info=e)
-
-            if access_token is None or response is None or response.status != 200:
-                opener = _create_basic_auth_opener(logger)
-                response = opener.open(url, data=encoded_data)
+                response = download_from_http_with_bearer_token(url, access_token, encoded_data, logger)
+            else:
+                response = download_from_http_with_basic_auth(url, encoded_data, logger)
 
             with open(destination, 'wb') as local_file:
                 local_file.write(response.read())
@@ -402,19 +439,10 @@ def download(url, destination_dir, logger=default_logger, access_token=None, dat
             code = http_error.getcode()
             logger.error('Download failed with status code: ' + str(code))
             body = http_error.read().decode()
-
             logger.error('Failed to download URL:' + body)
-            if (code == 401 or code == 403):
-                try:
-                    # Try to determine if this is a EULA error
-                    json_object = json.loads(body)
-                    eula_error = "error_description" in json_object and "resolution_url" in json_object
-                    if eula_error:
-                        body = 'Request could not be completed because you need to agree to the EULA at ' + \
-                            json_object['resolution_url']
-                except Exception:
-                    pass
-                raise ForbiddenException(body) from http_error
+
+            if code in (401, 403):
+                handle_possible_eula_error(http_error, body)
             else:
                 raise
 
