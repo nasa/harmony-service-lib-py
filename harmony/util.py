@@ -389,9 +389,7 @@ def download(url, destination_dir, logger=default_logger, access_token=None, dat
             msg = (f'Failed to download using access token due to {str(http_error)}. '
                    'Trying with EDL_USERNAME and EDL_PASSWORD.')
             logger.exception(msg, exc_info=http_error)
-            if 400 >= http_error.getcode() < 500:
-                return download_from_http_with_basic_auth(url, encoded_data, logger)
-            raise
+            return download_from_http_with_basic_auth(url, encoded_data, logger)
 
     def download_from_http_with_basic_auth(url, encoded_data, logger):
         """Fallback: Use basic auth with the application username and password.
