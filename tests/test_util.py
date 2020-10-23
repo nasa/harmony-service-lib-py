@@ -1,17 +1,19 @@
-import unittest
-
 from base64 import b64encode
+import os
+import pathlib
+import unittest
+from unittest.mock import mock_open, patch, MagicMock, Mock
+from urllib.error import HTTPError
+from urllib.parse import urlencode
+
 from nacl.secret import SecretBox
 from nacl.utils import random
-from unittest.mock import patch, MagicMock, mock_open
-import os
-import boto3
-import pathlib
-from urllib.error import HTTPError
-from harmony import util
+from parameterized import parameterized
 
+from harmony import util
 from tests.test_cli import MockAdapter, cli_test
 from tests.util import mock_receive
+
 
 class MockDecode():
   def __init__(self, msg):
@@ -19,6 +21,7 @@ class MockDecode():
 
   def decode(self):
     return self.message
+
 
 class MockHTTPError(HTTPError):
     def __init__(self, url='http://example.com', code=500, msg='Internal server error', hdrs=[], fp=None):
@@ -28,6 +31,27 @@ class MockHTTPError(HTTPError):
     def read(self):
         return MockDecode(self.message)
 
+
+class TestRequests(unittest.TestCase):
+    def test_when_provided_an_access_token_it_creates_a_proper_auth_header(self):
+        access_token = 'AHIGHLYRANDOMSTRING'
+        expected = ('Authorization', f'Bearer {access_token}')
+
+        actual = util._bearer_token_auth_header(access_token)
+
+        self.assertEqual(expected, actual)
+
+    def test_when_provided_an_access_token_it_creates_a_nonredirectable_auth_header(self):
+        url = 'https://example.com/file.txt'
+        access_token='OPENSESAME'
+        expected_header = dict([util._bearer_token_auth_header(access_token)])
+
+        actual_request = util._request_with_bearer_token_auth_header(url, access_token, None)
+
+        self.assertFalse(expected_header.items() <= actual_request.headers.items())
+        self.assertTrue(expected_header.items() <= actual_request.unredirected_hdrs.items())
+
+
 class TestDownload(unittest.TestCase):
     def setUp(self):
         util._s3 = None
@@ -36,79 +60,154 @@ class TestDownload(unittest.TestCase):
     def test_when_given_an_s3_uri_it_downloads_the_s3_file(self, client):
         s3 = MagicMock()
         client.return_value = s3
-        util.download('s3://example/file.txt', 'tmp')
+
+        util.download('s3://example/file.txt', 'tmp', access_token='FOO')
+
         client.assert_called_with('s3', region_name='us-west-2')
         bucket, path, filename = s3.download_file.call_args[0]
         self.assertEqual(bucket, 'example')
         self.assertEqual(path, 'file.txt')
         self.assertEqual(filename.split('.')[-1], 'txt')
 
+    def _verify_urlopen(self, url, access_token, data, urlopen, expected_urlopen_calls=1, verify_bearer_token=True):
+        """Verify that the urlopen function was called with the correct Request values."""
+
+        # In some error cases, we expect urlopen to be called more than once
+        self.assertEqual(urlopen.call_count, expected_urlopen_calls)
+
+        # Verify that we have a request argument with the correct url
+        args = urlopen.call_args.args
+        self.assertTrue(len(args), 1)
+        request = args[0]
+        self.assertEqual(request.full_url, url)
+
+        if access_token is not None and verify_bearer_token:
+            # Verify that the request has a bearer token auth header
+            # that's not redirectable, and no other headers.
+            expected_header = dict([util._bearer_token_auth_header(access_token)])
+            self.assertFalse(expected_header.items() <= request.headers.items())
+            self.assertTrue(expected_header.items() <= request.unredirected_hdrs.items())
+        else:
+            # We should not have any headers
+            self.assertEqual(len(request.headers), 0)
+            self.assertEqual(len(request.unredirected_hdrs), 0)
+
+        # If we've got data to POST, verify it's in the request
+        if data is not None:
+            self.assertEqual(urlencode(data).encode('utf-8'), request.data)
+
+    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
     @patch('urllib.request.OpenerDirector.open')
     @patch.dict(os.environ, { 'EDL_USERNAME' : 'jdoe', 'EDL_PASSWORD': 'abc' })
-    def test_when_given_an_http_url_it_downloads_the_url(self, urlopen):
+    def test_when_given_an_http_url_it_downloads_the_url(self, name, access_token, urlopen):
+        url = 'https://example.com/file.txt'
+
         mopen = mock_open()
         with patch('builtins.open', mopen):
-            util.download('https://example.com/file.txt', 'tmp')
-            urlopen.assert_called_with('https://example.com/file.txt', data=None)
+            util.download(url, 'tmp', access_token=access_token)
+
+            self._verify_urlopen(url, access_token, None, urlopen)
             mopen.assert_called()
 
+    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
     @patch('urllib.request.OpenerDirector.open')
     @patch.dict(os.environ, {'EDL_USERNAME': 'jdoe', 'EDL_PASSWORD': 'abc'})
-    def test_when_given_a_url_and_data_it_downloads_with_query_string(self, urlopen):
-        mopen = mock_open()
-
+    def test_when_given_a_url_and_data_it_downloads_with_query_string(self, name, access_token, urlopen):
+        url = 'https://example.com/file.txt'
         data = {'param': 'value'}
 
+        mopen = mock_open()
         with patch('builtins.open', mopen):
-            util.download('https://example.com/file.txt', 'tmp', data=data)
-            urlopen.assert_called_with('https://example.com/file.txt',
-                                       data=b'param=value')
+            util.download(url, 'tmp', access_token=access_token, data=data)
+            self._verify_urlopen(url, access_token, data, urlopen)
             mopen.assert_called()
 
-    def test_when_given_a_file_url_it_returns_the_file_path(self):
-        self.assertEqual(util.download('file://example/file.txt', 'tmp'), 'example/file.txt')
+    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
+    def test_when_given_a_file_url_it_returns_the_file_path(self, name, access_token):
+        self.assertEqual(util.download('file://example/file.txt', 'tmp', access_token=access_token),
+                         'example/file.txt')
 
-    def test_when_given_a_file_path_it_returns_the_file_path(self):
-        self.assertEqual(util.download('example/file.txt', 'tmp'), 'example/file.txt')
+    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
+    def test_when_given_a_file_path_it_returns_the_file_path(self, name, access_token):
+        self.assertEqual(util.download('example/file.txt', 'tmp', access_token=access_token),
+                         'example/file.txt')
 
+    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
     @patch('urllib.request.OpenerDirector.open')
-    def test_when_the_url_returns_a_401_it_throws_a_forbidden_exception(self, urlopen):
+    def test_when_the_url_returns_a_401_it_throws_a_forbidden_exception(self, name, access_token, urlopen):
         url = 'https://example.com/file.txt'
+
         urlopen.side_effect = MockHTTPError(url=url, code=401, msg='Forbidden 401 message')
+
         with self.assertRaises(util.ForbiddenException) as cm:
-          util.download(url, 'tmp')
-          self.fail('An exception should have been raised')
+            util.download(url, 'tmp', access_token=access_token)
+            self.fail('An exception should have been raised')
         self.assertEqual(str(cm.exception), 'Forbidden 401 message')
 
+    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
     @patch('urllib.request.OpenerDirector.open')
-    def test_when_the_url_returns_a_403_it_throws_a_forbidden_exception(self, urlopen):
+    def test_when_the_url_returns_a_403_it_throws_a_forbidden_exception(self, name, access_token, urlopen):
         url = 'https://example.com/file.txt'
+
         urlopen.side_effect = MockHTTPError(url=url, code=403, msg='Forbidden 403 message')
+
         with self.assertRaises(util.ForbiddenException) as cm:
-          util.download(url, 'tmp')
-          self.fail('An exception should have been raised')
+            util.download(url, 'tmp', access_token=access_token)
+            self.fail('An exception should have been raised')
         self.assertEqual(str(cm.exception), 'Forbidden 403 message')
 
+    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
     @patch('urllib.request.OpenerDirector.open')
-    def test_when_the_url_returns_a_eula_error_it_returns_a_human_readable_message(self, urlopen):
+    def test_when_the_url_returns_a_eula_error_it_returns_a_human_readable_message(self, name, access_token, urlopen):
         url = 'https://example.com/file.txt'
-        urlopen.side_effect = MockHTTPError(url=url, code=403, msg='{"status_code":403,"error_description":"EULA Acceptance Failure","resolution_url":"https://example.com/approve_app?client_id=foo"}')
+
+        urlopen.side_effect = \
+            MockHTTPError(
+              url=url,
+              code=403,
+              msg=('{"status_code":403,"error_description":"EULA Acceptance Failure","resolution_url":"https://example.com/approve_app?client_id=foo"}')
+            )
+
         with self.assertRaises(util.ForbiddenException) as cm:
-          util.download(url, 'tmp')
-          self.fail('An exception should have been raised')
+            util.download(url, 'tmp', access_token=access_token)
+            self.fail('An exception should have been raised')
         self.assertEqual(str(cm.exception), 'Request could not be completed because you need to agree to the EULA at https://example.com/approve_app?client_id=foo')
 
+    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
     @patch('urllib.request.OpenerDirector.open')
-    def test_when_the_url_returns_a_500_it_does_not_raise_a_forbidden_exception_and_does_not_return_details_to_user(self, urlopen):
+    def test_when_the_url_returns_a_500_it_does_not_raise_a_forbidden_exception_and_does_not_return_details_to_user(self, name, access_token, urlopen):
         url = 'https://example.com/file.txt'
+
         urlopen.side_effect = MockHTTPError(url=url, code=500)
+
         try:
-          util.download(url, 'tmp')
-          self.fail('An exception should have been raised')
+            util.download(url, 'tmp', access_token=access_token)
+            self.fail('An exception should have been raised')
         except util.ForbiddenException:
-          self.fail('ForbiddenException raised when it should not have')
-        except Exception:
-          pass
+            self.fail('ForbiddenException raised when it should not have')
+        except Exception as e:
+            pass
+
+    @patch('urllib.request.OpenerDirector.open')
+    def test_when_given_an_access_token_and_the_url_returns_an_error_it_falls_back_to_basic_auth(self, urlopen):
+        url = 'https://example.com/file.txt'
+        access_token='OPENSESAME'
+        urlopen.side_effect = [MockHTTPError(url=url, code=400, msg='Forbidden 400 message'), Mock()]
+
+        with patch('builtins.open'):
+            util.download(url, 'tmp', access_token=access_token)
+
+            self._verify_urlopen(url, access_token, None, urlopen, expected_urlopen_calls=2, verify_bearer_token=False)
+
+    @patch('urllib.request.OpenerDirector.open')
+    def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads(self, urlopen):
+        url = 'https://example.com/file.txt'
+        access_token = None
+
+        with patch('builtins.open'):
+            util.download(url, 'tmp')
+
+            self._verify_urlopen(url, access_token, None, urlopen)
 
 
 class TestDecrypter(unittest.TestCase):

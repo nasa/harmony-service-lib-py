@@ -3,6 +3,7 @@ coverage ~= 4.5
 flake8 ~= 3.8
 ipython ~= 7.17
 jedi ~= 0.17
+parameterized ~= 0.7
 ptvsd ~= 4.3
 pytest ~= 5.4
 python-language-server ~= 0.35

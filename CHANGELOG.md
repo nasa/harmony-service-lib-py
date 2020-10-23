@@ -1,3 +1,9 @@
+## 2020/10/20
+
+* Bug fix: Handle Authentication HTTP headers & cookies correctly so
+  downloads from TEA work whether or not TEA is in the same AWS region
+  as the app making the request.
+
 ## [v0.0.24] - 2020/10/13
 
 * Add optional --harmony-sources command line parameter that specifies an external

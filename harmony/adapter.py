@@ -107,8 +107,8 @@ class BaseHarmonyAdapter(ABC):
 
         # Download the remote file
         for granule in granules:
-            granule.local_filename = util.download(granule.url, temp_dir, self.logger,
-                                                   self.message.accessToken)
+            granule.local_filename = util.download(granule.url, temp_dir, logger=self.logger,
+                                                   access_token=self.message.accessToken)
 
     def stage(self, local_file, source_granule=None, remote_filename=None, is_variable_subset=False,
               is_regridded=False, is_subsetted=False, mime=None):
@@ -327,7 +327,8 @@ class BaseHarmonyAdapter(ABC):
         self.async_add_url_partial_result(url, title, mime, progress, source_granule,
                                           temporal, bbox)
 
-    def async_add_url_partial_result(self, url, title=None, mime=None, progress=None, source_granule=None, temporal=None, bbox=None):
+    def async_add_url_partial_result(self, url, title=None, mime=None, progress=None, source_granule=None,
+                                     temporal=None, bbox=None):
         """
         For service requests that are asynchronous, stages the provides the given URL as a partial result.
         Optionally also provides a numeric progress indicator.
