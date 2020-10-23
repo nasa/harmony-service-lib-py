@@ -299,7 +299,8 @@ class BaseHarmonyAdapter(ABC):
         self.async_add_url_partial_result(url, title, mime, progress, source_granule,
                                           temporal, bbox)
 
-    def async_add_url_partial_result(self, url, title=None, mime=None, progress=None, source_granule=None, temporal=None, bbox=None):
+    def async_add_url_partial_result(self, url, title=None, mime=None, progress=None, source_granule=None,
+                                     temporal=None, bbox=None):
         """
         For service requests that are asynchronous, stages the provides the given URL as a partial result.
         Optionally also provides a numeric progress indicator.

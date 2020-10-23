@@ -11,6 +11,7 @@ from the message JSON.
 import hashlib
 import json
 
+
 class JsonObject(object):
     """
     Base class for deserialized Harmony message objects
@@ -110,11 +111,13 @@ class Variable(JsonObject):
     Attributes
     ----------
     id : string
-        The UMM-Var ID of the variable
+        The UMM-Var ID of the variable.
     name : string
-        The UMM-Var short name of the variable, typically identifies layer name found in the science data file
+        The UMM-Var short name of the variable, typically identifies layer name found in the
+        science data file.
     fullPath : string
-         The variable's absolute path within the file, including hierarchy.  Derived from UMM-Var group path combined with name.
+         The variable's absolute path within the file, including hierarchy.  Derived from
+         UMM-Var group path combined with name.
     """
 
     def __init__(self, message_data):
@@ -444,20 +447,21 @@ class Message(JsonObject):
         else:
             json_obj = json_str_or_dict
 
-        super().__init__(json_obj,
-                         properties=[
-            'version',
-            'callback',
-            'stagingLocation',
-            'isSynchronous',
-            'user',
-            'accessToken',
-            'client',
-            'requestId',
-            'format',
-            'subset',
-            'temporal'
-        ],
+        super().__init__(
+            json_obj,
+            properties=[
+                'version',
+                'callback',
+                'stagingLocation',
+                'isSynchronous',
+                'user',
+                'accessToken',
+                'client',
+                'requestId',
+                'format',
+                'subset',
+                'temporal'
+            ],
             list_properties={'sources': Source}
         )
 

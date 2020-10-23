@@ -6,7 +6,6 @@ cli.py
 Parses CLI arguments provided by Harmony and invokes the subsetter accordingly
 """
 
-import sys
 import json
 import logging
 from harmony.message import Message
@@ -25,17 +24,21 @@ def setup_cli(parser):
     """
     parser.add_argument('--harmony-action',
                         choices=['invoke', 'start'],
-                        help='the action Harmony needs to perform, "invoke" to run once and quit, "start" to listen to a queue')
+                        help=('the action Harmony needs to perform, "invoke" to run once and quit, "start" '
+                              'to listen to a queue'))
     parser.add_argument('--harmony-input',
-                        help='the input data for the action provided by Harmony, required for --harmony-action=invoke')
+                        help=('the input data for the action provided by Harmony, required for '
+                              '--harmony-action=invoke'))
     parser.add_argument('--harmony-sources',
-                        help='optional file path that contains a JSON object with a "sources" key to be added to the --harmony-input')
+                        help=('optional file path that contains a JSON object with a "sources" key to be '
+                              'added to the --harmony-input'))
     parser.add_argument('--harmony-queue-url',
                         help='the queue URL to listen on, required for --harmony-action=start')
     parser.add_argument('--harmony-visibility-timeout',
                         type=int,
                         default=600,
-                        help='the number of seconds the service is given to process a message before processing is assumed to have failed')
+                        help=('the number of seconds the service is given to process a message before '
+                              'processing is assumed to have failed'))
     parser.add_argument('--harmony-wrap-stdout',
                         action='store_const',
                         const=True,
@@ -56,7 +59,7 @@ def is_harmony_cli(args):
     is_harmony_cli : bool
         True if the provided arguments constitute a Harmony CLI invocation, False otherwise
     """
-    return args.harmony_action != None
+    return args.harmony_action is not None
 
 
 def _invoke(AdapterClass, message_string, sources_path):
