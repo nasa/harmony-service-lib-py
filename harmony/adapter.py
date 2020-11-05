@@ -21,6 +21,7 @@ from deprecation import deprecated
 from harmony.util import CanceledException, touch_health_check_file, default_logger
 from . import util
 
+
 class BaseHarmonyAdapter(ABC):
     """
     Abstract base class for Harmony service adapters.  Service implementations

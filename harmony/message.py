@@ -189,7 +189,8 @@ class Granule(JsonObject):
         """
         super().__init__(message_data, properties=[
             'id', 'name', 'url', 'bbox', 'temporal'])
-        warn('message.Granule is deprecated.  New workflows will use STAC catalogs instead', DeprecationWarning, stacklevel=2)
+        warn('message.Granule is deprecated.  New workflows will use STAC catalogs instead',
+             DeprecationWarning, stacklevel=2)
         self.local_filename = None
         self.collection = None
         self.variables = []

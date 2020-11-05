@@ -122,7 +122,8 @@ def _invoke_deprecated(AdapterClass, message_string):
         raise
     return not adapter.is_failed
 
-def _write_error(metadata_dir, message, category = 'Unknown'):
+
+def _write_error(metadata_dir, message, category='Unknown'):
     """
     Writes the given error message to error.json in the provided metadata dir
 
@@ -137,6 +138,7 @@ def _write_error(metadata_dir, message, category = 'Unknown'):
     """
     with open(path.join(metadata_dir, 'error.json'), 'w') as file:
         json.dump({'error': message, 'category': category}, file)
+
 
 def _invoke(AdapterClass, message_string, sources_path, metadata_dir, data_location):
     """
@@ -165,7 +167,9 @@ def _invoke(AdapterClass, message_string, sources_path, metadata_dir, data_locat
         if bool(secret_key):
             decrypter = create_decrypter(bytes(secret_key, 'utf-8'))
         else:
-            decrypter = lambda x: x
+            def identity(arg):
+                return arg
+            decrypter = identity
 
         message = Message(json.loads(message_string), decrypter)
         if data_location:

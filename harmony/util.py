@@ -617,6 +617,7 @@ def create_decrypter(key=b'_THIS_IS_MY_32_CHARS_SECRET_KEY_'):
 def nop_decrypter(cyphertext):
     return cyphertext
 
+
 def generate_output_filename(filename, ext=None, variable_subset=None, is_regridded=False, is_subsetted=False):
     """
     Return an output filename for the given granules according to our naming conventions:
