@@ -10,6 +10,8 @@ from the message JSON.
 
 import hashlib
 import json
+import copy
+from warnings import warn
 
 
 class JsonObject(object):
@@ -40,8 +42,10 @@ class JsonObject(object):
             A dictionary of property name to type for properties that are lists of
             JSONObject classes, by default {}
         """
-        self.data = data or {}
+        self.output_data = data or {}
+        self.data = copy.deepcopy(data) or {}
         self.properties = properties + list(list_properties.keys())
+        self.processed = []
         for prop in properties:
             setattr(self, prop, data.get(prop))
         for prop in list_properties:
@@ -49,6 +53,29 @@ class JsonObject(object):
             items = data.get(prop) or []
             value = [Class(item) for item in items]
             setattr(self, prop, value)
+
+    def process(self, *prop):
+        """
+        Marks the given property as having been processed and returns its value.
+        If multiple properties are passed, returns their values an array
+
+        Parameters
+        ----------
+        prop : string
+            the name of the property having been processed
+
+        Returns
+        -------
+        object
+            the value of the property supplied
+        """
+        result = []
+        for p in prop:
+            self.output_data.pop(p, None)
+            result.append(getattr(self, p))
+        if len(result) == 1:
+            return result[0]
+        return result
 
     def __repr__(self):
         """
@@ -162,11 +189,12 @@ class Granule(JsonObject):
         """
         super().__init__(message_data, properties=[
             'id', 'name', 'url', 'bbox', 'temporal'])
+        warn('message.Granule is deprecated.  New workflows will use STAC catalogs instead', DeprecationWarning, stacklevel=2)
         self.local_filename = None
         self.collection = None
         self.variables = []
         if self.temporal is not None:
-            self.temporal = Temporal(self.temporal)
+            self.temporal = Temporal(message_data['temporal'])
 
 
 class MinMax(JsonObject):
@@ -216,9 +244,9 @@ class ScaleExtent(JsonObject):
         """
         super().__init__(message_data, properties=['x', 'y'])
         if self.x is not None:
-            self.x = MinMax(self.x)
+            self.x = MinMax(message_data['x'])
         if self.y is not None:
-            self.y = MinMax(self.y)
+            self.y = MinMax(message_data['y'])
 
 
 class ScaleSize(JsonObject):
@@ -294,9 +322,9 @@ class Format(JsonObject):
             'scaleSize'
         ])
         if self.scaleExtent is not None:
-            self.scaleExtent = ScaleExtent(self.scaleExtent)
+            self.scaleExtent = ScaleExtent(message_data['scaleExtent'])
         if self.scaleSize is not None:
-            self.scaleSize = ScaleSize(self.scaleSize)
+            self.scaleSize = ScaleSize(message_data['scaleSize'])
 
 
 class RemoteResource(JsonObject):
@@ -345,7 +373,7 @@ class Subset(JsonObject):
         """
         super().__init__(message_data, properties=['bbox', 'shape'])
         if self.shape is not None:
-            self.shape = RemoteResource(self.shape)
+            self.shape = RemoteResource(message_data['shape'])
 
 
 class Temporal(JsonObject):
@@ -445,7 +473,7 @@ class Message(JsonObject):
         if isinstance(json_str_or_dict, str):
             json_obj = json.loads(json_str_or_dict)
         else:
-            json_obj = json_str_or_dict
+            json_obj = copy.deepcopy(json_str_or_dict)
 
         super().__init__(
             json_obj,
@@ -468,17 +496,17 @@ class Message(JsonObject):
         self.decrypter = decrypter
 
         if self.format is not None:
-            self.format = Format(self.format)
+            self.format = Format(json_obj['format'])
         if self.subset is not None:
-            self.subset = Subset(self.subset)
+            self.subset = Subset(json_obj['subset'])
         if self.temporal is not None:
-            self.temporal = Temporal(self.temporal)
+            self.temporal = Temporal(json_obj['temporal'])
         if self.accessToken is not None:
             self.accessToken = self.decrypter(self.accessToken)
 
     @property
     def json(self):
-        return json.dumps(self.data)
+        return json.dumps(self.output_data)
 
     def digest(self):
         """

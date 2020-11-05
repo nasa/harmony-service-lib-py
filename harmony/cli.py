@@ -8,6 +8,8 @@ Parses CLI arguments provided by Harmony and invokes the subsetter accordingly
 
 import json
 import logging
+from os import path, makedirs
+from pystac import Catalog, CatalogType
 from harmony.message import Message
 from harmony.util import (CanceledException, HarmonyException, receive_messages, delete_message,
                           change_message_visibility, setup_stdout_log_formatting, get_env, create_decrypter)
@@ -24,21 +26,32 @@ def setup_cli(parser):
     """
     parser.add_argument('--harmony-action',
                         choices=['invoke', 'start'],
-                        help=('the action Harmony needs to perform, "invoke" to run once and quit, "start" '
-                              'to listen to a queue'))
+                        help=('the action Harmony needs to perform, "invoke" to run once and quit, '
+                              '"start" to listen to a queue'))
     parser.add_argument('--harmony-input',
                         help=('the input data for the action provided by Harmony, required for '
                               '--harmony-action=invoke'))
     parser.add_argument('--harmony-sources',
-                        help=('optional file path that contains a JSON object with a "sources" key to be '
-                              'added to the --harmony-input'))
+                        help=('file path that contains a STAC catalog with items and metadata to '
+                              'be processed by the service.  Required for non-deprecated '
+                              'invocations '))
+    parser.add_argument('--harmony-metadata-dir',
+                        help=('file path where output metadata should be written. The resulting '
+                              'STAC catalog will be written to catalog.json in the supplied dir '
+                              'with child resources in the same directory or a descendant '
+                              'directory.  The remaining message, less any completed operations, '
+                              'should be written to message.json in the supplied directory.  If '
+                              'there is an error, it will be written to error.json in the supplied dir '))
+    parser.add_argument('--harmony-data-location',
+                        help=('the location where output data should be written, either a directory '
+                              'or S3 URI prefix.  If set, overrides any value set by the message'))
     parser.add_argument('--harmony-queue-url',
                         help='the queue URL to listen on, required for --harmony-action=start')
     parser.add_argument('--harmony-visibility-timeout',
                         type=int,
                         default=600,
-                        help=('the number of seconds the service is given to process a message before '
-                              'processing is assumed to have failed'))
+                        help=('the number of seconds the service is given to process a message '
+                              'before processing is assumed to have failed'))
     parser.add_argument('--harmony-wrap-stdout',
                         action='store_const',
                         const=True,
@@ -62,7 +75,7 @@ def is_harmony_cli(args):
     return args.harmony_action is not None
 
 
-def _invoke(AdapterClass, message_string, sources_path):
+def _invoke_deprecated(AdapterClass, message_string):
     """
     Handles --harmony-action=invoke by invoking the adapter for the given input message
 
@@ -84,10 +97,6 @@ def _invoke(AdapterClass, message_string, sources_path):
     decrypter = create_decrypter(bytes(secret_key, 'utf-8'))
 
     message_data = json.loads(message_string)
-    # If sources are provided in a separate file, update the message with them
-    if sources_path is not None:
-        with open(sources_path) as f:
-            message_data.update(json.load(f))
     adapter = AdapterClass(Message(message_data, decrypter))
 
     try:
@@ -112,6 +121,71 @@ def _invoke(AdapterClass, message_string, sources_path):
             adapter.completed_with_error(msg)
         raise
     return not adapter.is_failed
+
+def _write_error(metadata_dir, message, category = 'Unknown'):
+    """
+    Writes the given error message to error.json in the provided metadata dir
+
+    Parameters
+    ----------
+    metadata_dir : string
+        Directory into which the error should be written
+    message : string
+        The error message to write
+    category : string
+        The error category to write
+    """
+    with open(path.join(metadata_dir, 'error.json'), 'w') as file:
+        json.dump({'error': message, 'category': category}, file)
+
+def _invoke(AdapterClass, message_string, sources_path, metadata_dir, data_location):
+    """
+    Handles --harmony-action=invoke by invoking the adapter for the given input message
+
+    Parameters
+    ----------
+    AdapterClass : class
+        The BaseHarmonyAdapter subclass to use to handle service invocations
+    message_string : string
+        The Harmony input message
+    sources_path : string
+        A file location containing a STAC catalog corresponding to the input message sources
+    metadata_dir : string
+        The name of the directory where STAC and message output should be written
+    data_location : string
+        The name of the directory where output should be written
+    Returns
+    -------
+    True if the operation completed successfully, False otherwise
+    """
+    try:
+        catalog = Catalog.from_file(sources_path)
+        secret_key = get_env('SHARED_SECRET_KEY')
+
+        if bool(secret_key):
+            decrypter = create_decrypter(bytes(secret_key, 'utf-8'))
+        else:
+            decrypter = lambda x: x
+
+        message = Message(json.loads(message_string), decrypter)
+        if data_location:
+            message.stagingLocation = data_location
+        adapter = AdapterClass(message, catalog)
+
+        makedirs(metadata_dir, exist_ok=True)
+        (out_message, out_catalog) = adapter.invoke()
+        out_catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
+
+        with open(path.join(metadata_dir, 'message.json'), 'w') as file:
+            json.dump(out_message.output_data, file)
+    except HarmonyException as err:
+        logging.error(err, exc_info=1)
+        _write_error(metadata_dir, err.message, err.category)
+        raise
+    except BaseException as err:
+        logging.error(err, exc_info=1)
+        _write_error(metadata_dir, 'Service request failed with an unknown error')
+        raise
 
 
 def _start(AdapterClass, queue_url, visibility_timeout_s):
@@ -168,10 +242,16 @@ def run_cli(parser, args, AdapterClass):
         if not bool(args.harmony_input):
             parser.error(
                 '--harmony-input must be provided for --harmony-action=invoke')
-        else:
-            successful = _invoke(AdapterClass, args.harmony_input, args.harmony_sources)
+        elif not bool(args.harmony_sources):
+            successful = _invoke_deprecated(AdapterClass, args.harmony_input)
             if not successful:
                 raise Exception('Service operation failed')
+        else:
+            _invoke(AdapterClass,
+                    args.harmony_input,
+                    args.harmony_sources,
+                    args.harmony_metadata_dir,
+                    args.harmony_data_location)
 
     if args.harmony_action == 'start':
         if not bool(args.harmony_queue_url):

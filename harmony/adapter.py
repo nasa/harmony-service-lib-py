@@ -12,13 +12,14 @@ import shutil
 import os
 import urllib
 import logging
-
-from abc import ABC, abstractmethod
+import uuid
+from abc import ABC
 from tempfile import mkdtemp
+from warnings import warn
 
-from harmony.util import CanceledException, touch_health_check_file
+from deprecation import deprecated
+from harmony.util import CanceledException, touch_health_check_file, default_logger
 from . import util
-
 
 class BaseHarmonyAdapter(ABC):
     """
@@ -47,7 +48,7 @@ class BaseHarmonyAdapter(ABC):
         True if the request failed to execute successfully
     """
 
-    def __init__(self, message):
+    def __init__(self, message, catalog=None):
         """
         Constructs the adapter
 
@@ -55,29 +56,142 @@ class BaseHarmonyAdapter(ABC):
         ----------
         message : harmony.Message
             The Harmony input which needs acting upon
+        catalog : pystac.Catalog
+            A STAC catalog containing the files on which to act
         """
+        if catalog is None:
+            warn('Invoking adapter.BaseHarmonyAdapter without a STAC catalog is deprecated',
+                 DeprecationWarning, stacklevel=2)
+
         self.message = message
-        self.temp_paths = []
-        self.is_complete = False
-        self.is_canceled = False
-        self.is_failed = False
+        self.catalog = catalog
 
         logging_context = {
             'user': message.user,
             'requestId': message.requestId
         }
         self.logger = \
-            logging.LoggerAdapter(util.default_logger, logging_context)
+            logging.LoggerAdapter(default_logger, logging_context)
 
-    @abstractmethod
+        # Properties that will be deprecated
+        self.temp_paths = []
+        self.is_complete = False
+        self.is_canceled = False
+        self.is_failed = False
+
     def invoke(self):
         """
-        Invokes the service to process `self.message`.  Upon completion, the service must
-        call one of the `self.completed_with_*` methods to inform Harmony of the completion
-        status.
-        """
-        pass
+        Invokes the service to process `self.message`.  By default, this will call process_item
+        on all items in the input catalog
 
+        Returns
+        -------
+        (harmony.Message, pystac.Catalog)
+            A tuple of the Harmony message, with any processed fields marked as such and
+            a STAC catalog describing the output
+        """
+        return (self.message, self._process_catalog_recursive(self.catalog))
+
+    def _process_catalog_recursive(self, catalog):
+        """
+        Helper method to recursively process a catalog and all of its children, producing a new
+        output catalog of the results
+
+        Parameters
+        ----------
+        catalog : pystac.Catalog
+            The catalog to process
+
+        Returns
+        -------
+        pystac.Catalog
+            A new catalog containing all of the processed results
+        """
+        result = catalog.clone()
+        result.id = str(uuid.uuid4())
+
+        # Recursively process all sub-catalogs
+        children = catalog.get_children()
+        result.clear_children()
+        result.add_children([self._process_catalog_recursive(child) for child in children])
+
+        # Process immediate child items
+        items = catalog.get_items()
+        result.clear_items()
+        source = None
+        for item in items:
+            source = source or self._get_item_source(item)
+            output_item = self.process_item(item.clone(), source)
+            # Ensure the item gets a new ID
+            if output_item.id == item.id:
+                output_item.id = str(uuid.uuid4())
+            result.add_item(output_item)
+        return result
+
+    def process_item(self, item, source):
+        """
+        Given a pystac.Item and a message.Source (collection and variables to subset), processes the
+        item, returning a new pystac.Item that describes the output location and metadata
+
+        Optional abstract method. Required if the default #invoke implementation is used.  Services
+        processing one input file at a time can simplify adapter code by overriding this method.
+
+
+        Parameters
+        ----------
+        item : pystac.Item
+            the item that should be processed
+        source : harmony.message.Source
+            the input source defining the variables, if any, to subset from the item
+
+        Returns
+        -------
+        pystac.Item
+            a STAC catalog whose metadata and assets describe the service output
+        """
+        raise NotImplementedError('subclasses must implement #process_item or override #invoke')
+
+    def _get_item_source(self, item):
+        """
+        Given a STAC item, finds and returns the item's data source in this.message.  It
+        specifically looks for a link with relation "harmony_source" in the item and all
+        parent catalogs.  The href on that link is the source collection landing page, which
+        can identify a source.  If no relation exists and there is only one source in the
+        message, returns the message source.
+
+        Parameters
+        ----------
+        item : pystac.Item
+            the item whose source is needed
+
+        Raises
+        ------
+        RuntimeError
+            if no input source could be unambiguously determined, which indiciates a
+            misconfiguration or bad input message
+
+        Returns
+        -------
+        harmony.message.Source
+            The source of the input item
+        """
+        parent = item
+        sources = parent.get_links('harmony_source')
+        while len(sources) == 0 and parent.get_parent() is not None:
+            parent = parent.get_parent()
+            sources = parent.get_links('harmony_source')
+        if len(sources) == 0:
+            if len(self.message.sources) == 1:
+                return self.message.sources[0]
+            else:
+                raise RuntimeError('Could not match STAC catalog to an input source')
+        href = sources[0].target
+        collection = href.split('/').pop()
+        return next(source for source in self.message.sources if source.collection == collection)
+
+    # All methods below are deprecated as we move to STAC-based chaining workflows without callbacks
+
+    @deprecated(details='Services must update to process and output STAC catalogs')
     def cleanup(self):
         """
         Removes temporary files produced during execution
@@ -89,6 +203,7 @@ class BaseHarmonyAdapter(ABC):
                 shutil.rmtree(temp_path)  # remove dir and all contents
         self.temp_paths = []
 
+    @deprecated(details='Services must update to process and output STAC catalogs')
     def download_granules(self, granules=None):
         """
         Downloads all of the granules contained in the message to the given temp directory, giving each
@@ -110,6 +225,7 @@ class BaseHarmonyAdapter(ABC):
             granule.local_filename = util.download(granule.url, temp_dir, logger=self.logger,
                                                    access_token=self.message.accessToken)
 
+    @deprecated(details='Services must update to process and output STAC catalogs')
     def stage(self, local_file, source_granule=None, remote_filename=None, is_variable_subset=False,
               is_regridded=False, is_subsetted=False, mime=None):
         """
@@ -153,6 +269,7 @@ class BaseHarmonyAdapter(ABC):
 
         return util.stage(local_file, remote_filename, mime, location=self.message.stagingLocation, logger=self.logger)
 
+    @deprecated(details='Services must update to process and output STAC catalogs')
     def completed_with_error(self, error_message):
         """
         Performs a callback instructing Harmony that there has been an error and providing a
@@ -175,6 +292,7 @@ class BaseHarmonyAdapter(ABC):
         self._callback_response({'error': error_message})
         self.is_complete = True
 
+    @deprecated(details='Services must update to process and output STAC catalogs')
     def completed_with_redirect(
             self,
             url,
@@ -215,6 +333,7 @@ class BaseHarmonyAdapter(ABC):
         self._callback_response(params)
         self.is_complete = True
 
+    @deprecated(details='Services must update to process and output STAC catalogs')
     def completed_with_local_file(
             self,
             filename,
@@ -269,6 +388,7 @@ class BaseHarmonyAdapter(ABC):
                          is_variable_subset, is_regridded, is_subsetted, mime)
         self.completed_with_redirect(url, title, mime, source_granule, temporal, bbox)
 
+    @deprecated(details='Services must update to process and output STAC catalogs')
     def async_add_local_file_partial_result(
             self,
             filename,
@@ -327,6 +447,7 @@ class BaseHarmonyAdapter(ABC):
         self.async_add_url_partial_result(url, title, mime, progress, source_granule,
                                           temporal, bbox)
 
+    @deprecated(details='Services must update to process and output STAC catalogs')
     def async_add_url_partial_result(self, url, title=None, mime=None, progress=None, source_granule=None,
                                      temporal=None, bbox=None):
         """
@@ -371,6 +492,7 @@ class BaseHarmonyAdapter(ABC):
 
         self._callback_response(params)
 
+    @deprecated(details='Services must update to process and output STAC catalogs')
     def async_completed_successfully(self):
         """
         For service requests that are asynchronous, sends a progress update indicating
@@ -391,6 +513,7 @@ class BaseHarmonyAdapter(ABC):
         self._callback_response({'status': 'successful'})
         self.is_complete = True
 
+    @deprecated(details='Services must update to process and output STAC catalogs')
     def filename_for_granule(self, granule, ext, is_variable_subset=False, is_regridded=False, is_subsetted=False):
         """
         Return an output filename for the given granules according to our naming conventions:
@@ -441,6 +564,8 @@ class BaseHarmonyAdapter(ABC):
                 result = result[:-len(suffix)]
 
         return result + "".join(suffixes)
+
+    # Deprecated internal methods below
 
     def _build_callback_item_params(
             self,
