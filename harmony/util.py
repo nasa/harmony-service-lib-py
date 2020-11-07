@@ -3,11 +3,18 @@
 util.py
 =======
 
-Utility methods, consisting of functions for moving remote data (HTTPS and S3) to be operated
-on locally and for staging data results for external access (S3 pre-signed URL).
+Utility functions for logging, staging data results for external
+access (S3 pre-signed URL), decrypting data using a shared secret, and
+operating on message queues.
 
-This module relies (overly?) heavily on environment variables to know which endpoints to use
-and how to authenticate to them as follows:
+NOTE: This module's `download` function is now an alias for the
+harmony.io module's download function. The function in this module is
+deprecated and may be removed in future releases of the Harmony
+Service Library. Please use the `harmony.io.download` function
+instead.
+
+This module relies (overly?) heavily on environment variables to know
+which endpoints to use and how to authenticate to them as follows:
 
 Required when reading from or staging to S3:
     AWS_DEFAULT_REGION: The AWS region in which the S3 client is operating (default: "us-west-2")
@@ -16,31 +23,26 @@ Required when staging to S3 and not using the Harmony-provided stagingLocation p
     STAGING_BUCKET: The bucket where staged files should be placed
     STAGING_PATH: The base path under which staged files should be placed
 
-Recommended when using HTTPS, allowing Earthdata Login auth.  Prints a warning if not supplied:
-    EDL_USERNAME: The username to be passed to Earthdata Login when challenged
-    EDL_PASSWORD: The password to be passed to Earthdata Login when challenged
+Required when using HTTPS, allowing Earthdata Login auth.  Prints a warning if not supplied:
+    EDL_CLIENT_ID:    The EDL application client id used to acquire an EDL shared access token
+    EDL_USERNAME:     The EDL application username used to acquire an EDL shared access token
+    EDL_PASSWORD:     The EDL application password used to acquire an EDL shared access token
+    EDL_REDIRECT_URI: A valid redirect URI for the EDL application (NOTE: the redirect URI is
+                      not followed or used; it does need to be in the app's redirect URI list)
 
 Optional when reading from or staging to S3:
     USE_LOCALSTACK: 'true' if the S3 client should connect to a LocalStack instance instead of
                     Amazon S3 (for testing)
+
 """
 
 from base64 import b64decode
 from datetime import datetime
-from functools import lru_cache
-import hashlib
-from http.cookiejar import CookieJar
-import json
 import logging
 from pathlib import Path
-from os import environ, path
+from os import environ
 import sys
-from urllib.error import HTTPError
-from urllib.request import (build_opener, Request,
-                            HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm, HTTPCookieProcessor)
-from urllib.parse import urlencode
 
-import boto3
 from pythonjsonlogger import jsonlogger
 from nacl.secret import SecretBox
 
@@ -98,43 +100,6 @@ def get_env(name):
     return value
 
 
-def _use_localstack():
-    """True when when running locally; influences how URLs are structured
-    and how S3 is accessed.
-    """
-    return get_env('USE_LOCALSTACK') == 'true'
-
-
-def _backend_host():
-    return get_env('BACKEND_HOST') or 'localhost'
-
-
-def _localstack_host():
-    return get_env('LOCALSTACK_HOST') or _backend_host()
-
-
-def _region():
-    return get_env('AWS_DEFAULT_REGION') or 'us-west-2'
-
-
-def _aws_parameters(use_localstack, localstack_host, region):
-    if use_localstack:
-        return {
-            'endpoint_url': f'http://{localstack_host}:4566',
-            'use_ssl': False,
-            'aws_access_key_id': 'ACCESS_KEY',
-            'aws_secret_access_key': 'SECRET_KEY',
-            'region_name': region
-        }
-    else:
-        return {
-            'region_name': region
-        }
-
-
-REGION = get_env('AWS_DEFAULT_REGION') or 'us-west-2'
-
-
 class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict):
         super(HarmonyJsonFormatter, self).add_fields(
@@ -178,7 +143,7 @@ def build_logger():
     return logger
 
 
-default_logger = build_logger()
+LOGGER = build_logger()
 
 
 def setup_stdout_log_formatting():
@@ -205,391 +170,38 @@ def setup_stdout_log_formatting():
             if self.linebuf != '':
                 self.logger.log(self.log_level, self.linebuf.rstrip())
             self.linebuf = ''
-    sys.stdout = StreamToLogger(default_logger, logging.INFO)
-    sys.stderr = StreamToLogger(default_logger, logging.ERROR)
+    sys.stdout = StreamToLogger(LOGGER, logging.INFO)
+    sys.stderr = StreamToLogger(LOGGER, logging.ERROR)
 
 
-def _get_aws_client(service):
-    """
-    Returns a boto3 client for accessing the provided service.  Accesses the service in us-west-2
-    unless "AWS_DEFAULT_REGION" is set.  If the environment variable "USE_LOCALSTACK" is set to "true",
-    it will return a client that will access a LocalStack instance instead of AWS.
+def download(url, destination_dir, logger=LOGGER, access_token=None, data=None):
+    """DEPRECATED: Alias for the new harmony.io module's download function."""
+    import harmony.io
+    return harmony.io.download(url, destination_dir, logger, access_token, data)
 
-    Parameters
-    ----------
-    service : string
-        The AWS service name for which to construct a client, e.g. "s3" or "sqs"
 
-    Returns
-    -------
-    s3_client : boto3.*.Client
-        A client appropriate for accessing the provided service
-    """
-    service_params = _aws_parameters(_use_localstack(), _localstack_host(), _region())
-    return boto3.client(service, **service_params)
+def stage(local_filename, remote_filename, mime, logger=LOGGER, location=None):
+    """DEPRECATED: Alias for the new harmony.aws module's stage function."""
+    import harmony.aws
+    return harmony.aws.stage(local_filename, remote_filename, mime, logger, location)
 
 
-@lru_cache(maxsize=None)
-def _create_opener():
-    """Creates a urllib.request.OpenerDirector suitable for use with TEA.
-
-    This opener will handle cookies, which is necessary for the JWT
-    cookie that TEA sends on a redirect. If this cookie is not sent to
-    TEA when redirected, TEA will fail to deliver the data.
-
-    Returns
-    -------
-    opener : urllib.request.OpenerDirector
-        An OpenerDirector that can be used to to open a URL using the
-        EDL credentials, if they are available. The OpenerDirector is
-        memoized so that subsequent calls use the same opener and
-        cookie(s).
-    """
-    cookie_processor = HTTPCookieProcessor(CookieJar())
-    return build_opener(cookie_processor)
-
-
-@lru_cache(maxsize=None)
-def _create_basic_auth_opener(logger=default_logger):
-    """Creates an OpenerDirector that will use HTTP(S) cookies and basic auth to open a URL
-    using Earthdata Login (EDL) auth credentials.
-
-    Will use Earthdata Login creds only if the following environment
-    variables are set and will print a warning if they are not:
-
-    EDL_USERNAME: The username to be passed to Earthdata Login when challenged
-    EDL_PASSWORD: The password to be passed to Earthdata Login when challenged
-
-    Returns
-    -------
-    opener : urllib.request.OpenerDirector
-        An OpenerDirector that can be used to to open a URL using the
-        EDL credentials, if they are available. The OpenerDirector is
-        memoized so that subsequent calls use the same opener and
-        cookie(s).
-    """
-    try:
-        auth_handler = HTTPBasicAuthHandler(HTTPPasswordMgrWithDefaultRealm())
-        edl_endpoints = ['https://sit.urs.earthdata.nasa.gov',
-                         'https://uat.urs.earthdata.nasa.gov',
-                         'https://urs.earthdata.nasa.gov']
-        auth_handler.add_password(None, edl_endpoints,
-                                  get_env('EDL_USERNAME'), get_env('EDL_PASSWORD'))
-
-        cookie_processor = HTTPCookieProcessor(CookieJar())
-
-        return build_opener(auth_handler, cookie_processor)
-
-    except KeyError:
-        logger.warning('Earthdata Login environment variables EDL_USERNAME and EDL_PASSWORD must '
-                       'be set up for authenticated downloads. Requests will be unauthenticated.')
-        return build_opener()
-
-
-def _bearer_token_auth_header(access_token):
-    """Returns a tuple representing an HTTP Authorization header.
-
-    Conforms to RFC 6750: The OAuth 2.0 Authorization Framework: Bearer Token Usage
-    See: https://tools.ietf.org/html/rfc6750
-
-    Parameters
-    ----------
-    access_token : string
-        The Earthdata Login token for the user making the request.
-
-    Returns
-    -------
-    authorization token : tuple
-        A tuple with the Authorization header name and Bearer token value.
-    """
-    return ('Authorization', f'Bearer {access_token}')
-
-
-def _request_with_bearer_token_auth_header(url, access_token, encoded_data):
-    """Returns a Request for a given URL with a non-redirecting
-    Authorization header containing the Bearer token.
-
-    The Bearer token should not be included in a redirect; doing so
-    can result in a 400 error if the redirect URL from TEA (or other
-    backend) is a pre-signed S3 URL, as it will be if TEA receives an
-    in-region request (the requester is in the same region as the TEA
-    app).
-
-    Parameters
-    ----------
-    url : string
-        The URL to fetch
-    access_token :
-        The Earthdata Login token of the caller to use for downloads
-    data : dict or Tuple[str, str]
-        Optional parameter for additional data to send to the server
-        when making a HTTP POST request.
-    """
-    request = Request(url, data=encoded_data)
-    auth_header = _bearer_token_auth_header(access_token)
-    request.add_unredirected_header(*auth_header)
-
-    return request
-
-
-def download(url, destination_dir, logger=default_logger, access_token=None, data=None):
-    """
-    Downloads the given URL to the given destination directory, using the basename of the URL
-    as the filename in the destination directory.  Supports http://, https:// and s3:// schemes.
-    When using the s3:// scheme, will run against us-west-2 unless the "AWS_DEFAULT_REGION"
-    environment variable is set.
-
-    When using http:// or https:// schemes, the access_token will be used for authentication
-    if it is provided. If authentication with the access_token fails, or if the access_token
-    is not provided, the following environment variables will be used to authenticate
-    when downloading the data:
-
-      EDL_USERNAME: The username to be passed to Earthdata Login when challenged
-      EDL_PASSWORD: The password to be passed to Earthdata Login when challenged
-
-    If these are not provided, unauthenticated requests will be made to download the data,
-    with a warning message in the logs.
-
-    Parameters
-    ----------
-    url : string
-        The URL to fetch
-    destination_dir : string
-        The directory in which to place the downloaded file
-    logger : Logger
-        A logger to which the function will write, if provided
-    access_token :
-        The Earthdata Login token of the caller to use for downloads
-    data : dict or Tuple[str, str]
-        Optional parameter for additional data to
-        send to the server when making a HTTP POST request through
-        urllib.get.urlopen. These data will be URL encoded to a query string
-        containing a series of `key=value` pairs, separated by ampersands. If
-        None (the default), urllib.get.urlopen will use the  GET
-        method.
-
-    Returns
-    -------
-    destination : string
-      The filename, including directory, of the downloaded file
-    """
-
-    def download_from_s3(url, destination):
-        bucket = url.split('/')[2]
-        key = '/'.join(url.split('/')[3:])
-        _get_aws_client('s3').download_file(bucket, key, destination)
-        return destination
-
-    def download_from_http_with_bearer_token(url, access_token, encoded_data, logger):
-        try:
-            request = _request_with_bearer_token_auth_header(url, access_token, encoded_data)
-            opener = _create_opener()
-            return opener.open(request)
-        except HTTPError as http_error:
-            msg = (f'Failed to download using access token due to {str(http_error)}. '
-                   'Trying with EDL_USERNAME and EDL_PASSWORD.')
-            logger.exception(msg, exc_info=http_error)
-            return download_from_http_with_basic_auth(url, encoded_data, logger)
-
-    def download_from_http_with_basic_auth(url, encoded_data, logger):
-        """Fallback: Use basic auth with the application username and password.
-
-        This should only happen in cases where the backend server does
-        not yet support the EDL Bearer token authentication.
-        """
-        request = Request(url, data=encoded_data)
-        opener = _create_basic_auth_opener(logger)
-        return opener.open(request)
-
-    def handle_possible_eula_error(http_error, body):
-        try:
-            # Try to determine if this is a EULA error
-            json_object = json.loads(body)
-            eula_error = "error_description" in json_object and "resolution_url" in json_object
-            if eula_error:
-                body = (f"Request could not be completed because you need to agree to the EULA "
-                        f"at {json_object['resolution_url']}")
-        finally:
-            raise ForbiddenException(body) from http_error
-
-    def download_from_http(url, destination, data=None):
-        try:
-            logger.info('Downloading %s', url)
-
-            response = None
-            encoded_data = None
-            if data is not None:
-                logger.info('Query parameters supplied, will use POST method.')
-                encoded_data = urlencode(data).encode('utf-8')
-
-            if access_token is not None:
-                response = download_from_http_with_bearer_token(url, access_token, encoded_data, logger)
-            else:
-                response = download_from_http_with_basic_auth(url, encoded_data, logger)
-
-            with open(destination, 'wb') as local_file:
-                local_file.write(response.read())
-
-            logger.info('Completed %s', url)
-
-            return destination
-        except HTTPError as http_error:
-            code = http_error.getcode()
-            logger.error('Download failed with status code: ' + str(code))
-            body = http_error.read().decode()
-            logger.error('Failed to download URL:' + body)
-
-            if code in (401, 403):
-                handle_possible_eula_error(http_error, body)
-            else:
-                raise
-
-    basename = hashlib.sha256(url.encode('utf-8')).hexdigest()
-    ext = path.basename(url).split('?')[0].split('.')[-1]
-
-    filename = basename + '.' + ext
-    destination = path.join(destination_dir, filename)
-    # Don't overwrite, as this can be called many times for a granule
-    if path.exists(destination):
-        return destination
-
-    url = url.replace('//localhost', _localstack_host())
-
-    # Allow faster local testing by referencing files directly
-    url = url.replace('file://', '')
-    if not url.startswith('http') and not url.startswith('s3'):
-        return url
-
-    if url.startswith('s3'):
-        return download_from_s3(url, destination)
-
-    return download_from_http(url, destination, data)
-
-
-def stage(local_filename, remote_filename, mime, logger=default_logger, location=None):
-    """
-    Stages the given local filename, including directory path, to an S3 location with the given
-    filename and mime-type
-
-    Requires the following environment variables:
-        AWS_DEFAULT_REGION: The AWS region in which the S3 client is operating
-
-    Parameters
-    ----------
-    local_filename : string
-        A path and filename to the local file that should be staged
-    remote_filename : string
-        The basename to give to the remote file
-    mime : string
-        The mime type to apply to the staged file for use when it is served, e.g. "application/x-netcdf4"
-    location : string
-        The S3 prefix URL under which to place the output file.  If not provided, STAGING_BUCKET and
-        STAGING_PATH must be set in the environment
-    logger : logging
-        The logger to use
-
-    Returns
-    -------
-    url : string
-        An s3:// URL to the staged file
-    """
-
-    if location is None:
-        staging_bucket = get_env('STAGING_BUCKET')
-        staging_path = get_env('STAGING_PATH')
-
-        if staging_path:
-            key = '%s/%s' % (staging_path, remote_filename)
-        else:
-            key = remote_filename
-    else:
-        _, _, staging_bucket, staging_path = location.split('/', 3)
-        key = staging_path + remote_filename
-
-    if get_env('ENV') in ['dev', 'test'] and not _use_localstack():
-        logger.warn("ENV=" + get_env('ENV') +
-                    " and not using localstack, so we will not stage " + local_filename + " to " + key)
-        return "http://example.com/" + key
-
-    s3 = _get_aws_client('s3')
-    s3.upload_file(local_filename, staging_bucket, key,
-                   ExtraArgs={'ContentType': mime})
-
-    return 's3://%s/%s' % (staging_bucket, key)
-
-
-def receive_messages(queue_url, visibility_timeout_s=600, logger=default_logger):
-    """
-    Generates successive messages from reading the queue.  The caller
-    is responsible for deleting or returning each message to the queue
-
-    Parameters
-    ----------
-    queue_url : string
-        The URL of the queue to receive messages on
-    visibility_timeout_s : int
-        The number of seconds to wait for a received message to be deleted
-        before it is returned to the queue
-
-    Yields
-    ------
-    receiptHandle, body : string, string
-        A tuple of the receipt handle, used to delete or update messages,
-        and the contents of the message
-    """
-    sqs = _get_aws_client('sqs')
-    logger.info('Listening on %s' % (queue_url,))
-    while True:
-        receive_params = dict(
-            QueueUrl=queue_url,
-            VisibilityTimeout=visibility_timeout_s,
-            WaitTimeSeconds=20,
-            MaxNumberOfMessages=1
-        )
-        touch_health_check_file()
-        response = sqs.receive_message(**receive_params)
-        messages = response.get('Messages') or []
-        if len(messages) == 1:
-            yield (messages[0]['ReceiptHandle'], messages[0]['Body'])
-        else:
-            logger.info('No messages received.  Retrying.')
+def receive_messages(queue_url, visibility_timeout_s=600, logger=LOGGER):
+    """DEPRECATED: Alias for the new harmony.aws module's receive_messages function."""
+    import harmony.aws
+    return harmony.aws.receive_messages(queue_url, visibility_timeout_s, logger)
 
 
 def delete_message(queue_url, receipt_handle):
-    """
-    Deletes the message with the given receipt handle from the provided queue URL,
-    indicating successful processing
-
-    Parameters
-    ----------
-    queue_url : string
-        The queue from which the message originated
-    receipt_handle : string
-        The receipt handle of the message, as yielded by `receive_messages`
-    """
-    sqs = _get_aws_client('sqs')
-    sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
+    """DEPRECATED: Alias for the new harmony.aws module's delete_messages function."""
+    import harmony.aws
+    return harmony.aws.delete_message(queue_url, receipt_handle)
 
 
 def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s):
-    """
-    Updates the message visibility timeout of the message with the given receipt handle
-
-    Parameters
-    ----------
-    queue_url : string
-        The queue from which the message originated
-    receipt_handle : string
-        The receipt handle of the message, as yielded by `receive_messages`
-    visibility_timeout_s : int
-        The number of additional seconds to wait for a received message to be deleted
-        before it is returned to the queue
-    """
-    sqs = _get_aws_client('sqs')
-    sqs.change_message_visibility(
-        QueueUrl=queue_url,
-        ReceiptHandle=receipt_handle,
-        VisibilityTimeout=visibility_timeout_s)
+    """DEPRECATED: Alias for the new harmony.aws module's delete_messages function."""
+    import harmony.aws
+    return harmony.aws.change_message_visibility(queue_url, receipt_handle, visibility_timeout_s)
 
 
 def touch_health_check_file():

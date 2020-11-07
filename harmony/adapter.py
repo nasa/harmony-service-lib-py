@@ -17,6 +17,7 @@ from abc import ABC, abstractmethod
 from tempfile import mkdtemp
 
 from harmony.util import CanceledException, touch_health_check_file
+from . import io
 from . import util
 
 
@@ -67,7 +68,7 @@ class BaseHarmonyAdapter(ABC):
             'requestId': message.requestId
         }
         self.logger = \
-            logging.LoggerAdapter(util.default_logger, logging_context)
+            logging.LoggerAdapter(util.build_logger(), logging_context)
 
     @abstractmethod
     def invoke(self):
@@ -107,8 +108,8 @@ class BaseHarmonyAdapter(ABC):
 
         # Download the remote file
         for granule in granules:
-            granule.local_filename = util.download(granule.url, temp_dir, logger=self.logger,
-                                                   access_token=self.message.accessToken)
+            granule.local_filename = io.download(granule.url, temp_dir, logger=self.logger,
+                                                 access_token=self.message.accessToken)
 
     def stage(self, local_file, source_granule=None, remote_filename=None, is_variable_subset=False,
               is_regridded=False, is_subsetted=False, mime=None):
