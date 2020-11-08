@@ -37,14 +37,20 @@ Optional when reading from or staging to S3:
 """
 
 from base64 import b64decode
+from collections import namedtuple
 from datetime import datetime
+from functools import lru_cache
 import logging
 from pathlib import Path
 from os import environ
 import sys
+from urllib import parse
 
 from pythonjsonlogger import jsonlogger
 from nacl.secret import SecretBox
+
+from harmony import aws
+from harmony import io
 
 
 class HarmonyException(Exception):
@@ -98,6 +104,47 @@ def get_env(name):
     if value.startswith('"') and value.endswith('"'):
         return value[1:-1].replace('\\"', '"')
     return value
+
+
+Config = namedtuple(
+    'Config', [
+        'urs_url',
+        'edl_client_id',
+        'edl_username',
+        'edl_password',
+        'edl_redirect_uri',
+        'fallback_authn_enabled',
+        'use_localstack',
+        'backend_host',
+        'localstack_host',
+        'aws_default_region',
+        'staging_path',
+        'staging_bucket',
+        'env'
+    ])
+
+
+@lru_cache(maxsize=None)
+def _config():
+    edl_redirect_uri = parse.quote_plus(get_env('EDL_REDIRECT_URI'))
+    fallback_authn_enabled = str.lower(get_env('FALLBACK_AUTHN_ENABLED')) == 'true'
+    use_localstack = str.lower(get_env('USE_LOCALSTACK')) == 'true'
+    backend_host = get_env('BACKEND_HOST') or 'localhost'
+    localstack_host = get_env('LOCALSTACK_HOST') or backend_host
+
+    return Config(urs_url=get_env('URS_URL'),
+                  edl_client_id=get_env('EDL_CLIENT_ID'),
+                  edl_username=get_env('EDL_USERNAME'),
+                  edl_password=get_env('EDL_PASSWORD'),
+                  edl_redirect_uri=edl_redirect_uri,
+                  fallback_authn_enabled=fallback_authn_enabled,
+                  use_localstack=use_localstack,
+                  backend_host=backend_host,
+                  localstack_host=localstack_host,
+                  aws_default_region=get_env('AWS_DEFAULT_REGION') or 'us-west-2',
+                  staging_path=get_env('STAGING_PATH'),
+                  staging_bucket=get_env('STAGING_BUCKET'),
+                  env=get_env('ENV'))
 
 
 class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
@@ -175,41 +222,155 @@ def setup_stdout_log_formatting():
 
 
 def download(url, destination_dir, logger=LOGGER, access_token=None, data=None):
-    """DEPRECATED: Alias for the new harmony.io module's download function."""
-    import harmony.io
-    return harmony.io.download(url, destination_dir, logger, access_token, data)
+    """
+    Downloads the given URL to the given destination directory, using the basename of the URL
+    as the filename in the destination directory.  Supports http://, https:// and s3:// schemes.
+    When using the s3:// scheme, will run against us-west-2 unless the "AWS_DEFAULT_REGION"
+    environment variable is set.
+
+    When using http:// or https:// schemes, the access_token will be used for authentication
+    if it is provided. If authentication with the access_token fails, or if the
+    access_token is not provided, the following environment variables will be used to
+    authenticate when downloading the data:
+
+        EDL_CLIENT_ID:    The EDL application client id used to acquire an EDL shared access token
+        EDL_USERNAME:     The EDL application username used to acquire an EDL shared access token
+        EDL_PASSWORD:     The EDL application password used to acquire an EDL shared access token
+        EDL_REDIRECT_URI: A valid redirect URI for the EDL application (NOTE: the redirect URI is
+                          not followed or used; it does need to be in the app's redirect URI list)
+
+    If these are not provided, unauthenticated requests will be made to download the data,
+    with a warning message in the logs.
+
+    Parameters
+    ----------
+    url : string
+        The URL to fetch
+    destination_dir : string
+        The directory in which to place the downloaded file
+    logger : Logger
+        A logger to which the function will write, if provided
+    access_token :
+        The Earthdata Login token of the caller to use for downloads
+    data : dict or Tuple[str, str]
+        Optional parameter for additional data to
+        send to the server when making a HTTP POST request through
+        urllib.get.urlopen. These data will be URL encoded to a query string
+        containing a series of `key=value` pairs, separated by ampersands. If
+        None (the default), urllib.get.urlopen will use the  GET
+        method.
+
+    Returns
+    -------
+    destination : string
+      The filename, including directory, of the downloaded file
+    """
+    destination_path = io.filename(destination_dir, url)
+    if destination_path.exists():
+        return
+
+    source = io.optimized_url(url, _config().localstack_host)
+
+    if aws.is_s3(url):
+        return aws.download_from_s3(_config(), source, destination_path)
+
+    if io.is_http(url):
+        return io.download_from_http(_config(), source, destination_path, access_token,
+                                     logger, data, ForbiddenException)
+
+    return source
 
 
 def stage(local_filename, remote_filename, mime, logger=LOGGER, location=None):
-    """DEPRECATED: Alias for the new harmony.aws module's stage function."""
-    import harmony.aws
-    return harmony.aws.stage(local_filename, remote_filename, mime, logger, location)
+    """
+    Stages the given local filename, including directory path, to an S3 location with the given
+    filename and mime-type
+
+    Requires the following environment variables:
+        AWS_DEFAULT_REGION: The AWS region in which the S3 client is operating
+
+    Parameters
+    ----------
+    local_filename : string
+        A path and filename to the local file that should be staged
+    remote_filename : string
+        The basename to give to the remote file
+    mime : string
+        The mime type to apply to the staged file for use when it is served, e.g. "application/x-netcdf4"
+    location : string
+        The S3 prefix URL under which to place the output file.  If not provided, STAGING_BUCKET and
+        STAGING_PATH must be set in the environment
+    logger : logging
+        The logger to use
+
+    Returns
+    -------
+    url : string
+        An s3:// URL to the staged file
+    """
+    return aws.stage(_config, local_filename, remote_filename, mime, logger, location)
 
 
 def receive_messages(queue_url, visibility_timeout_s=600, logger=LOGGER):
-    """DEPRECATED: Alias for the new harmony.aws module's receive_messages function."""
-    import harmony.aws
-    return harmony.aws.receive_messages(queue_url, visibility_timeout_s, logger)
+    """
+    Generates successive messages from reading the queue.  The caller
+    is responsible for deleting or returning each message to the queue
+
+    Parameters
+    ----------
+    queue_url : string
+        The URL of the queue to receive messages on
+    visibility_timeout_s : int
+        The number of seconds to wait for a received message to be deleted
+        before it is returned to the queue
+
+    Yields
+    ------
+    receiptHandle, body : string, string
+        A tuple of the receipt handle, used to delete or update messages,
+        and the contents of the message
+    """
+    touch_health_check_file()
+    aws.receive_messages(_config(), queue_url, visibility_timeout_s, logger)
 
 
 def delete_message(queue_url, receipt_handle):
-    """DEPRECATED: Alias for the new harmony.aws module's delete_messages function."""
-    import harmony.aws
-    return harmony.aws.delete_message(queue_url, receipt_handle)
+    """
+    Deletes the message with the given receipt handle from the provided queue URL,
+    indicating successful processing
+
+    Parameters
+    ----------
+    queue_url : string
+        The queue from which the message originated
+    receipt_handle : string
+        The receipt handle of the message, as yielded by `receive_messages`
+    """
+    return aws.delete_message(queue_url, receipt_handle)
 
 
 def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s):
-    """DEPRECATED: Alias for the new harmony.aws module's delete_messages function."""
-    import harmony.aws
-    return harmony.aws.change_message_visibility(queue_url, receipt_handle, visibility_timeout_s)
+    """
+    Updates the message visibility timeout of the message with the given receipt handle
+
+    Parameters
+    ----------
+    queue_url : string
+        The queue from which the message originated
+    receipt_handle : string
+        The receipt handle of the message, as yielded by `receive_messages`
+    visibility_timeout_s : int
+        The number of additional seconds to wait for a received message to be deleted
+        before it is returned to the queue
+    """
+    return aws.change_message_visibility(_config(), queue_url, receipt_handle, visibility_timeout_s)
 
 
 def touch_health_check_file():
     """
-    Updates the mtime of the health check file
+    Updates the mtime of the health check file.
     """
     healthCheckPath = environ.get('HEALTH_CHECK_PATH', '/tmp/health.txt')
-    # touch the health.txt file to update its timestamp
     Path(healthCheckPath).touch()
 
 

@@ -1,28 +1,8 @@
 import boto3
 
-import harmony.util
 
-
-LOGGER = harmony.util.build_logger()
-
-
-def _use_localstack():
-    """True when when running locally; influences how URLs are structured
-    and how S3 is accessed.
-    """
-    return harmony.util.get_env('USE_LOCALSTACK') == 'true'
-
-
-def _backend_host():
-    return harmony.util.get_env('BACKEND_HOST') or 'localhost'
-
-
-def _localstack_host():
-    return harmony.util.get_env('LOCALSTACK_HOST') or _backend_host()
-
-
-def _region():
-    return harmony.util.get_env('AWS_DEFAULT_REGION') or 'us-west-2'
+def is_s3(url: str) -> bool:
+    return url is not None and url.lower().startswith('s3')
 
 
 def _aws_parameters(use_localstack, localstack_host, region):
@@ -40,7 +20,7 @@ def _aws_parameters(use_localstack, localstack_host, region):
         }
 
 
-def get_aws_client(service):
+def _get_aws_client(config, service):
     """
     Returns a boto3 client for accessing the provided service.  Accesses the service in us-west-2
     unless "AWS_DEFAULT_REGION" is set.  If the environment variable "USE_LOCALSTACK" is set to "true",
@@ -56,103 +36,45 @@ def get_aws_client(service):
     s3_client : boto3.*.Client
         A client appropriate for accessing the provided service
     """
-    service_params = _aws_parameters(_use_localstack(), _localstack_host(), _region())
+    service_params = _aws_parameters(config.use_localstack, config.localstack_host, config.aws_default_region)
     return boto3.client(service, **service_params)
 
 
-def download_from_s3(url, destination):
+def download_from_s3(config, url, destination_path):
     bucket = url.split('/')[2]
     key = '/'.join(url.split('/')[3:])
-    get_aws_client('s3').download_file(bucket, key, destination)
+    _get_aws_client(config, 's3').download_file(bucket, key, destination_path)
 
-    return destination
-
-
-def optimized_url(url):
-    """Return a version of the url optimized for local development."""
-
-    url = url.replace('//localhost', _localstack_host())
-
-    # Allow faster local testing by referencing files directly
-    url = url.replace('file://', '')
-    if not url.startswith('http') and not url.startswith('s3'):
-        return url
-
-    return url
+    return destination_path
 
 
-def stage(local_filename, remote_filename, mime, logger=LOGGER, location=None):
-    """
-    Stages the given local filename, including directory path, to an S3 location with the given
-    filename and mime-type
-
-    Requires the following environment variables:
-        AWS_DEFAULT_REGION: The AWS region in which the S3 client is operating
-
-    Parameters
-    ----------
-    local_filename : string
-        A path and filename to the local file that should be staged
-    remote_filename : string
-        The basename to give to the remote file
-    mime : string
-        The mime type to apply to the staged file for use when it is served, e.g. "application/x-netcdf4"
-    location : string
-        The S3 prefix URL under which to place the output file.  If not provided, STAGING_BUCKET and
-        STAGING_PATH must be set in the environment
-    logger : logging
-        The logger to use
-
-    Returns
-    -------
-    url : string
-        An s3:// URL to the staged file
-    """
-
+def stage(config, local_filename, remote_filename, mime, logger, location=None):
     if location is None:
-        staging_bucket = harmony.util.get_env('STAGING_BUCKET')
-        staging_path = harmony.util.get_env('STAGING_PATH')
-
-        if staging_path:
-            key = '%s/%s' % (staging_path, remote_filename)
+        if config.staging_path:
+            key = '%s/%s' % (config.staging_path, remote_filename)
         else:
             key = remote_filename
     else:
-        _, _, staging_bucket, staging_path = location.split('/', 3)
-        key = staging_path + remote_filename
+        _, _, config.staging_bucket, config.staging_path = location.split('/', 3)
+        key = config.staging_path + remote_filename
 
-    if harmony.util.get_env('ENV') in ['dev', 'test'] and not harmony.aws.use_localstack():
-        logger.warn("ENV=" + harmony.util.get_env('ENV') +
-                    " and not using localstack, so we will not stage " + local_filename + " to " + key)
+    if config.env in ['dev', 'test'] and not config.use_localstack:
+        logger.warn(f"ENV={config.env}"
+                    f" and not using localstack, so we will not stage {local_filename} to {key}")
         return "http://example.com/" + key
 
-    s3 = harmony.aws.get_aws_client('s3')
-    s3.upload_file(local_filename, staging_bucket, key,
+    s3 = _get_aws_client(config, 's3')
+    s3.upload_file(local_filename, config.staging_bucket, key,
                    ExtraArgs={'ContentType': mime})
 
-    return 's3://%s/%s' % (staging_bucket, key)
+    return 's3://%s/%s' % (config.staging_bucket, key)
 
 
-def receive_messages(queue_url, visibility_timeout_s=600, logger=LOGGER):
-    """
-    Generates successive messages from reading the queue.  The caller
-    is responsible for deleting or returning each message to the queue
+def receive_messages(config, queue_url, visibility_timeout_s, logger):
+    if visibility_timeout_s is None:
+        visibility_timeout_s = 600
 
-    Parameters
-    ----------
-    queue_url : string
-        The URL of the queue to receive messages on
-    visibility_timeout_s : int
-        The number of seconds to wait for a received message to be deleted
-        before it is returned to the queue
-
-    Yields
-    ------
-    receiptHandle, body : string, string
-        A tuple of the receipt handle, used to delete or update messages,
-        and the contents of the message
-    """
-    sqs = harmony.aws.get_aws_client('sqs')
+    sqs = _get_aws_client(config, 'sqs')
     logger.info('Listening on %s' % (queue_url,))
     while True:
         receive_params = dict(
@@ -161,7 +83,6 @@ def receive_messages(queue_url, visibility_timeout_s=600, logger=LOGGER):
             WaitTimeSeconds=20,
             MaxNumberOfMessages=1
         )
-        harmony.util.touch_health_check_file()
         response = sqs.receive_message(**receive_params)
         messages = response.get('Messages') or []
         if len(messages) == 1:
@@ -170,37 +91,13 @@ def receive_messages(queue_url, visibility_timeout_s=600, logger=LOGGER):
             logger.info('No messages received.  Retrying.')
 
 
-def delete_message(queue_url, receipt_handle):
-    """
-    Deletes the message with the given receipt handle from the provided queue URL,
-    indicating successful processing
-
-    Parameters
-    ----------
-    queue_url : string
-        The queue from which the message originated
-    receipt_handle : string
-        The receipt handle of the message, as yielded by `receive_messages`
-    """
-    sqs = harmony.aws.get_aws_client('sqs')
+def delete_message(config, queue_url, receipt_handle):
+    sqs = _get_aws_client(config, 'sqs')
     sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
 
 
-def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s):
-    """
-    Updates the message visibility timeout of the message with the given receipt handle
-
-    Parameters
-    ----------
-    queue_url : string
-        The queue from which the message originated
-    receipt_handle : string
-        The receipt handle of the message, as yielded by `receive_messages`
-    visibility_timeout_s : int
-        The number of additional seconds to wait for a received message to be deleted
-        before it is returned to the queue
-    """
-    sqs = harmony.aws.get_aws_client('sqs')
+def change_message_visibility(config, queue_url, receipt_handle, visibility_timeout_s):
+    sqs = _get_aws_client(config, 'sqs')
     sqs.change_message_visibility(
         QueueUrl=queue_url,
         ReceiptHandle=receipt_handle,
