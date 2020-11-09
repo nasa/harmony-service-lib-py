@@ -19,6 +19,7 @@ from warnings import warn
 
 from deprecation import deprecated
 from pystac import Item, Asset
+from harmony.message import Temporal
 from harmony.util import CanceledException, touch_health_check_file, default_logger
 from . import util
 
@@ -155,8 +156,18 @@ class BaseHarmonyAdapter(ABC):
                 completed += 1
                 progress = int(100 * completed / item_count)
                 for asset in assets:
-                    self.async_add_url_partial_result(
-                        asset.href, progress=progress, source_granule=granule)
+                    temporal = Temporal({}, result.properties['start_datetime'], result.properties['end_datetime'])
+                    common_args = dict(
+                        title=asset.title,
+                        mime=asset.media_type,
+                        source_granule=granule,
+                        temporal=temporal,
+                        bbox=result.bbox
+                    )
+                    if self.message.isSynchronous:
+                        self.completed_with_redirect(asset.href, **common_args)
+                        return
+                    self.async_add_url_partial_result(asset.href, progress=progress, **common_args)
         self.async_completed_successfully()
 
     def process_item(self, item, source):

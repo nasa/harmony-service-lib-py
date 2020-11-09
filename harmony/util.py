@@ -56,7 +56,7 @@ class HarmonyException(Exception):
         Classification of the type of harmony error
     """
 
-    def __init__(self, message, category):
+    def __init__(self, message, category='Service'):
         self.message = message
         self.category = category
 
