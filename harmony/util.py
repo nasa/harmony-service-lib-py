@@ -3,12 +3,6 @@ Utility functions for logging, staging data results for external
 access (S3 pre-signed URL), decrypting data using a shared secret, and
 operating on message queues.
 
-NOTE: This module's `download` function is now an alias for the
-harmony.io module's download function. The function in this module is
-deprecated and may be removed in future releases of the Harmony
-Service Library. Please use the `harmony.io.download` function
-instead.
-
 This module relies heavily on environment variables to know
 which endpoints to use and how to authenticate to them as follows:
 
