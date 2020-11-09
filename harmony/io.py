@@ -1,13 +1,6 @@
 """
 Utility functions to download data from backend data sources so it can be operated on
 locally.
-
-Required when using HTTPS, allowing Earthdata Login auth.  Prints a warning if not supplied:
-    EDL_CLIENT_ID:    The EDL application client id used to acquire an EDL shared access token
-    EDL_USERNAME:     The EDL application username used to acquire an EDL shared access token
-    EDL_PASSWORD:     The EDL application password used to acquire an EDL shared access token
-    EDL_REDIRECT_URI: A valid redirect URI for the EDL application (NOTE: the redirect URI is
-                      not followed or used; it does need to be in the app's redirect URI list)
 """
 
 from base64 import b64encode
@@ -183,6 +176,7 @@ def _request_shared_token(config, user_access_token):
 
             body = response.read().decode()
             token_data = json.loads(body)
+            # Example reply body:
             # {
             #   "access_token": "abcd1234abcd1234abcd1234",
             #   "token_type": "Bearer",
@@ -203,14 +197,14 @@ def _request_shared_token(config, user_access_token):
             else:
                 return code
 
-    # A: Request authorization code
+    # Step A: Request authorization code
     url = (f"{config.urs_url}/oauth/authorize"
            "?response_type=code"
            f"&client_id={config.edl_client_id}"
            f"&redirect_uri={config.edl_redirect_uri}")
     code = _edl_request(url, 'GET', access_token=user_access_token, get_code=True)
 
-    # B: Retrieve token using authorization code
+    # Step B: Retrieve token using authorization code acquired in step A
     url = (f"{config.urs_url}/oauth/token"
            "?grant_type=authorization_code"
            f"&code={code}"

@@ -1,3 +1,21 @@
+## 2020/11/10
+
+* Adds full support for Earthdata Login (EDL) Bearer tokens. The
+  Service Lib now acquires a shared EDL token based on the user's
+  access token and Harmony EDL credentials. This shared token is used
+  to download assets from backend data sources that support EDL
+  federated tokens, including TEA backends.
+* Adds a feature flag FALLBACK_AUTHN_ENABLED that can be used to
+  download assets from data sources that do not support EDL bearer
+  tokens. This defaults to False. This flag should be enabled with
+  caution, since it will distort download metrics and can result in
+  users downloading data for which they have not approved a EULA.
+* Fixes an issue when running tests that required setting certain
+  environment variables. Now the configuration has default values that
+  allow tests to run without setting them. Note that downloads will
+  fail in a production environment if environment vars are not
+  properly set.
+
 ## 2020/10/20
 
 * Bug fix: Handle Authentication HTTP headers & cookies correctly so

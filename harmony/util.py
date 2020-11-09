@@ -1,8 +1,4 @@
 """
-=======
-util.py
-=======
-
 Utility functions for logging, staging data results for external
 access (S3 pre-signed URL), decrypting data using a shared secret, and
 operating on message queues.
@@ -13,7 +9,7 @@ deprecated and may be removed in future releases of the Harmony
 Service Library. Please use the `harmony.io.download` function
 instead.
 
-This module relies (overly?) heavily on environment variables to know
+This module relies heavily on environment variables to know
 which endpoints to use and how to authenticate to them as follows:
 
 Required when reading from or staging to S3:
@@ -24,6 +20,7 @@ Required when staging to S3 and not using the Harmony-provided stagingLocation p
     STAGING_PATH: The base path under which staged files should be placed
 
 Required when using HTTPS, allowing Earthdata Login auth.  Prints a warning if not supplied:
+    URS_URL:          The Earthdata Login (EDL) environment to connect to
     EDL_CLIENT_ID:    The EDL application client id used to acquire an EDL shared access token
     EDL_USERNAME:     The EDL application username used to acquire an EDL shared access token
     EDL_PASSWORD:     The EDL application password used to acquire an EDL shared access token
@@ -216,19 +213,7 @@ def download(url, destination_dir, logger=build_logger(), access_token=None, dat
     When using the s3:// scheme, will run against us-west-2 unless the "AWS_DEFAULT_REGION"
     environment variable is set.
 
-    When using http:// or https:// schemes, the access_token will be used for authentication
-    if it is provided. If authentication with the access_token fails, or if the
-    access_token is not provided, the following environment variables will be used to
-    authenticate when downloading the data:
-
-        EDL_CLIENT_ID:    The EDL application client id used to acquire an EDL shared access token
-        EDL_USERNAME:     The EDL application username used to acquire an EDL shared access token
-        EDL_PASSWORD:     The EDL application password used to acquire an EDL shared access token
-        EDL_REDIRECT_URI: A valid redirect URI for the EDL application (NOTE: the redirect URI is
-                          not followed or used; it does need to be in the app's redirect URI list)
-
-    If these are not provided, unauthenticated requests will be made to download the data,
-    with a warning message in the logs.
+    When using http:// or https:// schemes, the access_token will be used for authentication.
 
     Parameters
     ----------
