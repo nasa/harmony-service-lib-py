@@ -1,4 +1,10 @@
-## 2020/10/20
+## 2020/11/09
+
+* Deprecates callback-style invocations in favor of STAC invocations.  Everything is
+  backward compatible, but service authors will need to update in order to support
+  chaining.
+
+## [v0.0.25] - 2020/10/20
 
 * Bug fix: Handle Authentication HTTP headers & cookies correctly so
   downloads from TEA work whether or not TEA is in the same AWS region
