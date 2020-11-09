@@ -1,5 +1,4 @@
-import argparse
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 from harmony import cli
 

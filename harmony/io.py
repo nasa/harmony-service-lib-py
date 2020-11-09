@@ -15,6 +15,7 @@ from functools import lru_cache
 import hashlib
 from http.cookiejar import CookieJar
 import json
+import logging
 from pathlib import Path, PurePath
 from urllib.error import HTTPError
 from urllib.request import (build_opener, Request,
@@ -173,49 +174,55 @@ def _request_with_bearer_token_auth_header(config, url, access_token, encoded_da
 
 
 def _request_shared_token(config, user_access_token):
+    def _edl_request(url, method, access_token=None, get_code=True):
+        request = Request(url=url, method=method)
+        header = _auth_header(config, access_token=user_access_token, include_basic_auth=True)
+        request.add_unredirected_header(*header)
+        opener = _create_opener(follow_redirect=False)
+
+        try:
+            response = opener.open(request)
+
+            if get_code:
+                return None
+
+            body = response.read().decode()
+            token_data = json.loads(body)
+            # {
+            #   "access_token": "abcd1234abcd1234abcd1234",
+            #   "token_type": "Bearer",
+            #   "expires_in": 36000,
+            #   "refresh_token": "9876zyxw9876zyxw9876zyxw",
+            #   "endpoint": "/api/users/morpheus"
+            # }
+            return token_data.get('access_token', None)
+        except HTTPError as http_error:
+            code = None
+            if 'Location' in http_error.headers or 'location' in http_error.headers:
+                location = http_error.headers.get('Location') or http_error.headers.get('location')
+                qs = parse.urlsplit(location).query
+                items = parse.parse_qsl(qs)
+                code = dict(items).get('code', None)
+            if code is None:
+                raise Exception("Unable to acquire authorization code from user access token")
+            else:
+                return code
+
     # A: Request authorization code
-    auth_code_url = (f"{config.urs_url}/oauth/authorize"
-                     "?response_type=code"
-                     f"&client_id={config.edl_client_id}"
-                     f"&redirect_uri={config.edl_redirect_uri}")
-    auth_code_request = Request(url=auth_code_url)
-    auth_code_header = _auth_header(config, access_token=user_access_token, include_basic_auth=True)
-    auth_code_request.add_unredirected_header(*auth_code_header)
-    opener = _create_opener(follow_redirect=False)
-
-    response = None
-    code = None
-    try:
-        response = opener.open(auth_code_request)
-    except HTTPError as http_error:
-        if 'Location' in http_error.hdrs:
-            qs = parse.urlsplit(http_error.hdrs.get('Location')).query
-            items = parse.parse_qsl(qs)
-            code = dict(items).get('code', None)
-
-    if code is None:
-        raise Exception("Unable to acquire authorization code from user access token")
+    url = (f"{config.urs_url}/oauth/authorize"
+           "?response_type=code"
+           f"&client_id={config.edl_client_id}"
+           f"&redirect_uri={config.edl_redirect_uri}")
+    code = _edl_request(url, 'GET', access_token=user_access_token, get_code=True)
 
     # B: Retrieve token using authorization code
-    token_url = (f"{config.urs_url}/oauth/token"
-                 "?grant_type=authorization_code"
-                 f"&code={code}"
-                 f"&redirect_uri={config.edl_redirect_uri}")
-    token_request = Request(url=token_url, method='POST')
-    token_header = _auth_header(config, include_basic_auth=True)
-    token_request.add_unredirected_header(*token_header)
-    opener = _create_opener(follow_redirect=False)
-    response = opener.open(token_request)
-    body = response.read().decode()
-    token_data = json.loads(body)
-    # {
-    #   "access_token": "***REMOVED***",
-    #   "token_type": "Bearer",
-    #   "expires_in": 604800,
-    #   "refresh_token": "***REMOVED***",
-    #   "endpoint": "/api/users/kbeam"
-    # }
-    return token_data.get('access_token', None)
+    url = (f"{config.urs_url}/oauth/token"
+           "?grant_type=authorization_code"
+           f"&code={code}"
+           f"&redirect_uri={config.edl_redirect_uri}")
+    token = _edl_request(url, 'POST', get_code=False)
+
+    return token
 
 
 def _download_from_http_with_bearer_token(config, url, access_token, encoded_data, logger):
@@ -224,11 +231,12 @@ def _download_from_http_with_bearer_token(config, url, access_token, encoded_dat
         opener = _create_opener()
         return opener.open(request)
     except HTTPError as http_error:
-        msg = (f'Failed to download using access token due to {str(http_error)}. '
-               'Trying with EDL_USERNAME and EDL_PASSWORD.')
-        logger.exception(msg, exc_info=http_error)
         if config.fallback_authn_enabled:
+            msg = (f'Failed to download using access token due to {str(http_error)}. '
+                   'Trying with EDL_USERNAME and EDL_PASSWORD.')
+            logger.exception(msg, exc_info=http_error)
             return _download_from_http_with_basic_auth(config, url, encoded_data, logger)
+        raise
 
 
 def _download_from_http_with_basic_auth(config, url, encoded_data, logger):
@@ -259,7 +267,8 @@ def shared_token_for_user(config, access_token):
     return _request_shared_token(config, access_token)
 
 
-def download_from_http(config, url, destination_path, access_token, logger, data, forbidden_exception_klass):
+def download_from_http(config, url, destination_path, access_token, logger, data,
+                       harmony_exception_klass, forbidden_exception_klass):
     try:
         logger.info('Downloading %s', url)
 
@@ -274,7 +283,9 @@ def download_from_http(config, url, destination_path, access_token, logger, data
         elif config.fallback_authn_enabled:
             response = _download_from_http_with_basic_auth(config, url, data, logger)
         else:
-            logger.error(f"Unable to download: Missing user access token & fallback not enabled for {url}")
+            msg = f"Unable to download: Missing user access token & fallback not enabled for {url}"
+            logging.error(msg)
+            raise harmony_exception_klass(msg, 'Error')
 
         with open(destination_path, 'wb') as local_file:
             local_file.write(response.read())

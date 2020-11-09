@@ -2,12 +2,10 @@ import argparse
 import os
 import sys
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from harmony import cli, BaseHarmonyAdapter
 from tests.util import mock_receive
-
-os.environ['SHARED_SECRET_KEY'] = '_THIS_IS_MY_32_CHARS_SECRET_KEY_'
 
 
 def cli_test(*cli_args):
@@ -123,7 +121,7 @@ class TestCliInvokeAction(unittest.TestCase):
         args = parser.parse_args()
         try:
             cli.run_cli(parser, args, MockImpl)
-        except:
+        except Exception:
             pass
         self.assertListEqual(
             MockImpl.errors, ['The backend service did not respond'])
@@ -153,7 +151,7 @@ class TestCliInvokeAction(unittest.TestCase):
         args = parser.parse_args()
         try:
             cli.run_cli(parser, args, MockImpl)
-        except:
+        except Exception:
             pass
         self.assertListEqual(MockImpl.errors, [])
 
@@ -184,7 +182,9 @@ class TestCliStartAction(unittest.TestCase):
         self.assertListEqual(MockAdapter.messages, [])
         self.assertListEqual(MockAdapter.errors, [])
 
-    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url', '--harmony-visibility-timeout', '100')
+    @cli_test('--harmony-action', 'start',
+              '--harmony-queue-url', 'test-queue-url',
+              '--harmony-visibility-timeout', '100')
     @patch('boto3.client')
     def test_uses_optional_visibility_timeouts_from_the_command_line(self, parser, client):
         sqs = mock_receive(client, parser, MockAdapter)
@@ -221,7 +221,9 @@ class TestCliStartAction(unittest.TestCase):
 
     @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
     @patch('boto3.client')
-    def test_when_the_adapter_runs_without_completing_the_request_it_returns_the_message_to_the_queue(self, parser, client):
+    def test_when_the_adapter_runs_without_completing_the_request_it_returns_the_message_to_the_queue(
+        self, parser, client
+    ):
         class MockImpl(MockAdapter):
             def invoke(self):
                 self.is_complete = False
@@ -246,7 +248,9 @@ class TestCliStartAction(unittest.TestCase):
 
     @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
     @patch('boto3.client')
-    def test_when_the_adapter_throws_before_completing_the_request_it_returns_the_message_to_the_queue(self, parser, client):
+    def test_when_the_adapter_throws_before_completing_the_request_it_returns_the_message_to_the_queue(
+        self, parser, client
+    ):
         class MockImpl(MockAdapter):
             def invoke(self):
                 self.is_complete = False
@@ -285,8 +289,7 @@ class TestCliStartAction(unittest.TestCase):
                 self.is_complete = False
                 raise Exception('Something bad happened')
 
-        sqs = mock_receive(client, parser, MockImpl,
-                           '{"test": "a"}', None, '{"test": "b"}')
+        mock_receive(client, parser, MockImpl, '{"test": "a"}', None, '{"test": "b"}')
         self.assertListEqual(MockImpl.cleaned_up, [True, True])
 
     @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
@@ -296,8 +299,7 @@ class TestCliStartAction(unittest.TestCase):
             def cleanup(self):
                 raise Exception('Something bad happened')
 
-        sqs = mock_receive(client, parser, MockImpl,
-                           '{"test": "a"}', None, '{"test": "b"}')
+        mock_receive(client, parser, MockImpl, '{"test": "a"}', None, '{"test": "b"}')
         self.assertEqual(MockAdapter.messages, [{'test': 'a'}, {'test': 'b'}])
 
 

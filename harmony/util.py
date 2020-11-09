@@ -83,31 +83,9 @@ class ForbiddenException(HarmonyException):
         super().__init__(message, 'Forbidden')
 
 
-def get_env(name):
-    """
-    Returns the environment variable with the given name, or None if none exists.  Removes quotes
-    around values if they exist
-
-    Parameters
-    ----------
-    name : string
-        The name of the value to retrieve
-
-    Returns
-    -------
-    value : string
-        The environment value or None if none exists
-    """
-    value = environ.get(name)
-    if value is None:
-        return value
-    if value.startswith('"') and value.endswith('"'):
-        return value[1:-1].replace('\\"', '"')
-    return value
-
-
 Config = namedtuple(
     'Config', [
+        'app_name',
         'urs_url',
         'edl_client_id',
         'edl_username',
@@ -120,31 +98,45 @@ Config = namedtuple(
         'aws_default_region',
         'staging_path',
         'staging_bucket',
-        'env'
+        'env',
+        'text_logger',
+        'health_check_path',
+        'shared_secret_key',
     ])
 
 
 @lru_cache(maxsize=None)
-def _config():
-    edl_redirect_uri = parse.quote_plus(get_env('EDL_REDIRECT_URI'))
-    fallback_authn_enabled = str.lower(get_env('FALLBACK_AUTHN_ENABLED')) == 'true'
-    use_localstack = str.lower(get_env('USE_LOCALSTACK')) == 'true'
-    backend_host = get_env('BACKEND_HOST') or 'localhost'
-    localstack_host = get_env('LOCALSTACK_HOST') or backend_host
+def config():
+    def str_envvar(name: str, default: str) -> str:
+        value = environ.get(name, default)
+        return value.strip('\"') if value is not None else None
 
-    return Config(urs_url=get_env('URS_URL'),
-                  edl_client_id=get_env('EDL_CLIENT_ID'),
-                  edl_username=get_env('EDL_USERNAME'),
-                  edl_password=get_env('EDL_PASSWORD'),
-                  edl_redirect_uri=edl_redirect_uri,
-                  fallback_authn_enabled=fallback_authn_enabled,
-                  use_localstack=use_localstack,
-                  backend_host=backend_host,
-                  localstack_host=localstack_host,
-                  aws_default_region=get_env('AWS_DEFAULT_REGION') or 'us-west-2',
-                  staging_path=get_env('STAGING_PATH'),
-                  staging_bucket=get_env('STAGING_BUCKET'),
-                  env=get_env('ENV'))
+    def bool_envvar(name: str, default: bool) -> bool:
+        value = environ.get(name)
+        return str.lower(value) == 'true' if value is not None else default
+
+    backend_host = str_envvar('BACKEND_HOST', 'localhost')
+    localstack_host = str_envvar('LOCALSTACK_HOST', backend_host)
+
+    return Config(
+        app_name=str_envvar('APP_NAME', sys.argv[0]),
+        urs_url=str_envvar('URS_URL', 'https://uat.urs.earthdata.nasa.gov'),
+        edl_client_id=str_envvar('EDL_CLIENT_ID', 'UNKNOWN'),
+        edl_username=str_envvar('EDL_USERNAME', 'UNKNOWN'),
+        edl_password=str_envvar('EDL_PASSWORD', 'UNKNOWN'),
+        edl_redirect_uri=parse.quote_plus(str_envvar('EDL_REDIRECT_URI', 'UNKNOWN')),
+        fallback_authn_enabled=bool_envvar('FALLBACK_AUTHN_ENABLED', False),
+        use_localstack=bool_envvar('USE_LOCALSTACK', False),
+        backend_host=backend_host,
+        localstack_host=localstack_host,
+        aws_default_region=str_envvar('AWS_DEFAULT_REGION', 'us-west-2'),
+        staging_path=str_envvar('STAGING_PATH', 'UNKNOWN'),
+        staging_bucket=str_envvar('STAGING_BUCKET', 'UNKNOWN'),
+        env=str_envvar('ENV', 'dev'),
+        text_logger=bool_envvar('TEXT_LOGGER', True),
+        health_check_path=str_envvar('HEALTH_CHECK_PATH', '/tmp/health.txt'),
+        shared_secret_key=str_envvar('SHARED_SECRET_KEY', '_THIS_IS_MY_32_CHARS_SECRET_KEY_')
+    )
 
 
 class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
@@ -159,10 +151,11 @@ class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
         else:
             log_record['level'] = record.levelname
         if not log_record.get('application'):
-            log_record['application'] = get_env('APP_NAME') or sys.argv[0]
+            log_record['application'] = config().app_name
 
 
-def build_logger():
+@lru_cache(maxsize=None)
+def build_logger(name=None):
     """
     Builds a logger with appropriate defaults for Harmony
     Parameters
@@ -177,10 +170,8 @@ def build_logger():
     """
     logger = logging.getLogger()
     syslog = logging.StreamHandler()
-    text_formatter = get_env('TEXT_LOGGER') == 'true'
-    if text_formatter:
-        formatter = logging.Formatter(
-            "%(asctime)s [%(levelname)s] [%(name)s.%(funcName)s:%(lineno)d] [%(user)s] %(message)s")
+    if config().text_logger:
+        formatter = logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s.%(funcName)s:%(lineno)d] %(message)s")
     else:
         formatter = HarmonyJsonFormatter()
     syslog.setFormatter(formatter)
@@ -188,9 +179,6 @@ def build_logger():
     logger.setLevel(logging.INFO)
     logger.propagate = False
     return logger
-
-
-LOGGER = build_logger()
 
 
 def setup_stdout_log_formatting():
@@ -217,11 +205,11 @@ def setup_stdout_log_formatting():
             if self.linebuf != '':
                 self.logger.log(self.log_level, self.linebuf.rstrip())
             self.linebuf = ''
-    sys.stdout = StreamToLogger(LOGGER, logging.INFO)
-    sys.stderr = StreamToLogger(LOGGER, logging.ERROR)
+    sys.stdout = StreamToLogger(build_logger(), logging.INFO)
+    sys.stderr = StreamToLogger(build_logger(), logging.ERROR)
 
 
-def download(url, destination_dir, logger=LOGGER, access_token=None, data=None):
+def download(url, destination_dir, logger=build_logger(), access_token=None, data=None):
     """
     Downloads the given URL to the given destination directory, using the basename of the URL
     as the filename in the destination directory.  Supports http://, https:// and s3:// schemes.
@@ -269,19 +257,19 @@ def download(url, destination_dir, logger=LOGGER, access_token=None, data=None):
     if destination_path.exists():
         return
 
-    source = io.optimized_url(url, _config().localstack_host)
+    source = io.optimized_url(url, config().localstack_host)
 
     if aws.is_s3(url):
-        return aws.download_from_s3(_config(), source, destination_path)
+        return aws.download_from_s3(config(), source, destination_path)
 
     if io.is_http(url):
-        return io.download_from_http(_config(), source, destination_path, access_token,
-                                     logger, data, ForbiddenException)
+        return io.download_from_http(config(), source, destination_path, access_token,
+                                     logger, data, HarmonyException, ForbiddenException)
 
     return source
 
 
-def stage(local_filename, remote_filename, mime, logger=LOGGER, location=None):
+def stage(local_filename, remote_filename, mime, logger=build_logger(), location=None):
     """
     Stages the given local filename, including directory path, to an S3 location with the given
     filename and mime-type
@@ -308,10 +296,10 @@ def stage(local_filename, remote_filename, mime, logger=LOGGER, location=None):
     url : string
         An s3:// URL to the staged file
     """
-    return aws.stage(_config, local_filename, remote_filename, mime, logger, location)
+    return aws.stage(config(), local_filename, remote_filename, mime, logger, location)
 
 
-def receive_messages(queue_url, visibility_timeout_s=600, logger=LOGGER):
+def receive_messages(queue_url, visibility_timeout_s=600, logger=build_logger()):
     """
     Generates successive messages from reading the queue.  The caller
     is responsible for deleting or returning each message to the queue
@@ -331,7 +319,7 @@ def receive_messages(queue_url, visibility_timeout_s=600, logger=LOGGER):
         and the contents of the message
     """
     touch_health_check_file()
-    aws.receive_messages(_config(), queue_url, visibility_timeout_s, logger)
+    return aws.receive_messages(config(), queue_url, visibility_timeout_s, logger)
 
 
 def delete_message(queue_url, receipt_handle):
@@ -346,7 +334,7 @@ def delete_message(queue_url, receipt_handle):
     receipt_handle : string
         The receipt handle of the message, as yielded by `receive_messages`
     """
-    return aws.delete_message(queue_url, receipt_handle)
+    return aws.delete_message(config(), queue_url, receipt_handle)
 
 
 def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s):
@@ -363,15 +351,14 @@ def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s):
         The number of additional seconds to wait for a received message to be deleted
         before it is returned to the queue
     """
-    return aws.change_message_visibility(_config(), queue_url, receipt_handle, visibility_timeout_s)
+    return aws.change_message_visibility(config(), queue_url, receipt_handle, visibility_timeout_s)
 
 
 def touch_health_check_file():
     """
     Updates the mtime of the health check file.
     """
-    healthCheckPath = environ.get('HEALTH_CHECK_PATH', '/tmp/health.txt')
-    Path(healthCheckPath).touch()
+    Path(config().health_check_path).touch()
 
 
 def create_decrypter(key=b'_THIS_IS_MY_32_CHARS_SECRET_KEY_'):

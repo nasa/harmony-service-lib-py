@@ -10,7 +10,7 @@ import json
 import logging
 from harmony.message import Message
 from harmony.util import (CanceledException, HarmonyException, receive_messages, delete_message,
-                          change_message_visibility, setup_stdout_log_formatting, get_env, create_decrypter)
+                          change_message_visibility, setup_stdout_log_formatting, config, create_decrypter)
 
 
 def setup_cli(parser):
@@ -80,7 +80,7 @@ def _invoke(AdapterClass, message_string, sources_path):
     True if the operation completed successfully, False otherwise
     """
 
-    secret_key = get_env('SHARED_SECRET_KEY')
+    secret_key = config().shared_secret_key
     decrypter = create_decrypter(bytes(secret_key, 'utf-8'))
 
     message_data = json.loads(message_string)

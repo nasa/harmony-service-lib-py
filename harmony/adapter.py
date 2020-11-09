@@ -540,15 +540,18 @@ class BaseHarmonyAdapter(ABC):
                     urllib.request.urlopen(request).read().decode('utf-8')
                 self.logger.info('Remote response: %s', response)
                 self.logger.info('Completed response: %s', url)
-            except Exception as e:
+            except urllib.error.HTTPError as e:
                 self.is_failed = True
                 body = e.read().decode()
                 msg = f'Harmony returned an error when updating the job: {body}'
-                self.logger.error(msg)
+                self.logger.error(msg, exc_info=e)
                 if e.code == 409:
                     self.logger.warning('Harmony request was canceled.')
                     self.is_canceled = True
                     self.is_complete = True
                     raise CanceledException
-                else:
-                    raise e
+                raise
+            except Exception as e:
+                self.is_failed = True
+                self.logger.error('Error when updating the job', exc_info=e)
+                raise

@@ -43,7 +43,8 @@ setup(
     version=get_version(),
     author="Patrick Quinn",
     author_email="patrick@element84.com",
-    description="A library for Python-based Harmony services to parse incoming messages, fetch data, stage data, and call back to Harmony",
+    description=("A library for Python-based Harmony services to parse incoming messages, "
+                 "fetch data, stage data, and call back to Harmony"),
     long_description=README,
     long_description_content_type="text/markdown",
     url="https://git.earthdata.nasa.gov/projects/HARMONY/repos/harmony-service-lib-py/browse",

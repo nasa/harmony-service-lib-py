@@ -49,25 +49,27 @@ def download_from_s3(config, url, destination_path):
 
 
 def stage(config, local_filename, remote_filename, mime, logger, location=None):
+    key = None
+    staging_bucket = config.staging_bucket
+
     if location is None:
         if config.staging_path:
             key = '%s/%s' % (config.staging_path, remote_filename)
         else:
             key = remote_filename
     else:
-        _, _, config.staging_bucket, config.staging_path = location.split('/', 3)
-        key = config.staging_path + remote_filename
+        _, _, staging_bucket, staging_path = location.split('/', 3)
+        key = staging_path + remote_filename
 
     if config.env in ['dev', 'test'] and not config.use_localstack:
-        logger.warn(f"ENV={config.env}"
-                    f" and not using localstack, so we will not stage {local_filename} to {key}")
+        logger.warning(f"ENV={config.env}"
+                       f" and not using localstack, so we will not stage {local_filename} to {key}")
         return "http://example.com/" + key
 
     s3 = _get_aws_client(config, 's3')
-    s3.upload_file(local_filename, config.staging_bucket, key,
-                   ExtraArgs={'ContentType': mime})
+    s3.upload_file(local_filename, staging_bucket, key, ExtraArgs={'ContentType': mime})
 
-    return 's3://%s/%s' % (config.staging_bucket, key)
+    return 's3://%s/%s' % (staging_bucket, key)
 
 
 def receive_messages(config, queue_url, visibility_timeout_s, logger):
