@@ -99,7 +99,6 @@ class BaseHarmonyAdapter(ABC):
         # Current processing using callbacks
         self._process_with_callbacks()
 
-
     def _process_catalog_recursive(self, catalog):
         """
         Helper method to recursively process a catalog and all of its children, producing a new
