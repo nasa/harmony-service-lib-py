@@ -14,7 +14,7 @@ Required when staging to S3 and not using the Harmony-provided stagingLocation p
     STAGING_PATH: The base path under which staged files should be placed
 
 Required when using HTTPS, allowing Earthdata Login auth.  Prints a warning if not supplied:
-    URS_URL:          The Earthdata Login (EDL) environment to connect to
+    EDL_ROOT_URL:     The Earthdata Login (EDL) environment to connect to
     EDL_CLIENT_ID:    The EDL application client id used to acquire an EDL shared access token
     EDL_USERNAME:     The EDL application username used to acquire an EDL shared access token
     EDL_PASSWORD:     The EDL application password used to acquire an EDL shared access token
@@ -77,7 +77,7 @@ class ForbiddenException(HarmonyException):
 Config = namedtuple(
     'Config', [
         'app_name',
-        'urs_url',
+        'edl_root_url',
         'edl_client_id',
         'edl_username',
         'edl_password',
@@ -111,7 +111,7 @@ def config():
 
     return Config(
         app_name=str_envvar('APP_NAME', sys.argv[0]),
-        urs_url=str_envvar('URS_URL', 'https://uat.urs.earthdata.nasa.gov'),
+        edl_root_url=str_envvar('EDL_ROOT_URL', 'https://uat.urs.earthdata.nasa.gov'),
         edl_client_id=str_envvar('EDL_CLIENT_ID', 'UNKNOWN'),
         edl_username=str_envvar('EDL_USERNAME', 'UNKNOWN'),
         edl_password=str_envvar('EDL_PASSWORD', 'UNKNOWN'),

@@ -28,7 +28,7 @@ def _config_fixture(fallback_authn_enabled=False, use_localstack=False,
         # Default
         env=c.env,
         app_name=c.app_name,
-        urs_url=c.urs_url,
+        edl_root_url=c.edl_root_url,
         edl_client_id=c.edl_client_id,
         edl_username=c.edl_username,
         edl_password=c.edl_password,

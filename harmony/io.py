@@ -198,14 +198,14 @@ def _request_shared_token(config, user_access_token):
                 return code
 
     # Step A: Request authorization code
-    url = (f"{config.urs_url}/oauth/authorize"
+    url = (f"{config.edl_root_url}/oauth/authorize"
            "?response_type=code"
            f"&client_id={config.edl_client_id}"
            f"&redirect_uri={config.edl_redirect_uri}")
     code = _edl_request(url, 'GET', access_token=user_access_token, get_code=True)
 
     # Step B: Retrieve token using authorization code acquired in step A
-    url = (f"{config.urs_url}/oauth/token"
+    url = (f"{config.edl_root_url}/oauth/token"
            "?grant_type=authorization_code"
            f"&code={code}"
            f"&redirect_uri={config.edl_redirect_uri}")
