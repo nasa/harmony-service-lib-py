@@ -74,7 +74,7 @@ class TestDownload(unittest.TestCase):
         bucket, path, filename = s3.download_file.call_args[0]
         self.assertEqual(bucket, 'example')
         self.assertEqual(path, 'file.txt')
-        self.assertEqual(filename.suffix, '.txt')
+        self.assertTrue(filename.endswith('.txt'))
 
     def _verify_urlopen(self, url, access_token, shared_token, data,
                         urlopen, expected_urlopen_calls=1, verify_bearer_token=True):

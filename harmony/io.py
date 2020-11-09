@@ -43,11 +43,6 @@ def optimized_url(url, local_hostname):
         .replace('//localhost', local_hostname) \
         .replace('file://', '')
 
-    if not url.startswith('http') and not url.startswith('s3'):
-        return url
-
-    return url
-
 
 class NullHTTPRedirectHandler(HTTPRedirectHandler):
     """Returns a handler that does not follow any redirects."""

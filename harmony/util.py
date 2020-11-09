@@ -124,7 +124,7 @@ def config():
         edl_client_id=str_envvar('EDL_CLIENT_ID', 'UNKNOWN'),
         edl_username=str_envvar('EDL_USERNAME', 'UNKNOWN'),
         edl_password=str_envvar('EDL_PASSWORD', 'UNKNOWN'),
-        edl_redirect_uri=parse.quote_plus(str_envvar('EDL_REDIRECT_URI', 'UNKNOWN')),
+        edl_redirect_uri=parse.quote(str_envvar('EDL_REDIRECT_URI', 'UNKNOWN')),
         fallback_authn_enabled=bool_envvar('FALLBACK_AUTHN_ENABLED', False),
         use_localstack=bool_envvar('USE_LOCALSTACK', False),
         backend_host=backend_host,
@@ -255,14 +255,15 @@ def download(url, destination_dir, logger=build_logger(), access_token=None, dat
     """
     destination_path = io.filename(destination_dir, url)
     if destination_path.exists():
-        return
+        return str(destination_path)
+    destination_path = str(destination_path)
 
     source = io.optimized_url(url, config().localstack_host)
 
-    if aws.is_s3(url):
+    if aws.is_s3(source):
         return aws.download_from_s3(config(), source, destination_path)
 
-    if io.is_http(url):
+    if io.is_http(source):
         return io.download_from_http(config(), source, destination_path, access_token,
                                      logger, data, HarmonyException, ForbiddenException)
 
