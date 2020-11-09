@@ -18,6 +18,7 @@ from tempfile import mkdtemp
 from warnings import warn
 
 from deprecation import deprecated
+from pystac import Item, Asset
 from harmony.util import CanceledException, touch_health_check_file, default_logger
 from . import util
 
@@ -91,7 +92,13 @@ class BaseHarmonyAdapter(ABC):
             A tuple of the Harmony message, with any processed fields marked as such and
             a STAC catalog describing the output
         """
-        return (self.message, self._process_catalog_recursive(self.catalog))
+        # New-style processing using STAC
+        if self.catalog:
+            return (self.message, self._process_catalog_recursive(self.catalog))
+
+        # Current processing using callbacks
+        self._process_with_callbacks()
+
 
     def _process_catalog_recursive(self, catalog):
         """
@@ -128,6 +135,30 @@ class BaseHarmonyAdapter(ABC):
                 output_item.id = str(uuid.uuid4())
             result.add_item(output_item)
         return result
+
+    def _process_with_callbacks(self):
+        """
+        Method for backward compatibility with non-chaining workflows.  Takes an incoming message
+        containing granules, translates the granules into STAC items, and passes them individually
+        to process_item
+        """
+        item_count = sum([len(source.granules) for source in self.message.sources])
+        completed = 0
+        for source in self.message.sources:
+            for granule in source.granules:
+                item = Item(granule.id, None, granule.bbox, None, {
+                    'start_datetime': granule.temporal.start,
+                    'end_datetime': granule.temporal.end
+                })
+                item.add_asset('data', Asset(granule.url, roles=['data']))
+                result = self.process_item(item, source)
+                assets = [v for k, v in result.assets.items() if 'data' in (v.roles or [])]
+                completed += 1
+                progress = int(100 * completed / item_count)
+                for asset in assets:
+                    self.async_add_url_partial_result(
+                        asset.href, progress=progress, source_granule=granule)
+        self.async_completed_successfully()
 
     def process_item(self, item, source):
         """
