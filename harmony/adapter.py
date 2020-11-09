@@ -149,7 +149,7 @@ class BaseHarmonyAdapter(ABC):
                     'start_datetime': granule.temporal.start,
                     'end_datetime': granule.temporal.end
                 })
-                item.add_asset('data', Asset(granule.url, roles=['data']))
+                item.add_asset('data', Asset(granule.url, granule.name, roles=['data']))
                 result = self.process_item(item, source)
                 assets = [v for k, v in result.assets.items() if 'data' in (v.roles or [])]
                 completed += 1
@@ -178,7 +178,7 @@ class BaseHarmonyAdapter(ABC):
         Returns
         -------
         pystac.Item
-            a STAC catalog whose metadata and assets describe the service output
+            a STAC item whose metadata and assets describe the service output
         """
         raise NotImplementedError('subclasses must implement #process_item or override #invoke')
 
