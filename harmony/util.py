@@ -616,3 +616,58 @@ def create_decrypter(key=b'_THIS_IS_MY_32_CHARS_SECRET_KEY_'):
 
 def nop_decrypter(cyphertext):
     return cyphertext
+
+
+def generate_output_filename(filename, ext=None, variable_subset=None, is_regridded=False, is_subsetted=False):
+    """
+    Return an output filename for the given granules according to our naming conventions:
+    {original filename without suffix}(_{single var})?(_regridded)?(_subsetted)?.<ext>
+
+    Parameters
+    ----------
+        granule : message.Granule
+            The source granule for the output file
+        ext: string, optional
+            The destination file extension (default: original extension)
+        variable_subset : string[], optional
+            When variable subsetting, a list of all variables that have been subset
+        is_regridded : bool, optional
+            True if a regridding operation has been performed (default: False)
+        is_subsetted : bool, optional
+            True if a subsetting operation has been performed (default: False)
+
+    Returns
+    -------
+        string
+            The output filename
+    """
+    url = filename
+    # Get everything between the last non-trailing '/' before the query and the first '?'
+    # Do this instead of using a URL parser, because our URLs are not complex in practice and
+    # it is useful to allow relative file paths to work for local testing.
+    original_filename = url.split('?')[0].rstrip('/').split('/')[-1]
+    (original_basename, original_ext) = path.splitext(original_filename)
+    if ext is None:
+        ext = original_ext
+
+    if not ext.startswith('.'):
+        ext = '.' + ext
+
+    suffixes = []
+    if variable_subset and len(variable_subset) == 1:
+        suffixes.append('_' + variable_subset[0].replace('/', '_'))
+    if is_regridded:
+        suffixes.append('_regridded')
+    if is_subsetted:
+        suffixes.append('_subsetted')
+    suffixes.append(ext)
+
+    result = original_basename
+    # Iterate suffixes in reverse, removing them from the result if they're at the end of the string
+    # This supports the case of chaining where one service regrids and another subsets but we don't
+    # want names to get mangled
+    for suffix in suffixes[::-1]:
+        if result.endswith(suffix):
+            result = result[:-len(suffix)]
+
+    return result + "".join(suffixes)

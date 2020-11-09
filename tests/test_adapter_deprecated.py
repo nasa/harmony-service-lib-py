@@ -1,3 +1,7 @@
+"""
+Tests deprecated methods and non-STAC invocation styles on BaseHarmonyAdapter
+"""
+
 import unittest
 from unittest.mock import patch, MagicMock
 from tempfile import NamedTemporaryFile, mkdtemp

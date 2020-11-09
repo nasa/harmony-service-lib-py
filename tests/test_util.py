@@ -328,3 +328,60 @@ class TestSQSReadHealthUpdate(unittest.TestCase):
                 except Exception:
                     pass
                 mock_path.return_value.touch.assert_called()
+
+class TestGenerateOutputFilename(unittest.TestCase):
+    def test_includes_provided_regridded_subsetted_ext(self):
+        url = 'https://example.com/fake-path/abc.123.nc/?query=true'
+        ext = 'zarr'
+
+        # Basic cases
+        variables = []
+        self.assertEqual(util.generate_output_filename(url, ext), 'abc.123.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True), 'abc.123_subsetted.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, is_regridded=True), 'abc.123_regridded.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+
+    def test_includes_single_variable_name_replacing_slashes(self):
+        url = 'https://example.com/fake-path/abc.123.nc/?query=true'
+        ext = 'zarr'
+
+        # Variable name contains full path with '/' ('/' replaced with '_')
+        variables = ['/path/to/VarB']
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123__path_to_VarB_regridded_subsetted.zarr')
+
+    def test_includes_single_variable(self):
+        url = 'https://example.com/fake-path/abc.123.nc/?query=true'
+        ext = 'zarr'
+
+        # Single variable cases
+        variables = ['VarA']
+        self.assertEqual(util.generate_output_filename(url, ext), 'abc.123.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables), 'abc.123_VarA.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
+
+    def test_excludes_multiple_variable(self):
+        url = 'https://example.com/fake-path/abc.123.nc/?query=true'
+        ext = 'zarr'
+
+        # Multiple variable cases (no variable name in suffix)
+        variables = ['VarA', 'VarB']
+        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+
+    def test_avoids_overwriting_single_suffixes(self):
+        ext = 'zarr'
+
+        # URL already containing a suffix
+        variables = ['VarA']
+        url = 'https://example.com/fake-path/abc.123_regridded.zarr'
+        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
+
+    def test_avoids_overwriting_multiple_suffixes(self):
+        ext = 'zarr'
+        # URL already containing all suffixes
+        variables = ['VarA']
+        url = 'https://example.com/fake-path/abc.123_VarA_regridded_subsetted.zarr'
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
