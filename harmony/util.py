@@ -671,3 +671,52 @@ def generate_output_filename(filename, ext=None, variable_subset=None, is_regrid
             result = result[:-len(suffix)]
 
     return result + "".join(suffixes)
+
+
+def bbox_to_geometry(bbox):
+    '''
+    Creates a GeoJSON geometry given a GeoJSON BBox, accounting for antimeridian
+
+    Parameters
+    ----------
+    bbox : float[4]
+        the bounding box to create a geometry from
+
+    Returns
+    -------
+    dict
+        a GeoJSON Polygon or MultiPolygon representation of the input bbox
+    '''
+    if not bbox:
+        return None
+    west, south, east, north = bbox[0:4]
+    if west > east:
+        return {
+            'type': 'MultiPolygon',
+            'coordinates': [
+                [[
+                    [-180, south],
+                    [-180, north],
+                    [east, north],
+                    [east, south],
+                    [-180, south]
+                ]],
+                [[
+                    [west, south],
+                    [west, north],
+                    [180, north],
+                    [180, south],
+                    [west, south]
+                ]]
+            ]
+        }
+    return {
+        'type': 'Polygon',
+        'coordinates': [[
+            [west, south],
+            [west, north],
+            [east, north],
+            [east, south],
+            [west, south]
+        ]],
+    }
