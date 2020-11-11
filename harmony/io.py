@@ -88,15 +88,10 @@ def optimized_url(url, local_hostname):
 
 class NullHTTPRedirectHandler(HTTPRedirectHandler):
     """
-    Returns a handler that does not follow any redirects.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    An HTTPRedirectHandler that does not follow any redirects.
     """
     def redirect_request(self, req, fp, code, msg, headers, newurl):
+        """Ignores all redirect requests."""
         return None
 
 
@@ -107,6 +102,12 @@ def _create_opener(follow_redirect=True):
     This opener will handle cookies, which is necessary for the JWT
     cookie that TEA sends on a redirect. If this cookie is not sent to
     TEA when redirected, TEA will fail to deliver the data.
+
+    Parameters
+    ----------
+    follow_redirect : bool
+        Whether to construct an opener which will also follow a redirect
+        response.
 
     Returns
     -------
@@ -135,6 +136,13 @@ def _create_basic_auth_opener(config, logger):
     OAUTH_UID: The username to be passed to Earthdata Login when challenged
     OAUTH_PASSWORD: The password to be passed to Earthdata Login when challenged
 
+    Parameters
+    ----------
+    config : harmony.util.Config
+        The configuration for the current runtime environment.
+    logger : logging.Logger
+        A common Logger instance for log messages
+
     Returns
     -------
     opener : urllib.request.OpenerDirector
@@ -162,6 +170,8 @@ def _auth_header(config, access_token=None, include_basic_auth=False):
 
     Parameters
     ----------
+    config : harmony.util.Config
+        The configuration for the current runtime environment.
     access_token : string (optional)
         The Earthdata Login token for the user making the request. Default: None.
     include_basic_auth : bool (optional)
@@ -197,6 +207,8 @@ def _request_with_bearer_token_auth_header(config, url, access_token, encoded_da
 
     Parameters
     ----------
+    config : harmony.util.Config
+        The configuration for the current runtime environment.
     url : string
         The URL to fetch
     access_token :
@@ -204,6 +216,12 @@ def _request_with_bearer_token_auth_header(config, url, access_token, encoded_da
     data : dict or Tuple[str, str]
         Optional parameter for additional data to send to the server
         when making a HTTP POST request.
+
+    Returns
+    -------
+    urllib.request.Request
+        A Request with a Base Auth header including the encoded app
+        credentials.
     """
     request = Request(url, data=encoded_data)
     auth_header = _auth_header(config, access_token=access_token)
@@ -216,16 +234,48 @@ def _request_shared_token(config, user_access_token):
     """
     Gets a shared token from Earthdata Login.
 
-            # Example reply body:
-            # {
-            #   "access_token": "abcd1234abcd1234abcd1234",
-            #   "token_type": "Bearer",
-            #   "expires_in": 36000,
-            #   "refresh_token": "9876zyxw9876zyxw9876zyxw",
-            #   "endpoint": "/api/users/morpheus"
-            # }
+    The two-step process is to first get an short-lived authorization
+    code from Earthdata Login, and then get a longer-lived shared API
+    token that can be used for multiple downloads.
+
+    The initial authorization code request will result in a redirect
+    response that we do not follow, although the EDL API requires a
+    redirect uri. Instead, we get the authorization code from the
+    response and make a second request for the API token. Both of these
+    requests include the correct EDL application credentials in an
+    HTTP Authorization header.
+
+    The response from the second request--for the API token--results
+    in a JSON reply body. Example:
+
+      {
+        "access_token": "abcd1234abcd1234abcd1234",
+        "token_type": "Bearer",
+        "expires_in": 36000,
+        "refresh_token": "9876zyxw9876zyxw9876zyxw",
+        "endpoint": "/api/users/morpheus"
+      }
+
+    We select the access_token but don't get the refresh token. The
+    assumption here is that the token will be used over a short period
+    of time, much shorter than the expiry of the token.
+
+    Parameters
+    ----------
+    config : harmony.util.Config
+        The configuration for the current runtime environment.
+
+    Returns
+    -------
+    str
+        A shared EDL token that can be used for subsequent API calls or
+        data downloads.
     """
     def _initiate_oauth(access_token):
+        """Makes a request to initiate the Oauth process using the user's access token
+        and the application credentials. Returns the authorization code to be used to
+        request the token.
+        """
         url = (f"{config.oauth_host}/oauth/authorize"
                "?response_type=code"
                f"&client_id={config.oauth_client_id}"
@@ -252,6 +302,10 @@ def _request_shared_token(config, user_access_token):
                 return code
 
     def _request_oauth_token(code):
+        """Makes a request for a long(-ish)-lived token that can be used to make API calls
+        and download data. This token is opaque, but is based on the user's identity and
+        the EDL application identity.
+        """
         url = (f"{config.oauth_host}/oauth/token"
                "?grant_type=authorization_code"
                f"&code={code}"
@@ -282,13 +336,31 @@ def _request_shared_token(config, user_access_token):
 
 def _download_from_http_with_bearer_token(config, url, access_token, encoded_data, logger):
     """
-    Description.
+    Make a request to download data from a url using the identity provided by the given
+    access token.
 
     Parameters
     ----------
+    config : harmony.util.Config
+        The configuration for the current runtime environment.
+    url : str
+        the url for the resource to download
+    access_token : str
+        A shared EDL access token created from the user's access token and the app identity.
+    encoded_data : dict or Tuple[str, str]
+        Optional parameter for additional data to
+        send to the server when making a HTTP POST request through
+        urllib.get.urlopen. These data will be URL encoded to a query string
+        containing a series of `key=value` pairs, separated by ampersands. If
+        None (the default), urllib.get.urlopen will use the  GET
+        method.
+    logger : logging.Logger
+        A common Logger instance for log messages
 
     Returns
     -------
+    HTTPResponse
+        The response to the given request.
     """
     try:
         request = _request_with_bearer_token_auth_header(config, url, access_token, encoded_data)
@@ -308,8 +380,31 @@ def _download_from_http_with_bearer_token(config, url, access_token, encoded_dat
 def _download_with_fallback_authn(config, url, encoded_data, logger):
     """Fallback: Use basic auth with the application uid and password.
 
-    This should only happen in cases where the backend server does
-    not yet support the EDL Bearer token authentication.
+    This should only happen if the fallback authentication feature
+    flag is enabled, and when the user supplies no access token, or
+    when the backend server does not yet support the EDL Bearer token
+    authentication.
+
+    Parameters
+    ----------
+    config : harmony.util.Config
+        The configuration for the current runtime environment.
+    url : str
+        the url for the resource to download
+    encoded_data : dict or Tuple[str, str]
+        Optional parameter for additional data to
+        send to the server when making a HTTP POST request through
+        urllib.get.urlopen. These data will be URL encoded to a query string
+        containing a series of `key=value` pairs, separated by ampersands. If
+        None (the default), urllib.get.urlopen will use the  GET
+        method.
+    logger : logging.Logger
+        A common Logger instance for log messages
+
+    Returns
+    -------
+    HTTPResponse
+        The response to the given request.
     """
     request = Request(url, data=encoded_data)
     opener = _create_basic_auth_opener(config, logger)
@@ -317,6 +412,22 @@ def _download_with_fallback_authn(config, url, encoded_data, logger):
 
 
 def _handle_possible_eula_error(http_error, body, forbidden_exception_klass):
+    """
+    Tries to determine if the exception is due to a EULA that the user needs to
+    approve, and if so, returns a response with the url where they can do so.
+
+    Parameters
+    ----------
+    http_error : urllib.error.HTTPError
+        An error response that may indicate a EULA issue.
+    body : str
+        The body JSON string that may contain the EULA details.
+
+    Returns
+    -------
+    str
+        A message indicating that the user needs to approve a EULA.
+    """
     try:
         # Try to determine if this is a EULA error
         json_object = json.loads(body)
@@ -331,13 +442,20 @@ def _handle_possible_eula_error(http_error, body, forbidden_exception_klass):
 @lru_cache(maxsize=None)
 def shared_token_for_user(config, access_token):
     """
-    Description.
+    Requests an EDL shared access token for a specific user access token.
 
     Parameters
     ----------
+    config : harmony.util.Config
+        The configuration for the current runtime environment.
+    access_token : str
+        A shared EDL access token created from the user's access token and the app identity.
 
     Returns
     -------
+    str
+        A long(-ish)-lived shared access token that can be used with Earthdata APIs or
+        to download data from an EDL token-aware endpoint.
     """
     return _request_shared_token(config, access_token)
 
@@ -345,13 +463,32 @@ def shared_token_for_user(config, access_token):
 def download_from_http(config, url, destination_path, access_token, logger, data,
                        harmony_exception_klass, forbidden_exception_klass):
     """
-    Description.
+    .
 
     Parameters
     ----------
+    config : harmony.util.Config
+        The configuration for the current runtime environment.
+    url : str
+        The url for the resource to download
+    destination_path : str
+        The directory path where the downloaded resource will be written.
+    access_token : str
+        A shared EDL access token created from the user's access token and the app identity.
+    logger : logging.Logger
+        A common Logger instance for log messages
+    data : dict or Tuple[str, str]
+        Optional parameter for additional data to
+        send to the server when making a HTTP POST request through
+        urllib.get.urlopen. These data will be URL encoded to a query string
+        containing a series of `key=value` pairs, separated by ampersands. If
+        None (the default), urllib.get.urlopen will use the  GET
+        method.
 
     Returns
     -------
+    str
+        The directory path where the downloaded resource was written.
     """
     try:
         logger.info('Downloading %s', url)

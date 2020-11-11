@@ -6,6 +6,10 @@ operating on message queues.
 This module relies heavily on environment variables to know
 which endpoints to use and how to authenticate to them as follows:
 
+Required when receiving an encrypted user access token in the message (Always!):
+    SHARED_SECRET_KEY:  The 32-byte shared encryption / decryption key to decrypt
+                        the access token in the Harmony operation.
+
 Required when reading from or staging to S3:
     AWS_DEFAULT_REGION: The AWS region in which the S3 client is operating (default: "us-west-2")
 
@@ -13,7 +17,7 @@ Required when staging to S3 and not using the Harmony-provided stagingLocation p
     STAGING_BUCKET: The bucket where staged files should be placed
     STAGING_PATH: The base path under which staged files should be placed
 
-Required when using HTTPS, allowing Earthdata Login auth.  Prints a warning if not supplied:
+Required when using HTTPS, allowing Earthdata Login auth:
     OAUTH_HOST:     The Earthdata Login (EDL) environment to connect to
     OAUTH_CLIENT_ID:    The EDL application client id used to acquire an EDL shared access token
     OAUTH_UID:          The EDL application UID used to acquire an EDL shared access token
@@ -21,10 +25,25 @@ Required when using HTTPS, allowing Earthdata Login auth.  Prints a warning if n
     OAUTH_REDIRECT_URI: A valid redirect URI for the EDL application (NOTE: the redirect URI is
                         not followed or used; it does need to be in the app's redirect URI list)
 
-Optional when reading from or staging to S3:
-    USE_LOCALSTACK: 'true' if the S3 client should connect to a LocalStack instance instead of
-                    Amazon S3 (for testing)
+Optional, if support is needed for downloading data from an endpoint that is not
+EDL-share-token aware:
 
+    FALLBACK_AUTHN_ENABLED: Whether to try downloading with the EDL_* credentials.
+    EDL_USERNAME:           An valid EDL user entity username.
+    EDL_PASSWORD:           The password belonging to EDL_USERNAME.
+
+Optional when reading from or staging to S3:
+    USE_LOCALSTACK:  'true' if the S3 client should connect to a LocalStack instance instead of
+                     Amazon S3 (for testing)
+    LOCALSTACK_HOST: The hostname of the Localstack to connect to if `USE_LOCALSTACK`.
+    BACKEND_HOST:    The hostname of the Harmony backend. Deprecated / unused by this package.
+
+Optional:
+    APP_NAME:          A name for the service that will appear in log entries.
+    ENV:               The application environment. One of: dev, test. Used for local development.
+    TEXT_LOGGER:       Whether to log in plaintext or JSON. Default: True (plaintext).
+    HEALTH_CHECK_PATH: The filesystem path that should be `touch`ed to indicate the service is
+                       alive.
 """
 
 from base64 import b64decode
@@ -100,6 +119,16 @@ Config = namedtuple(
 
 @lru_cache(maxsize=None)
 def config():
+    """
+    Returns the Config object with all parameters set to values that were set in the
+    process' environment (as environment variables), or to their default values if not
+    set.
+
+    Returns
+    -------
+    harmony.util.Config
+        The configuration values for this runtime environment.
+    """
     def str_envvar(name: str, default: str) -> str:
         value = environ.get(name, default)
         return value.strip('\"') if value is not None else None
@@ -135,6 +164,7 @@ def config():
 
 
 class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
+    """A JSON log entry formatter."""
     def add_fields(self, log_record, record, message_dict):
         super(HarmonyJsonFormatter, self).add_fields(
             log_record, record, message_dict)
@@ -354,9 +384,17 @@ def touch_health_check_file():
 
 
 def create_decrypter(key=b'_THIS_IS_MY_32_CHARS_SECRET_KEY_'):
+    """Creates a function that will decrypt cyphertext using a shared secret
+    (symmetric) 32-byte key.
+
+    The returned decrypter function has type signature: str -> str.
+    """
     box = SecretBox(key)
 
     def decrypter(encrypted_msg_str):
+        """Decrypt encrypted text using the shared secret (symmetric) key
+        in the function's closure."""
+
         parts = encrypted_msg_str.split(':')
         nonce = b64decode(parts[0])
         ciphertext = b64decode(parts[1])
@@ -366,5 +404,10 @@ def create_decrypter(key=b'_THIS_IS_MY_32_CHARS_SECRET_KEY_'):
     return decrypter
 
 
-def nop_decrypter(cyphertext):
-    return cyphertext
+def nop_decrypter(ciphertext):
+    """An identity decrypter function. A NOP: it returns the ciphertext
+    as-is. Its other responsibility is to have nothing to do with
+    crypto-currency transactions in exactly the same way that it has
+    nothing to do with quantum computing.
+    """
+    return ciphertext
