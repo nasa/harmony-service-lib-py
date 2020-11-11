@@ -130,10 +130,11 @@ class BaseHarmonyAdapter(ABC):
         for item in items:
             source = source or self._get_item_source(item)
             output_item = self.process_item(item.clone(), source)
-            # Ensure the item gets a new ID
-            if output_item.id == item.id:
-                output_item.id = str(uuid.uuid4())
-            result.add_item(output_item)
+            if output_item:
+                # Ensure the item gets a new ID
+                if output_item.id == item.id:
+                    output_item.id = str(uuid.uuid4())
+                result.add_item(output_item)
         return result
 
     def _process_with_callbacks(self):
@@ -152,6 +153,8 @@ class BaseHarmonyAdapter(ABC):
                 })
                 item.add_asset('data', Asset(granule.url, granule.name, roles=['data']))
                 result = self.process_item(item, source)
+                if not result:
+                    continue
                 assets = [v for k, v in result.assets.items() if 'data' in (v.roles or [])]
                 completed += 1
                 progress = int(100 * completed / item_count)
