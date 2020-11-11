@@ -280,6 +280,8 @@ def stage(local_filename, remote_filename, mime, logger=build_logger(), location
     url : string
         An s3:// URL to the staged file
     """
+    # The implementation of this function has been moved to the
+    # harmony.aws module.
     return aws.stage(config(), local_filename, remote_filename, mime, logger, location)
 
 
@@ -302,6 +304,8 @@ def receive_messages(queue_url, visibility_timeout_s=600, logger=build_logger())
         A tuple of the receipt handle, used to delete or update messages,
         and the contents of the message
     """
+    # The implementation of this function has been moved to the
+    # harmony.aws module.
     touch_health_check_file()
     return aws.receive_messages(config(), queue_url, visibility_timeout_s, logger)
 
@@ -318,6 +322,8 @@ def delete_message(queue_url, receipt_handle):
     receipt_handle : string
         The receipt handle of the message, as yielded by `receive_messages`
     """
+    # The implementation of this function has been moved to the
+    # harmony.aws module.
     return aws.delete_message(config(), queue_url, receipt_handle)
 
 
@@ -335,6 +341,8 @@ def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s):
         The number of additional seconds to wait for a received message to be deleted
         before it is returned to the queue
     """
+    # The implementation of this function has been moved to the
+    # harmony.aws module.
     return aws.change_message_visibility(config(), queue_url, receipt_handle, visibility_timeout_s)
 
 
