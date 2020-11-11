@@ -14,12 +14,12 @@ Required when staging to S3 and not using the Harmony-provided stagingLocation p
     STAGING_PATH: The base path under which staged files should be placed
 
 Required when using HTTPS, allowing Earthdata Login auth.  Prints a warning if not supplied:
-    EDL_ROOT_URL:     The Earthdata Login (EDL) environment to connect to
-    EDL_CLIENT_ID:    The EDL application client id used to acquire an EDL shared access token
-    EDL_USERNAME:     The EDL application username used to acquire an EDL shared access token
-    EDL_PASSWORD:     The EDL application password used to acquire an EDL shared access token
-    EDL_REDIRECT_URI: A valid redirect URI for the EDL application (NOTE: the redirect URI is
-                      not followed or used; it does need to be in the app's redirect URI list)
+    OAUTH_HOST:     The Earthdata Login (EDL) environment to connect to
+    OAUTH_CLIENT_ID:    The EDL application client id used to acquire an EDL shared access token
+    OAUTH_UID:          The EDL application UID used to acquire an EDL shared access token
+    OAUTH_PASSWORD:     The EDL application password used to acquire an EDL shared access token
+    OAUTH_REDIRECT_URI: A valid redirect URI for the EDL application (NOTE: the redirect URI is
+                        not followed or used; it does need to be in the app's redirect URI list)
 
 Optional when reading from or staging to S3:
     USE_LOCALSTACK: 'true' if the S3 client should connect to a LocalStack instance instead of
@@ -77,11 +77,11 @@ class ForbiddenException(HarmonyException):
 Config = namedtuple(
     'Config', [
         'app_name',
-        'edl_root_url',
-        'edl_client_id',
-        'edl_username',
-        'edl_password',
-        'edl_redirect_uri',
+        'oauth_host',
+        'oauth_client_id',
+        'oauth_uid',
+        'oauth_password',
+        'oauth_redirect_uri',
         'fallback_authn_enabled',
         'use_localstack',
         'backend_host',
@@ -111,11 +111,11 @@ def config():
 
     return Config(
         app_name=str_envvar('APP_NAME', sys.argv[0]),
-        edl_root_url=str_envvar('EDL_ROOT_URL', 'https://uat.urs.earthdata.nasa.gov'),
-        edl_client_id=str_envvar('EDL_CLIENT_ID', 'UNKNOWN'),
-        edl_username=str_envvar('EDL_USERNAME', 'UNKNOWN'),
-        edl_password=str_envvar('EDL_PASSWORD', 'UNKNOWN'),
-        edl_redirect_uri=parse.quote(str_envvar('EDL_REDIRECT_URI', 'UNKNOWN')),
+        oauth_host=str_envvar('OAUTH_HOST', 'https://uat.urs.earthdata.nasa.gov'),
+        oauth_client_id=str_envvar('OAUTH_CLIENT_ID', 'UNKNOWN'),
+        oauth_uid=str_envvar('OAUTH_UID', 'UNKNOWN'),
+        oauth_password=str_envvar('OAUTH_PASSWORD', 'UNKNOWN'),
+        oauth_redirect_uri=parse.quote(str_envvar('OAUTH_REDIRECT_URI', 'UNKNOWN')),
         fallback_authn_enabled=bool_envvar('FALLBACK_AUTHN_ENABLED', False),
         use_localstack=bool_envvar('USE_LOCALSTACK', False),
         backend_host=backend_host,

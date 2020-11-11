@@ -75,8 +75,8 @@ def _create_basic_auth_opener(config, logger):
     Will use Earthdata Login creds only if the following environment
     variables are set and will print a warning if they are not:
 
-    EDL_USERNAME: The username to be passed to Earthdata Login when challenged
-    EDL_PASSWORD: The password to be passed to Earthdata Login when challenged
+    OAUTH_UID: The username to be passed to Earthdata Login when challenged
+    OAUTH_PASSWORD: The password to be passed to Earthdata Login when challenged
 
     Returns
     -------
@@ -86,21 +86,15 @@ def _create_basic_auth_opener(config, logger):
         memoized so that subsequent calls use the same opener and
         cookie(s).
     """
-    try:
-        auth_handler = HTTPBasicAuthHandler(HTTPPasswordMgrWithDefaultRealm())
-        edl_endpoints = ['https://sit.urs.earthdata.nasa.gov',
-                         'https://uat.urs.earthdata.nasa.gov',
-                         'https://urs.earthdata.nasa.gov']
-        auth_handler.add_password(None, edl_endpoints, config.edl_username, config.edl_password)
+    auth_handler = HTTPBasicAuthHandler(HTTPPasswordMgrWithDefaultRealm())
+    endpoints = ['https://sit.urs.earthdata.nasa.gov',
+                 'https://uat.urs.earthdata.nasa.gov',
+                 'https://urs.earthdata.nasa.gov']
+    auth_handler.add_password(None, endpoints, config.oauth_uid, config.oauth_password)
 
-        cookie_processor = HTTPCookieProcessor(CookieJar())
+    cookie_processor = HTTPCookieProcessor(CookieJar())
 
-        return build_opener(auth_handler, cookie_processor)
-
-    except KeyError:
-        logger.warning('Earthdata Login environment variables EDL_USERNAME and EDL_PASSWORD must '
-                       'be set up for authenticated downloads. Requests will be unauthenticated.')
-        return build_opener()
+    return build_opener(auth_handler, cookie_processor)
 
 
 def _auth_header(config, access_token=None, include_basic_auth=False):
@@ -114,7 +108,7 @@ def _auth_header(config, access_token=None, include_basic_auth=False):
     access_token : string (optional)
         The Earthdata Login token for the user making the request. Default: None.
     include_basic_auth : bool (optional)
-        Include a Basic auth header using EDL_USERNAME & EDL_PASSWORD. Default: False.
+        Include a Basic auth header using OAUTH_UID & OAUTH_PASSWORD. Default: False.
 
     Returns
     -------
@@ -127,9 +121,9 @@ def _auth_header(config, access_token=None, include_basic_auth=False):
         values.append(f'Bearer {access_token}')
 
     if include_basic_auth:
-        edl_creds = b64encode(f"{config.edl_username}:{config.edl_password}".encode('utf-8'))
-        edl_creds = edl_creds.decode('utf-8')
-        values.append(f"Basic {edl_creds}")
+        creds = b64encode(f"{config.oauth_uid}:{config.oauth_password}".encode('utf-8'))
+        creds = creds.decode('utf-8')
+        values.append(f"Basic {creds}")
 
     return ('Authorization', ', '.join(values))
 
@@ -162,20 +156,9 @@ def _request_with_bearer_token_auth_header(config, url, access_token, encoded_da
 
 
 def _request_shared_token(config, user_access_token):
-    def _edl_request(url, method, access_token=None, get_code=True):
-        request = Request(url=url, method=method)
-        header = _auth_header(config, access_token=user_access_token, include_basic_auth=True)
-        request.add_unredirected_header(*header)
-        opener = _create_opener(follow_redirect=False)
+    """
+    Gets a shared token from Earthdata Login.
 
-        try:
-            response = opener.open(request)
-
-            if get_code:
-                return None
-
-            body = response.read().decode()
-            token_data = json.loads(body)
             # Example reply body:
             # {
             #   "access_token": "abcd1234abcd1234abcd1234",
@@ -184,7 +167,21 @@ def _request_shared_token(config, user_access_token):
             #   "refresh_token": "9876zyxw9876zyxw9876zyxw",
             #   "endpoint": "/api/users/morpheus"
             # }
-            return token_data.get('access_token', None)
+    """
+    def _initiate_oauth(access_token):
+        url = (f"{config.oauth_host}/oauth/authorize"
+               "?response_type=code"
+               f"&client_id={config.oauth_client_id}"
+               f"&redirect_uri={config.oauth_redirect_uri}")
+
+        request = Request(url=url, method='GET')
+        header = _auth_header(config, access_token=user_access_token, include_basic_auth=True)
+        request.add_unredirected_header(*header)
+        opener = _create_opener(follow_redirect=False)
+
+        try:
+            opener.open(request)
+            raise Exception("Unable to get user authorization code: Did not receive expected redirect.")
         except HTTPError as http_error:
             code = None
             if 'Location' in http_error.headers or 'location' in http_error.headers:
@@ -197,19 +194,31 @@ def _request_shared_token(config, user_access_token):
             else:
                 return code
 
+    def _request_oauth_token(code):
+        url = (f"{config.oauth_host}/oauth/token"
+               "?grant_type=authorization_code"
+               f"&code={code}"
+               f"&redirect_uri={config.oauth_redirect_uri}")
+
+        request = Request(url=url, method='POST')
+        header = _auth_header(config, include_basic_auth=True)
+        request.add_unredirected_header(*header)
+        opener = _create_opener(follow_redirect=False)
+
+        try:
+            response = opener.open(request)
+
+            body = response.read().decode()
+            token_data = json.loads(body)
+            return token_data.get('access_token', None)
+        except HTTPError:
+            raise Exception("Unable to acquire authorization code from user access token")
+
     # Step A: Request authorization code
-    url = (f"{config.edl_root_url}/oauth/authorize"
-           "?response_type=code"
-           f"&client_id={config.edl_client_id}"
-           f"&redirect_uri={config.edl_redirect_uri}")
-    code = _edl_request(url, 'GET', access_token=user_access_token, get_code=True)
+    code = _initiate_oauth(user_access_token)
 
     # Step B: Retrieve token using authorization code acquired in step A
-    url = (f"{config.edl_root_url}/oauth/token"
-           "?grant_type=authorization_code"
-           f"&code={code}"
-           f"&redirect_uri={config.edl_redirect_uri}")
-    token = _edl_request(url, 'POST', get_code=False)
+    token = _request_oauth_token(code)
 
     return token
 
@@ -222,14 +231,16 @@ def _download_from_http_with_bearer_token(config, url, access_token, encoded_dat
     except HTTPError as http_error:
         if config.fallback_authn_enabled:
             msg = (f'Failed to download using access token due to {str(http_error)}. '
-                   'Trying with EDL_USERNAME and EDL_PASSWORD.')
+                   'Trying with OAUTH_UID and OAUTH_PASSWORD.')
             logger.exception(msg, exc_info=http_error)
             return _download_from_http_with_basic_auth(config, url, encoded_data, logger)
+        else:
+            logger.info("Download failed and fallback authentication not enabled.")
         raise
 
 
 def _download_from_http_with_basic_auth(config, url, encoded_data, logger):
-    """Fallback: Use basic auth with the application username and password.
+    """Fallback: Use basic auth with the application uid and password.
 
     This should only happen in cases where the backend server does
     not yet support the EDL Bearer token authentication.
