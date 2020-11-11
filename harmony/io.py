@@ -26,12 +26,36 @@ from urllib import parse
 
 
 def is_http(url: str) -> bool:
-    """Predicate to determine if the url is an http endpoint."""
+    """Predicate to determine if the url is an http endpoint.
+
+    Parameters
+    ----------
+    url : str
+        The URL to check
+
+    Returns
+    -------
+    bool
+        Whether the URL is an http endpoint.
+
+    """
     return url is not None and url.lower().startswith('http')
 
 
 def filename(directory_path: str, url: str) -> Path:
-    """Constructs a filename from the url using the specified directory as its path."""
+    """Constructs a filename from the url using the specified directory
+    as its path. The constructed filename will be a sha256 hash
+    (converted to a hex digest) of the url, and the file's extension
+    will be the same as that of the filename in the url.
+
+    Parameters
+    ----------
+    directory_path : str
+        The url to use when constructing the filename and extension.
+    Returns
+    -------
+
+    """
     return Path(
         directory_path,
         hashlib.sha256(url.encode('utf-8')).hexdigest()
@@ -39,14 +63,39 @@ def filename(directory_path: str, url: str) -> Path:
 
 
 def optimized_url(url, local_hostname):
-    """Return a version of the url optimized for local development."""
+    """Return a version of the url optimized for local development.
+
+    1. If the url includes the string `localhost`, it will be replaced by
+    the `local_hostname`.
+
+    2. If the url is a `file://` url, it will return the remaining
+    part of the url so it can be used as a local file path.
+
+    If neither of the above, then the url is returned unchanged.
+
+    Parameters
+    ----------
+    url : str
+        The url to check and optimize.
+    Returns
+    -------
+    str : The url, possibly converted to a localhost reference or filename.
+    """
     return url \
         .replace('//localhost', local_hostname) \
         .replace('file://', '')
 
 
 class NullHTTPRedirectHandler(HTTPRedirectHandler):
-    """Returns a handler that does not follow any redirects."""
+    """
+    Returns a handler that does not follow any redirects.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    """
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
 
@@ -232,6 +281,15 @@ def _request_shared_token(config, user_access_token):
 
 
 def _download_from_http_with_bearer_token(config, url, access_token, encoded_data, logger):
+    """
+    Description.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    """
     try:
         request = _request_with_bearer_token_auth_header(config, url, access_token, encoded_data)
         opener = _create_opener()
@@ -272,11 +330,29 @@ def _handle_possible_eula_error(http_error, body, forbidden_exception_klass):
 
 @lru_cache(maxsize=None)
 def shared_token_for_user(config, access_token):
+    """
+    Description.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    """
     return _request_shared_token(config, access_token)
 
 
 def download_from_http(config, url, destination_path, access_token, logger, data,
                        harmony_exception_klass, forbidden_exception_klass):
+    """
+    Description.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    """
     try:
         logger.info('Downloading %s', url)
 

@@ -1,6 +1,9 @@
 """
 This module includes various AWS-specific functions to stage data in S3 and deal with
 messages in SQS queues.
+
+This module relies on the harmony.util.config and its environment variables to be
+set for correct operation. See that module and the project README for details.
 """
 import boto3
 
