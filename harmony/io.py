@@ -1,6 +1,13 @@
 """
 Utility functions to download data from backend data sources so it can be operated on
 locally.
+
+When downloading from an EDL-token aware data source, this module uses EDL shared /
+federated token authentication. It includes an optional fallback authentication that
+uses an EDL user to download data when the feature is enabled.
+
+This module relies on the harmony.util.config and its environment variables to be
+set for correct operation. See that module and the project README for details.
 """
 
 from base64 import b64encode
@@ -19,6 +26,7 @@ from urllib import parse
 
 
 def is_http(url: str) -> bool:
+    """Predicate to determine if the url is an http endpoint."""
     return url is not None and url.lower().startswith('http')
 
 
@@ -90,7 +98,7 @@ def _create_basic_auth_opener(config, logger):
     endpoints = ['https://sit.urs.earthdata.nasa.gov',
                  'https://uat.urs.earthdata.nasa.gov',
                  'https://urs.earthdata.nasa.gov']
-    auth_handler.add_password(None, endpoints, config.oauth_uid, config.oauth_password)
+    auth_handler.add_password(None, endpoints, config.edl_username, config.edl_password)
 
     cookie_processor = HTTPCookieProcessor(CookieJar())
 
@@ -230,16 +238,16 @@ def _download_from_http_with_bearer_token(config, url, access_token, encoded_dat
         return opener.open(request)
     except HTTPError as http_error:
         if config.fallback_authn_enabled:
-            msg = (f'Failed to download using access token due to {str(http_error)}. '
-                   'Trying with OAUTH_UID and OAUTH_PASSWORD.')
+            msg = (f'Failed to download using access token due to {str(http_error)}.'
+                   'Fallback authentication enabled.')
             logger.exception(msg, exc_info=http_error)
-            return _download_from_http_with_basic_auth(config, url, encoded_data, logger)
+            return _download_with_fallback_authn(config, url, encoded_data, logger)
         else:
             logger.info("Download failed and fallback authentication not enabled.")
         raise
 
 
-def _download_from_http_with_basic_auth(config, url, encoded_data, logger):
+def _download_with_fallback_authn(config, url, encoded_data, logger):
     """Fallback: Use basic auth with the application uid and password.
 
     This should only happen in cases where the backend server does
@@ -281,7 +289,9 @@ def download_from_http(config, url, destination_path, access_token, logger, data
             shared_token = shared_token_for_user(config, access_token)
             response = _download_from_http_with_bearer_token(config, url, shared_token, data, logger)
         elif config.fallback_authn_enabled:
-            response = _download_from_http_with_basic_auth(config, url, data, logger)
+            msg = ('No user access token in request. Fallback authentication enabled.')
+            logger.warning(msg)
+            response = _download_with_fallback_authn(config, url, data, logger)
         else:
             msg = f"Unable to download: Missing user access token & fallback not enabled for {url}"
             logging.error(msg)
