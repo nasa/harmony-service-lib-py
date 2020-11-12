@@ -655,7 +655,10 @@ def generate_output_filename(filename, ext=None, variable_subset=None, is_regrid
 
     suffixes = []
     if variable_subset and len(variable_subset) == 1:
-        suffixes.append('_' + variable_subset[0].replace('/', '_'))
+        var = variable_subset[0]
+        if hasattr(var, 'name'):
+            var = var.name
+        suffixes.append('_' + var.replace('/', '_'))
     if is_regridded:
         suffixes.append('_regridded')
     if is_subsetted:

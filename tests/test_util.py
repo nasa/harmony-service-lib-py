@@ -11,6 +11,7 @@ from nacl.utils import random
 from parameterized import parameterized
 
 from harmony import util
+from harmony.message import Variable
 from tests.test_cli import MockAdapter, cli_test
 from tests.util import mock_receive
 
@@ -389,6 +390,13 @@ class TestGenerateOutputFilename(unittest.TestCase):
         variables = ['VarA']
         url = 'https://example.com/fake-path/abc.123_VarA_regridded_subsetted.zarr'
         self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
+
+    def test_allows_variable_objects(self):
+        ext = 'zarr'
+        # URL already containing all suffixes
+        variables = [Variable({'name': 'VarA'})]
+        url = 'https://example.com/fake-path/abc.123.zarr'
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables), 'abc.123_VarA.zarr')
 
 
 class TestBboxToGeometry(unittest.TestCase):
