@@ -55,6 +55,8 @@ class BaseHarmonyAdapter(ABC):
         ----------
         message : harmony.Message
             The Harmony input which needs acting upon
+        config : harmony.util.Config
+            The configuration values for this runtime environment.
         """
         self.message = message
         self.temp_paths = []
