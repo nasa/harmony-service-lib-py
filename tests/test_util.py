@@ -404,3 +404,32 @@ class TestSQSReadHealthUpdate(unittest.TestCase):
                 except Exception:
                     pass
                 mock_path.return_value.touch.assert_called()
+
+
+class TestUtilityFunctions(unittest.TestCase):
+    @parameterized.expand([('http://example.com', True),
+                           ('HTTP://YELLING.COM', True),
+                           ('https://nosuchagency.org', True),
+                           ('s3://bucketbrigade.com', False),
+                           ('file:///var/log/junk.txt', False)])
+    def test_when_given_an_urls_is_http_succeeds(self, url, expected):
+        self.assertEqual(io.is_http(url), expected)
+
+    @parameterized.expand(['http://example.com/foobar.dos',
+                           'HTTP://YELLING.COM/loud.pdf',
+                           'https://nosuchagency.org/passwords.nsa',
+                           's3://bucketbrigade.com/pricing.aws',
+                           'file:///var/log/junk.txt'])
+    def test_when_given_urls_filename_creates_filenames(self, url):
+        directory = '/foo/bar'
+        fn = str(io.filename(directory, url))
+        self.assertTrue(fn.startswith(directory))
+        self.assertTrue(fn.endswith(pathlib.PurePath(url).suffix))
+
+    @parameterized.expand([('http://example.com/ufo_sightings.nc', 'http://example.com/ufo_sightings.nc'),
+                           ('http://localhost:3000/jobs', 'http://mydevmachine.local.dev:3000/jobs'),
+                           ('file:///var/logs/virus_scan.txt', '/var/logs/virus_scan.txt'),
+                           ('s3://localghost.org/boo.gif', 's3://localghost.org/boo.gif')])
+    def test_when_given_urls_optimized_url_returns_correct_url(self, url, expected):
+        local_hostname = 'mydevmachine.local.dev'
+        self.assertEqual(io.optimized_url(url, local_hostname), expected)

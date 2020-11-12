@@ -82,7 +82,7 @@ def optimized_url(url, local_hostname):
     str : The url, possibly converted to a localhost reference or filename.
     """
     return url \
-        .replace('//localhost', local_hostname) \
+        .replace('localhost', local_hostname) \
         .replace('file://', '')
 
 
