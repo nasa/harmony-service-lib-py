@@ -1,28 +1,9 @@
-import argparse
-import os
-import sys
 import unittest
 from unittest.mock import patch
 
 import harmony.util
 from harmony import cli, BaseHarmonyAdapter
-from tests.util import mock_receive
-
-
-def cli_test(*cli_args):
-    """
-    Decorator that takes a list of CLI parameters, patches them into
-    sys.argv and passes a parser into the wrapped method
-    """
-    def cli_test_wrapper(func):
-        def wrapper(self):
-            with patch.object(sys, 'argv', ['example'] + list(cli_args)):
-                parser = argparse.ArgumentParser(
-                    prog='example', description='Run an example service')
-                cli.setup_cli(parser)
-                func(self, parser)
-        return wrapper
-    return cli_test_wrapper
+from tests.util import mock_receive, cli_test
 
 
 class MockAdapter(BaseHarmonyAdapter):
@@ -48,10 +29,6 @@ class MockAdapter(BaseHarmonyAdapter):
 
 
 class TestIsHarmonyCli(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        os.environ['SHARED_SECRET_KEY'] = '_THIS_IS_MY_32_CHARS_SECRET_KEY_'
-
     @cli_test('--something-else', 'invoke')
     def test_when_not_passing_harmony_action_it_returns_false(self, parser):
         parser.add_argument('--something-else')
@@ -91,30 +68,6 @@ class TestCliInvokeAction(unittest.TestCase):
         args = parser.parse_args()
         cli.run_cli(parser, args, MockAdapter, self.config)
         self.assertListEqual([{'test': 'input'}], MockAdapter.messages)
-
-    @cli_test(
-        '--harmony-action', 'invoke',
-        '--harmony-input', '{"test": "input"}',
-        '--harmony-sources', os.path.join(os.path.dirname(__file__), 'resources', 'sources.json'))
-    def test_when_harmony_sources_are_provided_it_merges_with_harmony_input(self, parser):
-        args = parser.parse_args()
-        cli.run_cli(parser, args, MockAdapter, self.config)
-        self.assertListEqual([{
-            'test': 'input',
-            'sources': [{'collection': 'C000-TEST', 'granules': [{'id': 'G000-TEST', 'name': 'test.nc'}]}]
-        }], MockAdapter.messages)
-
-    @cli_test(
-        '--harmony-action', 'invoke',
-        '--harmony-input', '{"test": "input", "sources": [{"to": "overwrite"}]}',
-        '--harmony-sources', os.path.join(os.path.dirname(__file__), 'resources', 'sources.json'))
-    def test_when_harmony_sources_are_provided_it_overwrites_duplicate_keys_in_harmony_input(self, parser):
-        args = parser.parse_args()
-        cli.run_cli(parser, args, MockAdapter, self.config)
-        self.assertListEqual([{
-            'test': 'input',
-            'sources': [{'collection': 'C000-TEST', 'granules': [{'id': 'G000-TEST', 'name': 'test.nc'}]}]
-        }], MockAdapter.messages)
 
     @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
     def test_when_the_backend_service_doesnt_respond_it_responds_with_an_error(self, parser):

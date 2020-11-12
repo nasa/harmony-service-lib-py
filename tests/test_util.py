@@ -61,6 +61,26 @@ class MockHTTPError(HTTPError):
         return MockDecode(self.message)
 
 
+class TestRequests(unittest.TestCase):
+    def test_when_provided_an_access_token_it_creates_a_proper_auth_header(self):
+        access_token = 'AHIGHLYRANDOMSTRING'
+        expected = ('Authorization', f'Bearer {access_token}')
+
+        actual = util._bearer_token_auth_header(access_token)
+
+        self.assertEqual(expected, actual)
+
+    def test_when_provided_an_access_token_it_creates_a_nonredirectable_auth_header(self):
+        url = 'https://example.com/file.txt'
+        access_token = 'OPENSESAME'
+        expected_header = dict([util._bearer_token_auth_header(access_token)])
+
+        actual_request = util._request_with_bearer_token_auth_header(url, access_token, None)
+
+        self.assertFalse(expected_header.items() <= actual_request.headers.items())
+        self.assertTrue(expected_header.items() <= actual_request.unredirected_hdrs.items())
+
+
 class TestDownload(unittest.TestCase):
     def setUp(self):
         util._s3 = None
@@ -433,3 +453,84 @@ class TestUtilityFunctions(unittest.TestCase):
     def test_when_given_urls_optimized_url_returns_correct_url(self, url, expected):
         local_hostname = 'mydevmachine.local.dev'
         self.assertEqual(io.optimized_url(url, local_hostname), expected)
+
+
+class TestGenerateOutputFilename(unittest.TestCase):
+    def test_includes_provided_regridded_subsetted_ext(self):
+        url = 'https://example.com/fake-path/abc.123.nc/?query=true'
+        ext = 'zarr'
+
+        # Basic cases
+        variables = []
+        self.assertEqual(util.generate_output_filename(url, ext), 'abc.123.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True), 'abc.123_subsetted.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, is_regridded=True), 'abc.123_regridded.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+
+    def test_includes_single_variable_name_replacing_slashes(self):
+        url = 'https://example.com/fake-path/abc.123.nc/?query=true'
+        ext = 'zarr'
+
+        # Variable name contains full path with '/' ('/' replaced with '_')
+        variables = ['/path/to/VarB']
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123__path_to_VarB_regridded_subsetted.zarr')
+
+    def test_includes_single_variable(self):
+        url = 'https://example.com/fake-path/abc.123.nc/?query=true'
+        ext = 'zarr'
+
+        # Single variable cases
+        variables = ['VarA']
+        self.assertEqual(util.generate_output_filename(url, ext), 'abc.123.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables), 'abc.123_VarA.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
+
+    def test_excludes_multiple_variable(self):
+        url = 'https://example.com/fake-path/abc.123.nc/?query=true'
+        ext = 'zarr'
+
+        # Multiple variable cases (no variable name in suffix)
+        variables = ['VarA', 'VarB']
+        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+
+    def test_avoids_overwriting_single_suffixes(self):
+        ext = 'zarr'
+
+        # URL already containing a suffix
+        variables = ['VarA']
+        url = 'https://example.com/fake-path/abc.123_regridded.zarr'
+        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
+
+    def test_avoids_overwriting_multiple_suffixes(self):
+        ext = 'zarr'
+        # URL already containing all suffixes
+        variables = ['VarA']
+        url = 'https://example.com/fake-path/abc.123_VarA_regridded_subsetted.zarr'
+        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
+
+
+class TestBboxToGeometry(unittest.TestCase):
+    def test_provides_a_single_polygon_for_bboxes_not_crossing_the_antimeridian(self):
+        self.assertEqual(
+            util.bbox_to_geometry([100, 0, -100, 50]),
+            {
+                'type': 'MultiPolygon',
+                'coordinates': [
+                    [[[-180, 0], [-180, 50], [-100, 50], [-100, 0], [-180, 0]]],
+                    [[[100, 0], [100, 50], [180, 50], [180, 0], [100, 0]]]
+                ]
+            })
+
+    def test_splits_bboxes_that_cross_the_antimeridian(self):
+        self.assertEqual(
+            util.bbox_to_geometry([-100, 0, 100, 50]),
+            {
+                'type': 'Polygon',
+                'coordinates': [
+                    [[-100, 0], [-100, 50], [100, 50], [100, 0], [-100, 0]]
+                ]
+            })

@@ -1,8 +1,9 @@
+from copy import deepcopy
 import unittest
 
+from harmony.message import Message
 from .example_messages import minimal_message, minimal_source_message, full_message
 from harmony import util
-from harmony.message import Message
 
 
 class TestMessage(unittest.TestCase):
@@ -109,3 +110,25 @@ class TestMessage(unittest.TestCase):
         self.assertNotEqual(message1, message2)
         self.assertNotEqual(message2, message3)
         self.assertNotEqual(message3, message1)
+
+    def test_processing_a_property_removes_it_from_json_output(self):
+        message = Message(deepcopy(full_message))
+
+        self.assertEqual(message.subset.process('bbox'), [-91.1, -45.0, 91.1, 45.0])
+        self.assertEqual(message.format.process('interpolation'), 'near')
+        message.sources[0].process('variables')
+
+        # Retained in the original message
+        self.assertEqual(message.subset.bbox, [-91.1, -45.0, 91.1, 45.0])
+        self.assertEqual(message.format.interpolation, 'near')
+
+        # Removed from the output
+        output = Message(message.json)
+        self.assertEqual(output.subset.bbox, None)
+        self.assertEqual(output.format.interpolation, None)
+        self.assertEqual(output.sources[0].variables, [])
+
+        # Nearby properties are fine
+        self.assertEqual(message.subset.shape.href, 's3://example-bucket/shapefiles/abcd.json')
+        self.assertEqual(output.format.crs, 'CRS:84')
+        self.assertEqual(output.sources[1].variables[0].fullPath, 'example/path/ExampleVar2')

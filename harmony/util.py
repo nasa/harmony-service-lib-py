@@ -52,7 +52,7 @@ from datetime import datetime
 from functools import lru_cache
 import logging
 from pathlib import Path
-from os import environ
+from os import environ, path
 import sys
 from urllib import parse
 
@@ -77,7 +77,7 @@ class HarmonyException(Exception):
         Classification of the type of harmony error
     """
 
-    def __init__(self, message, category):
+    def __init__(self, message, category='Service'):
         self.message = message
         self.category = category
 
@@ -495,3 +495,107 @@ def nop_decrypter(ciphertext):
     nothing to do with quantum computing.
     """
     return ciphertext
+
+
+def generate_output_filename(filename, ext=None, variable_subset=None, is_regridded=False, is_subsetted=False):
+    """
+    Return an output filename for the given granules according to our naming conventions:
+    {original filename without suffix}(_{single var})?(_regridded)?(_subsetted)?.<ext>
+
+    Parameters
+    ----------
+        granule : message.Granule
+            The source granule for the output file
+        ext: string, optional
+            The destination file extension (default: original extension)
+        variable_subset : string[], optional
+            When variable subsetting, a list of all variables that have been subset
+        is_regridded : bool, optional
+            True if a regridding operation has been performed (default: False)
+        is_subsetted : bool, optional
+            True if a subsetting operation has been performed (default: False)
+
+    Returns
+    -------
+        string
+            The output filename
+    """
+    url = filename
+    # Get everything between the last non-trailing '/' before the query and the first '?'
+    # Do this instead of using a URL parser, because our URLs are not complex in practice and
+    # it is useful to allow relative file paths to work for local testing.
+    original_filename = url.split('?')[0].rstrip('/').split('/')[-1]
+    (original_basename, original_ext) = path.splitext(original_filename)
+    if ext is None:
+        ext = original_ext
+
+    if not ext.startswith('.'):
+        ext = '.' + ext
+
+    suffixes = []
+    if variable_subset and len(variable_subset) == 1:
+        suffixes.append('_' + variable_subset[0].replace('/', '_'))
+    if is_regridded:
+        suffixes.append('_regridded')
+    if is_subsetted:
+        suffixes.append('_subsetted')
+    suffixes.append(ext)
+
+    result = original_basename
+    # Iterate suffixes in reverse, removing them from the result if they're at the end of the string
+    # This supports the case of chaining where one service regrids and another subsets but we don't
+    # want names to get mangled
+    for suffix in suffixes[::-1]:
+        if result.endswith(suffix):
+            result = result[:-len(suffix)]
+
+    return result + "".join(suffixes)
+
+
+def bbox_to_geometry(bbox):
+    '''
+    Creates a GeoJSON geometry given a GeoJSON BBox, accounting for antimeridian
+
+    Parameters
+    ----------
+    bbox : float[4]
+        the bounding box to create a geometry from
+
+    Returns
+    -------
+    dict
+        a GeoJSON Polygon or MultiPolygon representation of the input bbox
+    '''
+    if not bbox:
+        return None
+    west, south, east, north = bbox[0:4]
+    if west > east:
+        return {
+            'type': 'MultiPolygon',
+            'coordinates': [
+                [[
+                    [-180, south],
+                    [-180, north],
+                    [east, north],
+                    [east, south],
+                    [-180, south]
+                ]],
+                [[
+                    [west, south],
+                    [west, north],
+                    [180, north],
+                    [180, south],
+                    [west, south]
+                ]]
+            ]
+        }
+    return {
+        'type': 'Polygon',
+        'coordinates': [[
+            [west, south],
+            [west, north],
+            [east, north],
+            [east, south],
+            [west, south]
+        ]],
+    }

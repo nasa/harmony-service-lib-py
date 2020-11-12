@@ -8,6 +8,9 @@ Parses CLI arguments provided by Harmony and invokes the subsetter accordingly
 
 import json
 import logging
+from os import path, makedirs
+
+from pystac import Catalog, CatalogType
 
 from harmony.message import Message
 from harmony.util import (CanceledException, HarmonyException, receive_messages, delete_message,
@@ -25,21 +28,32 @@ def setup_cli(parser):
     """
     parser.add_argument('--harmony-action',
                         choices=['invoke', 'start'],
-                        help=('the action Harmony needs to perform, "invoke" to run once and quit, "start" '
-                              'to listen to a queue'))
+                        help=('the action Harmony needs to perform, "invoke" to run once and quit, '
+                              '"start" to listen to a queue'))
     parser.add_argument('--harmony-input',
                         help=('the input data for the action provided by Harmony, required for '
                               '--harmony-action=invoke'))
     parser.add_argument('--harmony-sources',
-                        help=('optional file path that contains a JSON object with a "sources" key to be '
-                              'added to the --harmony-input'))
+                        help=('file path that contains a STAC catalog with items and metadata to '
+                              'be processed by the service.  Required for non-deprecated '
+                              'invocations '))
+    parser.add_argument('--harmony-metadata-dir',
+                        help=('file path where output metadata should be written. The resulting '
+                              'STAC catalog will be written to catalog.json in the supplied dir '
+                              'with child resources in the same directory or a descendant '
+                              'directory.  The remaining message, less any completed operations, '
+                              'should be written to message.json in the supplied directory.  If '
+                              'there is an error, it will be written to error.json in the supplied dir '))
+    parser.add_argument('--harmony-data-location',
+                        help=('the location where output data should be written, either a directory '
+                              'or S3 URI prefix.  If set, overrides any value set by the message'))
     parser.add_argument('--harmony-queue-url',
                         help='the queue URL to listen on, required for --harmony-action=start')
     parser.add_argument('--harmony-visibility-timeout',
                         type=int,
                         default=600,
-                        help=('the number of seconds the service is given to process a message before '
-                              'processing is assumed to have failed'))
+                        help=('the number of seconds the service is given to process a message '
+                              'before processing is assumed to have failed'))
     parser.add_argument('--harmony-wrap-stdout',
                         action='store_const',
                         const=True,
@@ -63,7 +77,7 @@ def is_harmony_cli(args):
     return args.harmony_action is not None
 
 
-def _invoke(AdapterClass, message_string, sources_path, config):
+def _invoke_deprecated(AdapterClass, message_string, config):
     """
     Handles --harmony-action=invoke by invoking the adapter for the given input message
 
@@ -73,9 +87,6 @@ def _invoke(AdapterClass, message_string, sources_path, config):
         The BaseHarmonyAdapter subclass to use to handle service invocations
     message_string : string
         The Harmony input message
-    sources_path : string
-        A file location with a JSON object containing the "sources" key for the harmony message.
-        If provided, this file will get parsed and replace any sources in the original message.
     config : harmony.util.Config
         A configuration instance for this service
     Returns
@@ -87,10 +98,6 @@ def _invoke(AdapterClass, message_string, sources_path, config):
     decrypter = create_decrypter(bytes(secret_key, 'utf-8'))
 
     message_data = json.loads(message_string)
-    # If sources are provided in a separate file, update the message with them
-    if sources_path is not None:
-        with open(sources_path) as f:
-            message_data.update(json.load(f))
     adapter = AdapterClass(Message(message_data, decrypter))
     adapter.set_config(config)
 
@@ -118,7 +125,78 @@ def _invoke(AdapterClass, message_string, sources_path, config):
     return not adapter.is_failed
 
 
-def _start(AdapterClass, queue_url, visibility_timeout_s, cfg):
+def _write_error(metadata_dir, message, category='Unknown'):
+    """
+    Writes the given error message to error.json in the provided metadata dir
+
+    Parameters
+    ----------
+    metadata_dir : string
+        Directory into which the error should be written
+    message : string
+        The error message to write
+    category : string
+        The error category to write
+    """
+    with open(path.join(metadata_dir, 'error.json'), 'w') as file:
+        json.dump({'error': message, 'category': category}, file)
+
+
+def _invoke(AdapterClass, message_string, sources_path, metadata_dir, data_location, config):
+    """
+    Handles --harmony-action=invoke by invoking the adapter for the given input message
+
+    Parameters
+    ----------
+    AdapterClass : class
+        The BaseHarmonyAdapter subclass to use to handle service invocations
+    message_string : string
+        The Harmony input message
+    sources_path : string
+        A file location containing a STAC catalog corresponding to the input message sources
+    metadata_dir : string
+        The name of the directory where STAC and message output should be written
+    data_location : string
+        The name of the directory where output should be written
+    config : harmony.util.Config
+        A configuration instance for this service
+    Returns
+    -------
+    True if the operation completed successfully, False otherwise
+    """
+    try:
+        catalog = Catalog.from_file(sources_path)
+        secret_key = config.shared_secret_key
+
+        if bool(secret_key):
+            decrypter = create_decrypter(bytes(secret_key, 'utf-8'))
+        else:
+            def identity(arg):
+                return arg
+            decrypter = identity
+
+        message = Message(json.loads(message_string), decrypter)
+        if data_location:
+            message.stagingLocation = data_location
+        adapter = AdapterClass(message, catalog)
+
+        makedirs(metadata_dir, exist_ok=True)
+        (out_message, out_catalog) = adapter.invoke()
+        out_catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
+
+        with open(path.join(metadata_dir, 'message.json'), 'w') as file:
+            json.dump(out_message.output_data, file)
+    except HarmonyException as err:
+        logging.error(err, exc_info=1)
+        _write_error(metadata_dir, err.message, err.category)
+        raise
+    except BaseException as err:
+        logging.error(err, exc_info=1)
+        _write_error(metadata_dir, 'Service request failed with an unknown error')
+        raise
+
+
+def _start(AdapterClass, queue_url, visibility_timeout_s, config):
     """
     Handles --harmony-action=start by listening to the given queue_url and invoking the
     AdapterClass on any received messages
@@ -129,8 +207,13 @@ def _start(AdapterClass, queue_url, visibility_timeout_s, cfg):
         The BaseHarmonyAdapter subclass to use to handle service invocations
     queue_url : string
         The SQS queue to listen on
+    visibility_timeout_s : int
+        The time interval during which the message can't be picked up by other
+        listeners on the queue.
+    config : harmony.util.Config
+        A configuration instance for this service
     """
-    for receipt, message in receive_messages(queue_url, visibility_timeout_s, cfg=cfg):
+    for receipt, message in receive_messages(queue_url, visibility_timeout_s, cfg=config):
         # Behavior here is slightly different than _invoke.  Whereas _invoke ensures
         # that the backend receives a callback whenever possible in the case of an
         # exception, the message queue listener prefers to let the message become
@@ -144,9 +227,9 @@ def _start(AdapterClass, queue_url, visibility_timeout_s, cfg):
             logging.error('Adapter threw an exception', exc_info=True)
         finally:
             if adapter.is_complete:
-                delete_message(queue_url, receipt, cfg=cfg)
+                delete_message(queue_url, receipt, cfg=config)
             else:
-                change_message_visibility(queue_url, receipt, 0, cfg=cfg)
+                change_message_visibility(queue_url, receipt, 0, cfg=config)
             try:
                 adapter.cleanup()
             except Exception:
@@ -166,20 +249,28 @@ def run_cli(parser, args, AdapterClass, cfg=None):
         Argument values parsed from the command line, presumably via ArgumentParser.parse_args
     AdapterClass : class
         The BaseHarmonyAdapter subclass to use to handle service invocations
+    cfg : harmony.util.Config
+        A configuration instance for this service
     """
     if cfg is None:
         cfg = config()
     if args.harmony_wrap_stdout:
-        setup_stdout_log_formatting(config)
+        setup_stdout_log_formatting(cfg)
 
     if args.harmony_action == 'invoke':
         if not bool(args.harmony_input):
             parser.error(
                 '--harmony-input must be provided for --harmony-action=invoke')
-        else:
-            successful = _invoke(AdapterClass, args.harmony_input, args.harmony_sources, cfg)
+        elif not bool(args.harmony_sources):
+            successful = _invoke_deprecated(AdapterClass, args.harmony_input, cfg)
             if not successful:
                 raise Exception('Service operation failed')
+        else:
+            _invoke(AdapterClass,
+                    args.harmony_input,
+                    args.harmony_sources,
+                    args.harmony_metadata_dir,
+                    args.harmony_data_location)
 
     if args.harmony_action == 'start':
         if not bool(args.harmony_queue_url):

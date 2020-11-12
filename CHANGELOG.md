@@ -1,4 +1,4 @@
-## 2020/11/10
+## 2020/11/12
 
 * Adds full support for Earthdata Login (EDL) Bearer tokens. The
   Service Lib now acquires a shared EDL token based on the user's
@@ -15,8 +15,26 @@
   allow tests to run without setting them. Note that downloads will
   fail in a production environment if environment vars are not
   properly set.
+* Adds validation to the environment variables at startup and will
+  fail to startup if required variables are unset. It will also warn
+  of other conditions, and will output the value of all environment
+  variables at a debug level of 'INFO'.
 
-## 2020/10/20
+Upgrading:
+
+* When upgrading, be sure to set all required environment
+  variables. See the README for an explanation of all variables, their
+  meaning and use, and under what conditions they are required or
+  optional.
+
+
+## 2020/11/09
+
+* Deprecates callback-style invocations in favor of STAC invocations.  Everything is
+  backward compatible, but service authors will need to update in order to support
+  chaining.
+
+## [v0.0.25] - 2020/10/20
 
 * Bug fix: Handle Authentication HTTP headers & cookies correctly so
   downloads from TEA work whether or not TEA is in the same AWS region
