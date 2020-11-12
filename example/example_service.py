@@ -17,6 +17,7 @@ from os import environ
 # or "test" when releasing the service.
 environ['ENV'] = 'dev'
 
+
 class ExampleAdapter(harmony.BaseHarmonyAdapter):
     """
     Shows an example of what a service adapter implementation looks like
@@ -32,22 +33,24 @@ class ExampleAdapter(harmony.BaseHarmonyAdapter):
 
         # 2. Build a single output file
         (flags, output_filename) = mkstemp(suffix='.txt', text=True)
-        self.temp_paths += [output_filename] # Add it to the list of things to clean up
+        # Add it to the list of things to clean up
+        self.temp_paths += [output_filename]
         output_file = open(output_filename, 'w')
         for granule in self.message.granules:
             try:
                 # 3. Do work for each granule.  Usually this would involve calling a real service by transforming values
                 # from the Harmony message
                 print("Processing granule with ID %s from collection %s with variable(s): %s" %
-                    (granule.id, granule.collection, ', '.join([v.id for v in granule.variables])))
+                      (granule.id, granule.collection, ', '.join([v.id for v in granule.variables])))
 
                 # Get the result into the single output file
                 with open(granule.local_filename) as file:
                     output_file.write(file.read() + " ")
-            except Exception as e:
+            except Exception:
                 # Handle any specific errors, returning a useful message
                 self.completed_with_error('Error processing granule: ' + granule.id)
-                raise # re-raise, because we can't callback twice
+                # re-raise, because we can't callback twice
+                raise
 
         output_file.close()
 
@@ -62,7 +65,8 @@ class ExampleAdapter(harmony.BaseHarmonyAdapter):
             #       with that location, including additional reference information on the result and operation
             #       Services can and should do this as individual results are produced and update the progress indicator
             #       ...
-            self.async_add_local_file_partial_result(output_filename,
+            self.async_add_local_file_partial_result(
+                output_filename,
                 is_variable_subset=True,
                 is_regridded=False,
                 is_subsetted=True,
@@ -77,6 +81,7 @@ class ExampleAdapter(harmony.BaseHarmonyAdapter):
 
         # 5. Remove temporary files produced during execution
         self.cleanup()
+
 
 def run_cli(args):
     """
@@ -93,7 +98,9 @@ def run_cli(args):
     None
     """
     print("TODO: You can implement a non-Harmony CLI here.")
-    print('To see the Harmony CLI, pass `--harmony-action=invoke --harmony-input="$(cat example/example_message.json)"`')
+    print('To see the Harmony CLI, pass `--harmony-action=invoke '
+          '--harmony-input="$(cat example/example_message.json)"`')
+
 
 def main():
     """
@@ -113,6 +120,7 @@ def main():
         harmony.run_cli(parser, args, ExampleAdapter)
     else:
         run_cli(args)
+
 
 if __name__ == "__main__":
     main()

@@ -203,7 +203,8 @@ class TestDownload(unittest.TestCase):
             util.download(url, 'tmp', access_token=access_token, cfg=cfg)
 
             self.fail('An exception should have been raised')
-        msg = 'Request could not be completed because you need to agree to the EULA at https://example.com/approve_app?client_id=foo'
+        msg = ('Request could not be completed because you need to agree to the EULA at '
+               'https://example.com/approve_app?client_id=foo')
         self.assertEqual(str(cm.exception), msg)
 
     @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
