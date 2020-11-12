@@ -47,7 +47,7 @@ class BaseHarmonyAdapter(ABC):
         True if the request failed to execute successfully
     """
 
-    def __init__(self, message):
+    def __init__(self, message, config=None):
         """
         Constructs the adapter
 
@@ -61,13 +61,18 @@ class BaseHarmonyAdapter(ABC):
         self.is_complete = False
         self.is_canceled = False
         self.is_failed = False
+        self.logger = None
+
+        self.config = util.config() if config is None else config
 
         logging_context = {
-            'user': message.user,
-            'requestId': message.requestId
+            'user': self.message.user,
+            'requestId': self.message.requestId
         }
-        self.logger = \
-            logging.LoggerAdapter(util.build_logger(), logging_context)
+        self.logger = logging.LoggerAdapter(util.build_logger(self.config), logging_context)
+
+    def set_config(self, config):
+        self.config = config
 
     @abstractmethod
     def invoke(self):
@@ -108,7 +113,7 @@ class BaseHarmonyAdapter(ABC):
         # Download the remote file
         for granule in granules:
             granule.local_filename = util.download(granule.url, temp_dir, logger=self.logger,
-                                                   access_token=self.message.accessToken)
+                                                   access_token=self.message.accessToken, cfg=self.config)
 
     def stage(self, local_file, source_granule=None, remote_filename=None, is_variable_subset=False,
               is_regridded=False, is_subsetted=False, mime=None):
@@ -151,7 +156,8 @@ class BaseHarmonyAdapter(ABC):
         if mime is None:
             mime = self.message.format.mime
 
-        return util.stage(local_file, remote_filename, mime, location=self.message.stagingLocation, logger=self.logger)
+        return util.stage(local_file, remote_filename, mime, location=self.message.stagingLocation,
+                          logger=self.logger, cfg=self.config)
 
     def completed_with_error(self, error_message):
         """
@@ -525,7 +531,7 @@ class BaseHarmonyAdapter(ABC):
         """
 
         url = self.message.callback + path
-        touch_health_check_file()
+        touch_health_check_file(self.config.health_check_path)
         if os.environ.get('ENV') in ['dev', 'test']:
             self.logger.warning(
                 'ENV=' + os.environ['ENV'] + ' so we will not reply to Harmony with POST ' + url)

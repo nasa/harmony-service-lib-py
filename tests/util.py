@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 from harmony import cli
 
 
-def mock_receive(client, parser, AdapterClass, *messages):
+def mock_receive(cfg, client, parser, AdapterClass, *messages):
     """
     Mocks an sqs receive call
     """
@@ -26,7 +26,7 @@ def mock_receive(client, parser, AdapterClass, *messages):
     client.return_value = sqs
     args = parser.parse_args()
     try:
-        cli.run_cli(parser, args, AdapterClass)
+        cli.run_cli(parser, args, AdapterClass, cfg=cfg)
     except RuntimeError as e:
         if str(e) == 'generator raised StopIteration':
             # Expection.  Happens every call when messages are exhausted, allowing us to stop iterating.

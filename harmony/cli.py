@@ -8,6 +8,7 @@ Parses CLI arguments provided by Harmony and invokes the subsetter accordingly
 
 import json
 import logging
+
 from harmony.message import Message
 from harmony.util import (CanceledException, HarmonyException, receive_messages, delete_message,
                           change_message_visibility, setup_stdout_log_formatting, config, create_decrypter)
@@ -62,7 +63,7 @@ def is_harmony_cli(args):
     return args.harmony_action is not None
 
 
-def _invoke(AdapterClass, message_string, sources_path):
+def _invoke(AdapterClass, message_string, sources_path, config):
     """
     Handles --harmony-action=invoke by invoking the adapter for the given input message
 
@@ -75,12 +76,14 @@ def _invoke(AdapterClass, message_string, sources_path):
     sources_path : string
         A file location with a JSON object containing the "sources" key for the harmony message.
         If provided, this file will get parsed and replace any sources in the original message.
+    config : harmony.util.Config
+        A configuration instance for this service
     Returns
     -------
     True if the operation completed successfully, False otherwise
     """
 
-    secret_key = config().shared_secret_key
+    secret_key = config.shared_secret_key
     decrypter = create_decrypter(bytes(secret_key, 'utf-8'))
 
     message_data = json.loads(message_string)
@@ -89,6 +92,7 @@ def _invoke(AdapterClass, message_string, sources_path):
         with open(sources_path) as f:
             message_data.update(json.load(f))
     adapter = AdapterClass(Message(message_data, decrypter))
+    adapter.set_config(config)
 
     try:
         adapter.invoke()
@@ -114,7 +118,7 @@ def _invoke(AdapterClass, message_string, sources_path):
     return not adapter.is_failed
 
 
-def _start(AdapterClass, queue_url, visibility_timeout_s):
+def _start(AdapterClass, queue_url, visibility_timeout_s, cfg):
     """
     Handles --harmony-action=start by listening to the given queue_url and invoking the
     AdapterClass on any received messages
@@ -126,21 +130,23 @@ def _start(AdapterClass, queue_url, visibility_timeout_s):
     queue_url : string
         The SQS queue to listen on
     """
-    for receipt, message in receive_messages(queue_url, visibility_timeout_s):
+    for receipt, message in receive_messages(queue_url, visibility_timeout_s, cfg=cfg):
         # Behavior here is slightly different than _invoke.  Whereas _invoke ensures
         # that the backend receives a callback whenever possible in the case of an
         # exception, the message queue listener prefers to let the message become
         # visibile again and let retry and dead letter queue policies determine visibility
         adapter = AdapterClass(Message(message))
+        adapter.set_config(config)
+
         try:
             adapter.invoke()
         except Exception:
             logging.error('Adapter threw an exception', exc_info=True)
         finally:
             if adapter.is_complete:
-                delete_message(queue_url, receipt)
+                delete_message(queue_url, receipt, cfg=cfg)
             else:
-                change_message_visibility(queue_url, receipt, 0)
+                change_message_visibility(queue_url, receipt, 0, cfg=cfg)
             try:
                 adapter.cleanup()
             except Exception:
@@ -148,7 +154,7 @@ def _start(AdapterClass, queue_url, visibility_timeout_s):
                     'Adapter threw an exception on cleanup', exc_info=True)
 
 
-def run_cli(parser, args, AdapterClass):
+def run_cli(parser, args, AdapterClass, cfg=None):
     """
     Runs the Harmony CLI invocation captured by the given args
 
@@ -161,15 +167,17 @@ def run_cli(parser, args, AdapterClass):
     AdapterClass : class
         The BaseHarmonyAdapter subclass to use to handle service invocations
     """
+    if cfg is None:
+        cfg = config()
     if args.harmony_wrap_stdout:
-        setup_stdout_log_formatting()
+        setup_stdout_log_formatting(config)
 
     if args.harmony_action == 'invoke':
         if not bool(args.harmony_input):
             parser.error(
                 '--harmony-input must be provided for --harmony-action=invoke')
         else:
-            successful = _invoke(AdapterClass, args.harmony_input, args.harmony_sources)
+            successful = _invoke(AdapterClass, args.harmony_input, args.harmony_sources, cfg)
             if not successful:
                 raise Exception('Service operation failed')
 
@@ -178,4 +186,4 @@ def run_cli(parser, args, AdapterClass):
             parser.error(
                 '--harmony-queue-url must be provided for --harmony-action=start')
         else:
-            return _start(AdapterClass, args.harmony_queue_url, args.harmony_visibility_timeout)
+            return _start(AdapterClass, args.harmony_queue_url, args.harmony_visibility_timeout, cfg)

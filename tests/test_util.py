@@ -18,7 +18,7 @@ from tests.util import mock_receive
 
 def _config_fixture(fallback_authn_enabled=False, use_localstack=False,
                     staging_bucket='UNKNOWN', staging_path='UNKNOWN'):
-    c = util.config()
+    c = util.config(validate=False)
     return util.Config(
         # Override
         fallback_authn_enabled=fallback_authn_enabled,
@@ -64,13 +64,14 @@ class MockHTTPError(HTTPError):
 class TestDownload(unittest.TestCase):
     def setUp(self):
         util._s3 = None
+        self.config = _config_fixture()
 
     @patch('boto3.client')
     def test_when_given_an_s3_uri_it_downloads_the_s3_file(self, client):
         s3 = MagicMock()
         client.return_value = s3
 
-        util.download('s3://example/file.txt', 'tmp', access_token='FOO')
+        util.download('s3://example/file.txt', 'tmp', access_token='FOO', cfg=self.config)
 
         client.assert_called_with('s3', region_name='us-west-2')
         bucket, path, filename = s3.download_file.call_args[0]
@@ -94,7 +95,7 @@ class TestDownload(unittest.TestCase):
         if access_token is not None and verify_bearer_token:
             # Verify that the request has a bearer token auth header
             # that's not redirectable, and no other headers.
-            expected_header = dict([io._auth_header(util.config(), shared_token)])
+            expected_header = dict([io._auth_header(self.config, shared_token)])
             self.assertFalse(expected_header.items() <= request.headers.items())
             self.assertTrue(expected_header.items() <= request.unredirected_hdrs.items())
         else:
@@ -113,9 +114,10 @@ class TestDownload(unittest.TestCase):
         url = 'https://example.com/file.txt'
         mopen = mock_open()
 
-        with patch('harmony.util.config', return_value=_config_fixture(fallback_authn_enabled=True)), \
-             patch('builtins.open', mopen):
-            util.download(url, 'tmp', access_token=access_token)
+        with patch('builtins.open', mopen):
+            cfg = _config_fixture(fallback_authn_enabled=True)
+
+            util.download(url, 'tmp', access_token=access_token, cfg=cfg)
 
             self._verify_urlopen(url, access_token, shared_token.return_value, None, urlopen)
             mopen.assert_called()
@@ -128,21 +130,22 @@ class TestDownload(unittest.TestCase):
         data = {'param': 'value'}
 
         mopen = mock_open()
-        with patch('harmony.util.config', return_value=_config_fixture(fallback_authn_enabled=True)), \
-             patch('builtins.open', mopen):
-            util.download(url, 'tmp', access_token=access_token, data=data)
+        with patch('builtins.open', mopen):
+            cfg = _config_fixture(fallback_authn_enabled=True)
+
+            util.download(url, 'tmp', access_token=access_token, data=data, cfg=cfg)
 
             self._verify_urlopen(url, access_token, shared_token.return_value, data, urlopen)
             mopen.assert_called()
 
     @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
     def test_when_given_a_file_url_it_returns_the_file_path(self, name, access_token):
-        self.assertEqual(util.download('file:///example/file.txt', 'tmp', access_token=access_token),
+        self.assertEqual(util.download('file:///example/file.txt', 'tmp', access_token=access_token, cfg=self.config),
                          '/example/file.txt')
 
     @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
     def test_when_given_a_file_path_it_returns_the_file_path(self, name, access_token):
-        self.assertEqual(util.download('/example/file.txt', 'tmp', access_token=access_token),
+        self.assertEqual(util.download('/example/file.txt', 'tmp', access_token=access_token, cfg=self.config),
                          '/example/file.txt')
 
     @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
@@ -154,9 +157,11 @@ class TestDownload(unittest.TestCase):
 
         urlopen.side_effect = MockHTTPError(url=url, code=401, msg='Forbidden 401 message')
 
-        with patch('harmony.util.config', return_value=_config_fixture(fallback_authn_enabled=True)), \
-             self.assertRaises(util.ForbiddenException) as cm:
-            util.download(url, 'tmp', access_token=access_token)
+        with self.assertRaises(util.ForbiddenException) as cm:
+            cfg = _config_fixture(fallback_authn_enabled=True)
+
+            util.download(url, 'tmp', access_token=access_token, cfg=cfg)
+
             self.fail('An exception should have been raised')
         self.assertEqual(str(cm.exception), 'Forbidden 401 message')
 
@@ -169,9 +174,11 @@ class TestDownload(unittest.TestCase):
 
         urlopen.side_effect = MockHTTPError(url=url, code=403, msg='Forbidden 403 message')
 
-        with patch('harmony.util.config', return_value=_config_fixture(fallback_authn_enabled=True)), \
-             self.assertRaises(util.ForbiddenException) as cm:
-            util.download(url, 'tmp', access_token=access_token)
+        with self.assertRaises(util.ForbiddenException) as cm:
+            cfg = _config_fixture(fallback_authn_enabled=True)
+
+            util.download(url, 'tmp', access_token=access_token, cfg=cfg)
+
             self.fail('An exception should have been raised')
         self.assertEqual(str(cm.exception), 'Forbidden 403 message')
 
@@ -190,9 +197,11 @@ class TestDownload(unittest.TestCase):
                    '"resolution_url":"https://example.com/approve_app?client_id=foo"}')
             )
 
-        with patch('harmony.util.config', return_value=_config_fixture(fallback_authn_enabled=True)), \
-             self.assertRaises(util.ForbiddenException) as cm:
-            util.download(url, 'tmp', access_token=access_token)
+        with self.assertRaises(util.ForbiddenException) as cm:
+            cfg = _config_fixture(fallback_authn_enabled=True)
+
+            util.download(url, 'tmp', access_token=access_token, cfg=cfg)
+
             self.fail('An exception should have been raised')
         msg = 'Request could not be completed because you need to agree to the EULA at https://example.com/approve_app?client_id=foo'
         self.assertEqual(str(cm.exception), msg)
@@ -208,7 +217,7 @@ class TestDownload(unittest.TestCase):
         urlopen.side_effect = MockHTTPError(url=url, code=500)
 
         try:
-            util.download(url, 'tmp', access_token=access_token)
+            util.download(url, 'tmp', access_token=access_token, cfg=self.config)
             self.fail('An exception should have been raised')
         except util.ForbiddenException:
             self.fail('ForbiddenException raised when it should not have')
@@ -224,9 +233,10 @@ class TestDownload(unittest.TestCase):
         access_token = 'OPENSESAME'
         urlopen.side_effect = [MockHTTPError(url=url, code=400, msg='Forbidden 400 message'), Mock()]
 
-        with patch('harmony.util.config', return_value=_config_fixture(fallback_authn_enabled=True)), \
-             patch('builtins.open'):
-            util.download(url, 'tmp', access_token=access_token)
+        with patch('builtins.open'):
+            cfg = _config_fixture(fallback_authn_enabled=True)
+
+            util.download(url, 'tmp', access_token=access_token, cfg=cfg)
 
             self._verify_urlopen(url, access_token, shared_token, None,
                                  urlopen, expected_urlopen_calls=2, verify_bearer_token=False)
@@ -241,7 +251,7 @@ class TestDownload(unittest.TestCase):
         urlopen.side_effect = [MockHTTPError(url=url, code=400, msg='Forbidden 400 message'), Mock()]
 
         with self.assertRaises(Exception):
-            util.download(url, 'tmp', access_token=access_token)
+            util.download(url, 'tmp', access_token=access_token, cfg=self.config)
             self.fail('An exception should have been raised')
 
     @patch('urllib.request.OpenerDirector.open')
@@ -249,9 +259,10 @@ class TestDownload(unittest.TestCase):
         url = 'https://example.com/file.txt'
         mopen = mock_open()
 
-        with patch('harmony.util.config', return_value=_config_fixture(fallback_authn_enabled=True)), \
-             patch('builtins.open', mopen):
-            util.download(url, 'tmp')
+        with patch('builtins.open', mopen):
+            cfg = _config_fixture(fallback_authn_enabled=True)
+
+            util.download(url, 'tmp', cfg=cfg)
 
             self._verify_urlopen(url, None, None, None,
                                  urlopen, expected_urlopen_calls=1, verify_bearer_token=False)
@@ -303,20 +314,22 @@ class TestDecrypter(unittest.TestCase):
 
 
 class TestStage(unittest.TestCase):
+    def setUp(self):
+        self.config = util.config(validate=False)
+
     @patch('boto3.client')
     def test_uploads_to_s3_and_returns_its_s3_url(self, client):
         # Sets a non-test ENV environment variable to force things through the (mocked) download path
         s3 = MagicMock()
         s3.generate_presigned_url.return_value = 'https://example.com/presigned.txt'
         client.return_value = s3
+        cfg = _config_fixture(use_localstack=True, staging_bucket='example', staging_path='staging/path')
 
-        with patch('harmony.util.config', return_value=_config_fixture(use_localstack=True,
-                                                                       staging_bucket='example',
-                                                                       staging_path='staging/path')):
-            result = util.stage('file.txt', 'remote.txt', 'text/plain')
-            s3.upload_file.assert_called_with('file.txt', 'example', 'staging/path/remote.txt',
-                                              ExtraArgs={'ContentType': 'text/plain'})
-            self.assertEqual(result, 's3://example/staging/path/remote.txt')
+        result = util.stage('file.txt', 'remote.txt', 'text/plain', cfg=cfg)
+
+        s3.upload_file.assert_called_with('file.txt', 'example', 'staging/path/remote.txt',
+                                          ExtraArgs={'ContentType': 'text/plain'})
+        self.assertEqual(result, 's3://example/staging/path/remote.txt')
 
     @patch('boto3.client')
     def test_uses_location_prefix_when_provided(self, client):
@@ -324,14 +337,14 @@ class TestStage(unittest.TestCase):
         s3 = MagicMock()
         s3.generate_presigned_url.return_value = 'https://example.com/presigned.txt'
         client.return_value = s3
+        cfg = _config_fixture(use_localstack=True, staging_bucket='example', staging_path='staging/path')
 
-        with patch('harmony.util.config', return_value=_config_fixture(use_localstack=True,
-                                                                       staging_bucket='example',
-                                                                       staging_path='staging/path')):
-            result = util.stage('file.txt', 'remote.txt', 'text/plain', location="s3://different-example/public/location/")
-            s3.upload_file.assert_called_with('file.txt', 'different-example', 'public/location/remote.txt',
-                                              ExtraArgs={'ContentType': 'text/plain'})
-            self.assertEqual(result, 's3://different-example/public/location/remote.txt')
+        result = util.stage('file.txt', 'remote.txt', 'text/plain',
+                            location="s3://different-example/public/location/", cfg=cfg)
+
+        s3.upload_file.assert_called_with('file.txt', 'different-example', 'public/location/remote.txt',
+                                          ExtraArgs={'ContentType': 'text/plain'})
+        self.assertEqual(result, 's3://different-example/public/location/remote.txt')
 
 
 class TestS3Parameters(unittest.TestCase):
@@ -366,6 +379,9 @@ class TestS3Parameters(unittest.TestCase):
 
 
 class TestSQSReadHealthUpdate(unittest.TestCase):
+    def setUp(self):
+        self.config = util.config(validate=False)
+
     @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
     @patch('boto3.client')
     @patch.object(pathlib.Path, '__new__')
@@ -383,7 +399,7 @@ class TestSQSReadHealthUpdate(unittest.TestCase):
         for messages in all_test_cases:
             with self.subTest(messages=messages):
                 try:
-                    mock_receive(client, parser, MockAdapter, *messages)
+                    mock_receive(self.config, client, parser, MockAdapter, *messages)
                 except Exception:
                     pass
                 mock_path.return_value.touch.assert_called()

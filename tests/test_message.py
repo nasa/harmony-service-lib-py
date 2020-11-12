@@ -1,10 +1,14 @@
 import unittest
-from unittest.mock import patch
 
-from harmony.message import Message
 from .example_messages import minimal_message, minimal_source_message, full_message
+from harmony import util
+from harmony.message import Message
+
 
 class TestMessage(unittest.TestCase):
+    def setUp(self):
+        self.config = util.config(validate=False)
+
     def test_when_provided_a_full_message_it_parses_it_into_objects(self):
         message = Message(full_message)
 
@@ -43,7 +47,6 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.subset.bbox, [-91.1, -45.0, 91.1, 45.0])
         self.assertEqual(message.subset.shape.href, 's3://example-bucket/shapefiles/abcd.json')
         self.assertEqual(message.subset.shape.type, 'application/geo+json')
-
 
     def test_when_provided_a_minimal_message_it_parses_it_into_objects(self):
         message = Message(minimal_message)
