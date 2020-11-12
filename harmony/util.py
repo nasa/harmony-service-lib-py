@@ -507,8 +507,8 @@ def stage(local_filename, remote_filename, mime, logger=default_logger, location
         key = staging_path + remote_filename
 
     if get_env('ENV') in ['dev', 'test'] and not _use_localstack():
-        logger.warn("ENV=" + get_env('ENV') +
-                    " and not using localstack, so we will not stage " + local_filename + " to " + key)
+        logger.warning("ENV=" + get_env('ENV') +
+                       " and not using localstack, so we will not stage " + local_filename + " to " + key)
         return "http://example.com/" + key
 
     s3 = _get_aws_client('s3')
