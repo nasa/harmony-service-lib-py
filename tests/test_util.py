@@ -16,11 +16,11 @@ from tests.util import mock_receive
 
 
 class MockDecode():
-  def __init__(self, msg):
-    self.message = msg
+    def __init__(self, msg):
+        self.message = msg
 
-  def decode(self):
-    return self.message
+    def decode(self):
+        return self.message
 
 
 class MockHTTPError(HTTPError):
@@ -43,7 +43,7 @@ class TestRequests(unittest.TestCase):
 
     def test_when_provided_an_access_token_it_creates_a_nonredirectable_auth_header(self):
         url = 'https://example.com/file.txt'
-        access_token='OPENSESAME'
+        access_token = 'OPENSESAME'
         expected_header = dict([util._bearer_token_auth_header(access_token)])
 
         actual_request = util._request_with_bearer_token_auth_header(url, access_token, None)
@@ -98,7 +98,7 @@ class TestDownload(unittest.TestCase):
 
     @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
     @patch('urllib.request.OpenerDirector.open')
-    @patch.dict(os.environ, { 'EDL_USERNAME' : 'jdoe', 'EDL_PASSWORD': 'abc' })
+    @patch.dict(os.environ, {'EDL_USERNAME': 'jdoe', 'EDL_PASSWORD': 'abc'})
     def test_when_given_an_http_url_it_downloads_the_url(self, name, access_token, urlopen):
         url = 'https://example.com/file.txt'
 
@@ -191,7 +191,7 @@ class TestDownload(unittest.TestCase):
     @patch('urllib.request.OpenerDirector.open')
     def test_when_given_an_access_token_and_the_url_returns_an_error_it_falls_back_to_basic_auth(self, urlopen):
         url = 'https://example.com/file.txt'
-        access_token='OPENSESAME'
+        access_token = 'OPENSESAME'
         urlopen.side_effect = [MockHTTPError(url=url, code=400, msg='Forbidden 400 message'), Mock()]
 
         with patch('builtins.open'):
@@ -253,9 +253,10 @@ class TestDecrypter(unittest.TestCase):
 
         self.assertNotEqual(plaintext, encrypted_msg.ciphertext)
 
+
 class TestStage(unittest.TestCase):
     @patch('boto3.client')
-    @patch.dict(os.environ, { 'STAGING_BUCKET': 'example', 'STAGING_PATH' : 'staging/path', 'ENV' : 'not_test_we_swear' })
+    @patch.dict(os.environ, {'STAGING_BUCKET': 'example', 'STAGING_PATH': 'staging/path', 'ENV': 'not_test_we_swear'})
     def test_uploads_to_s3_and_returns_its_s3_url(self, client):
         # Sets a non-test ENV environment variable to force things through the (mocked) download path
         s3 = MagicMock()
@@ -266,7 +267,7 @@ class TestStage(unittest.TestCase):
         self.assertEqual(result, 's3://example/staging/path/remote.txt')
 
     @patch('boto3.client')
-    @patch.dict(os.environ, { 'STAGING_BUCKET': 'example', 'STAGING_PATH' : 'staging/path', 'ENV' : 'not_test_we_swear' })
+    @patch.dict(os.environ, {'STAGING_BUCKET': 'example', 'STAGING_PATH': 'staging/path', 'ENV': 'not_test_we_swear'})
     def test_uses_location_prefix_when_provided(self, client):
         # Sets a non-test ENV environment variable to force things through the (mocked) download path
         s3 = MagicMock()
@@ -275,6 +276,7 @@ class TestStage(unittest.TestCase):
         result = util.stage('file.txt', 'remote.txt', 'text/plain', location="s3://different-example/public/location/")
         s3.upload_file.assert_called_with('file.txt', 'different-example', 'public/location/remote.txt', ExtraArgs={'ContentType': 'text/plain'})
         self.assertEqual(result, 's3://different-example/public/location/remote.txt')
+
 
 class TestS3Parameters(unittest.TestCase):
     def test_when_using_localstack_it_uses_localstack_host(self):
@@ -306,6 +308,7 @@ class TestS3Parameters(unittest.TestCase):
 
         self.assertDictEqual(expected, actual)
 
+
 class TestSQSReadHealthUpdate(unittest.TestCase):
     @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
     @patch('boto3.client')
@@ -328,6 +331,7 @@ class TestSQSReadHealthUpdate(unittest.TestCase):
                 except Exception:
                     pass
                 mock_path.return_value.touch.assert_called()
+
 
 class TestGenerateOutputFilename(unittest.TestCase):
     def test_includes_provided_regridded_subsetted_ext(self):
@@ -385,3 +389,26 @@ class TestGenerateOutputFilename(unittest.TestCase):
         variables = ['VarA']
         url = 'https://example.com/fake-path/abc.123_VarA_regridded_subsetted.zarr'
         self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
+
+
+class TestBboxToGeometry(unittest.TestCase):
+    def test_provides_a_single_polygon_for_bboxes_not_crossing_the_antimeridian(self):
+        self.assertEqual(
+            util.bbox_to_geometry([100, 0, -100, 50]),
+            {
+                'type': 'MultiPolygon',
+                'coordinates': [
+                    [[[-180, 0], [-180, 50], [-100, 50], [-100, 0], [-180, 0]]],
+                    [[[100, 0], [100, 50], [180, 50], [180, 0], [100, 0]]]
+                ]
+            })
+
+    def test_splits_bboxes_that_cross_the_antimeridian(self):
+        self.assertEqual(
+            util.bbox_to_geometry([-100, 0, 100, 50]),
+            {
+                'type': 'Polygon',
+                'coordinates': [
+                    [[-100, 0], [-100, 50], [100, 50], [100, 0], [-100, 0]]
+                ]
+            })

@@ -19,6 +19,7 @@ from warnings import warn
 
 from deprecation import deprecated
 from pystac import Item, Asset
+from harmony.message import Temporal
 from harmony.util import CanceledException, touch_health_check_file, default_logger
 from . import util
 
@@ -129,10 +130,11 @@ class BaseHarmonyAdapter(ABC):
         for item in items:
             source = source or self._get_item_source(item)
             output_item = self.process_item(item.clone(), source)
-            # Ensure the item gets a new ID
-            if output_item.id == item.id:
-                output_item.id = str(uuid.uuid4())
-            result.add_item(output_item)
+            if output_item:
+                # Ensure the item gets a new ID
+                if output_item.id == item.id:
+                    output_item.id = str(uuid.uuid4())
+                result.add_item(output_item)
         return result
 
     def _process_with_callbacks(self):
@@ -149,14 +151,26 @@ class BaseHarmonyAdapter(ABC):
                     'start_datetime': granule.temporal.start,
                     'end_datetime': granule.temporal.end
                 })
-                item.add_asset('data', Asset(granule.url, roles=['data']))
+                item.add_asset('data', Asset(granule.url, granule.name, roles=['data']))
                 result = self.process_item(item, source)
+                if not result:
+                    continue
                 assets = [v for k, v in result.assets.items() if 'data' in (v.roles or [])]
                 completed += 1
                 progress = int(100 * completed / item_count)
                 for asset in assets:
-                    self.async_add_url_partial_result(
-                        asset.href, progress=progress, source_granule=granule)
+                    temporal = Temporal({}, result.properties['start_datetime'], result.properties['end_datetime'])
+                    common_args = dict(
+                        title=asset.title,
+                        mime=asset.media_type,
+                        source_granule=granule,
+                        temporal=temporal,
+                        bbox=result.bbox
+                    )
+                    if self.message.isSynchronous:
+                        self.completed_with_redirect(asset.href, **common_args)
+                        return
+                    self.async_add_url_partial_result(asset.href, progress=progress, **common_args)
         self.async_completed_successfully()
 
     def process_item(self, item, source):
@@ -178,7 +192,7 @@ class BaseHarmonyAdapter(ABC):
         Returns
         -------
         pystac.Item
-            a STAC catalog whose metadata and assets describe the service output
+            a STAC item whose metadata and assets describe the service output
         """
         raise NotImplementedError('subclasses must implement #process_item or override #invoke')
 

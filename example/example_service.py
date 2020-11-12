@@ -65,7 +65,7 @@ class ExampleAdapter(harmony.BaseHarmonyAdapter):
             shutil.copyfile(input_filename, working_filename)
 
             # Stage the output file with a conventional filename
-            output_filename = generate_output_filename(input_filename, ext=None, variable_subset=None, is_regridded=False, is_subsetted=False)
+            output_filename = generate_output_filename(asset.href, ext=None, variable_subset=None, is_regridded=False, is_subsetted=False)
             url = stage(working_filename, output_filename, 'text/plain', location=self.message.stagingLocation, logger=self.logger)
 
             # Update the STAC record

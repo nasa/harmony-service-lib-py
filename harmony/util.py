@@ -56,7 +56,7 @@ class HarmonyException(Exception):
         Classification of the type of harmony error
     """
 
-    def __init__(self, message, category):
+    def __init__(self, message, category='Service'):
         self.message = message
         self.category = category
 
@@ -507,8 +507,8 @@ def stage(local_filename, remote_filename, mime, logger=default_logger, location
         key = staging_path + remote_filename
 
     if get_env('ENV') in ['dev', 'test'] and not _use_localstack():
-        logger.warn("ENV=" + get_env('ENV') +
-                    " and not using localstack, so we will not stage " + local_filename + " to " + key)
+        logger.warning("ENV=" + get_env('ENV') +
+                       " and not using localstack, so we will not stage " + local_filename + " to " + key)
         return "http://example.com/" + key
 
     s3 = _get_aws_client('s3')
@@ -671,3 +671,52 @@ def generate_output_filename(filename, ext=None, variable_subset=None, is_regrid
             result = result[:-len(suffix)]
 
     return result + "".join(suffixes)
+
+
+def bbox_to_geometry(bbox):
+    '''
+    Creates a GeoJSON geometry given a GeoJSON BBox, accounting for antimeridian
+
+    Parameters
+    ----------
+    bbox : float[4]
+        the bounding box to create a geometry from
+
+    Returns
+    -------
+    dict
+        a GeoJSON Polygon or MultiPolygon representation of the input bbox
+    '''
+    if not bbox:
+        return None
+    west, south, east, north = bbox[0:4]
+    if west > east:
+        return {
+            'type': 'MultiPolygon',
+            'coordinates': [
+                [[
+                    [-180, south],
+                    [-180, north],
+                    [east, north],
+                    [east, south],
+                    [-180, south]
+                ]],
+                [[
+                    [west, south],
+                    [west, north],
+                    [180, north],
+                    [180, south],
+                    [west, south]
+                ]]
+            ]
+        }
+    return {
+        'type': 'Polygon',
+        'coordinates': [[
+            [west, south],
+            [west, north],
+            [east, north],
+            [east, south],
+            [west, south]
+        ]],
+    }
