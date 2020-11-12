@@ -20,6 +20,7 @@ from harmony.util import generate_output_filename, stage, download
 # or "test" when releasing the service.
 os.environ['ENV'] = 'dev'
 
+
 class ExampleAdapter(harmony.BaseHarmonyAdapter):
     """
     Shows an example of what a service adapter implementation looks like
@@ -78,6 +79,7 @@ class ExampleAdapter(harmony.BaseHarmonyAdapter):
             # Clean up any intermediate resources
             shutil.rmtree(workdir)
 
+
 def run_cli(args):
     """
     Runs the CLI.  Presently stubbed to demonstrate how a non-Harmony CLI fits in and allow
@@ -94,6 +96,7 @@ def run_cli(args):
     """
     print("TODO: You can implement a non-Harmony CLI here.")
     print('To see the Harmony CLI, pass `--harmony-action=invoke --harmony-input="$(cat example/example_message.json)" --harmony-sources=example/source/catalog.json --harmony-output-dir=tmp/`')
+
 
 def main():
     """
@@ -113,6 +116,7 @@ def main():
         harmony.run_cli(parser, args, ExampleAdapter)
     else:
         run_cli(args)
+
 
 if __name__ == "__main__":
     main()
