@@ -15,6 +15,7 @@ class MockAdapter(BaseHarmonyAdapter):
     cleaned_up = []
 
     def __init__(self, message):
+        super().__init__(self, message)
         MockAdapter.messages.append(message.data)
 
     def invoke(self):

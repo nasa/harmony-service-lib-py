@@ -7,7 +7,7 @@ from pystac import Catalog, CatalogType
 
 from harmony import cli, BaseHarmonyAdapter
 from harmony.util import ForbiddenException
-from tests.util import cli_parser
+from tests.util import cli_parser, config_fixture
 
 
 class MockAdapter(BaseHarmonyAdapter):
@@ -26,6 +26,8 @@ class TestCliInvokeAction(unittest.TestCase):
         self.inputdir = mkdtemp()
         self.catalog = Catalog('test-id', 'test catalog')
         self.catalog.normalize_and_save(self.inputdir, CatalogType.SELF_CONTAINED)
+        self.config = config_fixture()
+        print(self.config)
 
     def tearDown(self):
         MockAdapter.messages = []
@@ -38,7 +40,7 @@ class TestCliInvokeAction(unittest.TestCase):
                 '--harmony-sources', 'example/source/catalog.json',
                 '--harmony-metadata-dir', self.workdir) as parser:
             args = parser.parse_args()
-            cli.run_cli(parser, args, MockAdapter)
+            cli.run_cli(parser, args, MockAdapter, cfg=self.config)
             output = Catalog.from_file(os.path.join(self.workdir, 'catalog.json'))
             self.assertTrue(output.validate)
 
@@ -49,7 +51,7 @@ class TestCliInvokeAction(unittest.TestCase):
                 '--harmony-sources', 'example/source/catalog.json',
                 '--harmony-metadata-dir', self.workdir) as parser:
             args = parser.parse_args()
-            cli.run_cli(parser, args, MockAdapter)
+            cli.run_cli(parser, args, MockAdapter, cfg=self.config)
             with open(os.path.join(self.workdir, 'message.json')) as file:
                 self.assertEqual(file.read(), '{"test": "input"}')
 
@@ -61,7 +63,7 @@ class TestCliInvokeAction(unittest.TestCase):
                 '--harmony-metadata-dir', self.workdir,
                 '--harmony-data-location', 's3://fake-location/') as parser:
             args = parser.parse_args()
-            cli.run_cli(parser, args, MockAdapter)
+            cli.run_cli(parser, args, MockAdapter, cfg=self.config)
             self.assertEqual(MockAdapter.message.stagingLocation, 's3://fake-location/')
             # Does not output the altered staging location
             with open(os.path.join(self.workdir, 'message.json')) as file:
@@ -81,7 +83,7 @@ class TestCliInvokeAction(unittest.TestCase):
 
             args = parser.parse_args()
             with self.assertRaises(Exception) as context:
-                cli.run_cli(parser, args, MockImpl)
+                cli.run_cli(parser, args, MockImpl, cfg=self.config)
 
             self.assertTrue('Something bad happened' in str(context.exception))
             with open(os.path.join(self.workdir, 'error.json')) as file:
@@ -101,7 +103,7 @@ class TestCliInvokeAction(unittest.TestCase):
 
             args = parser.parse_args()
             with self.assertRaises(Exception) as context:
-                cli.run_cli(parser, args, MockImpl)
+                cli.run_cli(parser, args, MockImpl, cfg=self.config)
 
             self.assertTrue('Something bad happened' in str(context.exception))
             with open(os.path.join(self.workdir, 'error.json')) as file:

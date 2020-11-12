@@ -13,35 +13,7 @@ from harmony import aws
 from harmony import io
 from harmony import util
 from tests.test_cli import MockAdapter, cli_test
-from tests.util import mock_receive
-
-
-def _config_fixture(fallback_authn_enabled=False, use_localstack=False,
-                    staging_bucket='UNKNOWN', staging_path='UNKNOWN'):
-    c = util.config(validate=False)
-    return util.Config(
-        # Override
-        fallback_authn_enabled=fallback_authn_enabled,
-        use_localstack=use_localstack,
-        staging_path=staging_path,
-        staging_bucket=staging_bucket,
-        # Default
-        env=c.env,
-        app_name=c.app_name,
-        oauth_host=c.oauth_host,
-        oauth_client_id=c.oauth_client_id,
-        oauth_uid=c.oauth_uid,
-        oauth_password=c.oauth_password,
-        oauth_redirect_uri=c.oauth_redirect_uri,
-        edl_username=c.edl_username,
-        edl_password=c.edl_password,
-        backend_host=c.backend_host,
-        localstack_host=c.localstack_host,
-        aws_default_region=c.aws_default_region,
-        text_logger=c.text_logger,
-        health_check_path=c.health_check_path,
-        shared_secret_key=c.shared_secret_key,
-    )
+from tests.util import mock_receive, config_fixture
 
 
 class MockDecode():
@@ -62,20 +34,23 @@ class MockHTTPError(HTTPError):
 
 
 class TestRequests(unittest.TestCase):
+    def setUp(self):
+        self.config = config_fixture()
+
     def test_when_provided_an_access_token_it_creates_a_proper_auth_header(self):
         access_token = 'AHIGHLYRANDOMSTRING'
         expected = ('Authorization', f'Bearer {access_token}')
 
-        actual = util._bearer_token_auth_header(access_token)
+        actual = io._auth_header(self.config, access_token=access_token)
 
         self.assertEqual(expected, actual)
 
     def test_when_provided_an_access_token_it_creates_a_nonredirectable_auth_header(self):
         url = 'https://example.com/file.txt'
         access_token = 'OPENSESAME'
-        expected_header = dict([util._bearer_token_auth_header(access_token)])
+        expected_header = dict([io._auth_header(self.config, access_token=access_token)])
 
-        actual_request = util._request_with_bearer_token_auth_header(url, access_token, None)
+        actual_request = io._request_with_bearer_token_auth_header(self.config, url, access_token, None)
 
         self.assertFalse(expected_header.items() <= actual_request.headers.items())
         self.assertTrue(expected_header.items() <= actual_request.unredirected_hdrs.items())
@@ -84,7 +59,7 @@ class TestRequests(unittest.TestCase):
 class TestDownload(unittest.TestCase):
     def setUp(self):
         util._s3 = None
-        self.config = _config_fixture()
+        self.config = config_fixture()
 
     @patch('boto3.client')
     def test_when_given_an_s3_uri_it_downloads_the_s3_file(self, client):
@@ -135,7 +110,7 @@ class TestDownload(unittest.TestCase):
         mopen = mock_open()
 
         with patch('builtins.open', mopen):
-            cfg = _config_fixture(fallback_authn_enabled=True)
+            cfg = config_fixture(fallback_authn_enabled=True)
 
             util.download(url, 'tmp', access_token=access_token, cfg=cfg)
 
@@ -151,7 +126,7 @@ class TestDownload(unittest.TestCase):
 
         mopen = mock_open()
         with patch('builtins.open', mopen):
-            cfg = _config_fixture(fallback_authn_enabled=True)
+            cfg = config_fixture(fallback_authn_enabled=True)
 
             util.download(url, 'tmp', access_token=access_token, data=data, cfg=cfg)
 
@@ -178,7 +153,7 @@ class TestDownload(unittest.TestCase):
         urlopen.side_effect = MockHTTPError(url=url, code=401, msg='Forbidden 401 message')
 
         with self.assertRaises(util.ForbiddenException) as cm:
-            cfg = _config_fixture(fallback_authn_enabled=True)
+            cfg = config_fixture(fallback_authn_enabled=True)
 
             util.download(url, 'tmp', access_token=access_token, cfg=cfg)
 
@@ -195,7 +170,7 @@ class TestDownload(unittest.TestCase):
         urlopen.side_effect = MockHTTPError(url=url, code=403, msg='Forbidden 403 message')
 
         with self.assertRaises(util.ForbiddenException) as cm:
-            cfg = _config_fixture(fallback_authn_enabled=True)
+            cfg = config_fixture(fallback_authn_enabled=True)
 
             util.download(url, 'tmp', access_token=access_token, cfg=cfg)
 
@@ -218,7 +193,7 @@ class TestDownload(unittest.TestCase):
             )
 
         with self.assertRaises(util.ForbiddenException) as cm:
-            cfg = _config_fixture(fallback_authn_enabled=True)
+            cfg = config_fixture(fallback_authn_enabled=True)
 
             util.download(url, 'tmp', access_token=access_token, cfg=cfg)
 
@@ -255,7 +230,7 @@ class TestDownload(unittest.TestCase):
         urlopen.side_effect = [MockHTTPError(url=url, code=400, msg='Forbidden 400 message'), Mock()]
 
         with patch('builtins.open'):
-            cfg = _config_fixture(fallback_authn_enabled=True)
+            cfg = config_fixture(fallback_authn_enabled=True)
 
             util.download(url, 'tmp', access_token=access_token, cfg=cfg)
 
@@ -281,7 +256,7 @@ class TestDownload(unittest.TestCase):
         mopen = mock_open()
 
         with patch('builtins.open', mopen):
-            cfg = _config_fixture(fallback_authn_enabled=True)
+            cfg = config_fixture(fallback_authn_enabled=True)
 
             util.download(url, 'tmp', cfg=cfg)
 
@@ -344,7 +319,7 @@ class TestStage(unittest.TestCase):
         s3 = MagicMock()
         s3.generate_presigned_url.return_value = 'https://example.com/presigned.txt'
         client.return_value = s3
-        cfg = _config_fixture(use_localstack=True, staging_bucket='example', staging_path='staging/path')
+        cfg = config_fixture(use_localstack=True, staging_bucket='example', staging_path='staging/path')
 
         result = util.stage('file.txt', 'remote.txt', 'text/plain', cfg=cfg)
 
@@ -358,7 +333,7 @@ class TestStage(unittest.TestCase):
         s3 = MagicMock()
         s3.generate_presigned_url.return_value = 'https://example.com/presigned.txt'
         client.return_value = s3
-        cfg = _config_fixture(use_localstack=True, staging_bucket='example', staging_path='staging/path')
+        cfg = config_fixture(use_localstack=True, staging_bucket='example', staging_path='staging/path')
 
         result = util.stage('file.txt', 'remote.txt', 'text/plain',
                             location="s3://different-example/public/location/", cfg=cfg)

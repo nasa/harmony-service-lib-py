@@ -3,7 +3,7 @@ import sys
 from unittest.mock import patch, MagicMock
 from contextlib import contextmanager
 
-from harmony import cli
+from harmony import cli, util
 
 
 def mock_receive(cfg, client, parser, AdapterClass, *messages):
@@ -67,3 +67,31 @@ def cli_parser(*cli_args):
             prog='example', description='Run an example service')
         cli.setup_cli(parser)
         yield parser
+
+
+def config_fixture(fallback_authn_enabled=False, use_localstack=False,
+                   staging_bucket='UNKNOWN', staging_path='UNKNOWN'):
+    c = util.config(validate=False)
+    return util.Config(
+        # Override
+        fallback_authn_enabled=fallback_authn_enabled,
+        use_localstack=use_localstack,
+        staging_path=staging_path,
+        staging_bucket=staging_bucket,
+        # Default
+        env=c.env,
+        app_name=c.app_name,
+        oauth_host=c.oauth_host,
+        oauth_client_id=c.oauth_client_id,
+        oauth_uid=c.oauth_uid,
+        oauth_password=c.oauth_password,
+        oauth_redirect_uri=c.oauth_redirect_uri,
+        edl_username=c.edl_username,
+        edl_password=c.edl_password,
+        backend_host=c.backend_host,
+        localstack_host=c.localstack_host,
+        aws_default_region=c.aws_default_region,
+        text_logger=c.text_logger,
+        health_check_path=c.health_check_path,
+        shared_secret_key=c.shared_secret_key,
+    )

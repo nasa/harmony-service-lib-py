@@ -21,7 +21,7 @@ from .example_messages import minimal_message, full_message
 # BaseHarmonyAdapter is abstract, so tests need a minimal concrete class
 class AdapterTester(BaseHarmonyAdapter):
     def __init__(self, message_str, config):
-        super().__init__(Message(message_str), config)
+        super().__init__(Message(message_str), config=config)
 
     def invoke(self):
         pass

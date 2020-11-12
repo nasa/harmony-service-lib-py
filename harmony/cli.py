@@ -179,6 +179,7 @@ def _invoke(AdapterClass, message_string, sources_path, metadata_dir, data_locat
         if data_location:
             message.stagingLocation = data_location
         adapter = AdapterClass(message, catalog)
+        adapter.set_config(config)
 
         makedirs(metadata_dir, exist_ok=True)
         (out_message, out_catalog) = adapter.invoke()
@@ -270,7 +271,8 @@ def run_cli(parser, args, AdapterClass, cfg=None):
                     args.harmony_input,
                     args.harmony_sources,
                     args.harmony_metadata_dir,
-                    args.harmony_data_location)
+                    args.harmony_data_location,
+                    cfg)
 
     if args.harmony_action == 'start':
         if not bool(args.harmony_queue_url):

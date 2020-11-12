@@ -70,13 +70,10 @@ class BaseHarmonyAdapter(ABC):
 
         self.message = message
         self.catalog = catalog
-        self.config = util.config() if config is None else config
+        self.config = config
 
-        logging_context = {
-            'user': self.message.user,
-            'requestId': self.message.requestId
-        }
-        self.logger = logging.LoggerAdapter(util.build_logger(self.config), logging_context)
+        if self.config is not None:
+            self.init_logging()
 
         # Properties that will be deprecated
         self.temp_paths = []
@@ -86,6 +83,17 @@ class BaseHarmonyAdapter(ABC):
 
     def set_config(self, config):
         self.config = config
+        if self.config is not None:
+            self.init_logging()
+
+    def init_logging(self):
+        user = self.message.user if hasattr(self.message, 'user') else None
+        req_id = self.message.requestId if hasattr(self.message, 'requestId') else None
+        logging_context = {
+            'user': user,
+            'requestId': req_id
+        }
+        self.logger = logging.LoggerAdapter(util.build_logger(self.config), logging_context)
 
     def invoke(self):
         """
