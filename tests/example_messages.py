@@ -1,5 +1,4 @@
-
-minimal_message =  """
+minimal_message = """
     {
         "$schema": "../../harmony/app/schemas/data-operation/0.7.0/data-operation-v0.7.0.json",
         "version": "0.7.0",
@@ -17,7 +16,7 @@ minimal_message =  """
     }
 """
 
-minimal_source_message =  """
+minimal_source_message = """
     {
         "$schema": "../../harmony/app/schemas/data-operation/0.7.0/data-operation-v0.7.0.json",
         "version": "0.7.0",
@@ -40,7 +39,7 @@ minimal_source_message =  """
     }
 """
 
-full_message =  """
+full_message = """
     {
         "$schema": "../../harmony/app/schemas/data-operation/0.7.0/data-operation-v0.7.0.json",
         "version": "0.7.0",

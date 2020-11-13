@@ -9,6 +9,7 @@ from pystac import Catalog, Item, Link
 from harmony.message import Message
 from harmony.adapter import BaseHarmonyAdapter
 from .example_messages import full_message
+from .util import config_fixture
 
 
 # Minimal concrete implementation that records method calls
@@ -25,11 +26,12 @@ class AdapterTester(BaseHarmonyAdapter):
 class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
     def setUp(self):
         AdapterTester.process_args = []
+        self.config = config_fixture()
 
     def test_items_with_no_input_source_raise_exceptions(self):
         catalog = Catalog('0', 'Catalog 0')
         catalog.add_item(Item('1', None, [0, 0, 1, 1], '2020-01-01T00:00:00.000Z', {}))
-        adapter = AdapterTester(Message(full_message), catalog)
+        adapter = AdapterTester(Message(full_message), catalog, config=self.config)
         self.assertRaises(RuntimeError, adapter.invoke)
 
     def test_invocation_processes_items_with_sources(self):
@@ -42,7 +44,7 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
             Item('2', None, [0, 0, 1, 2], '2020-01-01T00:00:00.000Z', {})
         ]
         catalog.add_items(items)
-        adapter = AdapterTester(message, catalog)
+        adapter = AdapterTester(message, catalog, config=self.config)
         adapter.invoke()
         self.assertEqual(AdapterTester.process_args[0][0].bbox, items[0].bbox)
         self.assertEqual(AdapterTester.process_args[1][0].bbox, items[1].bbox)
@@ -71,7 +73,7 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
         ]
         subsubcatalog_a.add_items(items_a)
         subsubcatalog_b.add_items(items_b)
-        adapter = AdapterTester(message, catalog)
+        adapter = AdapterTester(message, catalog, config=self.config)
         adapter.invoke()
         self.assertEqual(AdapterTester.process_args[0][0].bbox, items_a[0].bbox)
         self.assertEqual(AdapterTester.process_args[1][0].bbox, items_a[1].bbox)
@@ -92,7 +94,7 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
             Item('2', None, [0, 0, 1, 1], '2020-01-01T00:00:00.000Z', {})
         ]
         catalog.add_items(items)
-        adapter = AdapterTester(message, catalog)
+        adapter = AdapterTester(message, catalog, config=self.config)
         (message, out_catalog) = adapter.invoke()
         self.assertNotEqual(out_catalog.id, catalog.id)
 
@@ -110,7 +112,7 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
             Item('2', None, [0, 0, 1, 1], '2020-01-01T00:00:00.000Z', {})
         ]
         catalog.add_items(items)
-        adapter = AdapterTester(message, catalog)
+        adapter = AdapterTester(message, catalog, config=self.config)
         (message, out_catalog) = adapter.invoke()
         out_items = [item for item in out_catalog.get_items()]
         self.assertEqual(out_items[0].id, 'i-mutated-you')
@@ -118,7 +120,7 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
     def test_legacy_invocations_create_stac_catalogs(self):
         message = Message(full_message)
         message.isSynchronous = False
-        adapter = AdapterTester(message)
+        adapter = AdapterTester(message, config=self.config)
         adapter.invoke()
         self.assertEqual(len(AdapterTester.process_args), 4)
         self.assertEqual(AdapterTester.process_args[0][1], message.sources[0])

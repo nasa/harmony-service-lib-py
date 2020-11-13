@@ -20,7 +20,7 @@ from warnings import warn
 from deprecation import deprecated
 from pystac import Item, Asset
 from harmony.message import Temporal
-from harmony.util import CanceledException, touch_health_check_file, default_logger
+from harmony.util import CanceledException, touch_health_check_file
 from . import util
 
 
@@ -51,7 +51,7 @@ class BaseHarmonyAdapter(ABC):
         True if the request failed to execute successfully
     """
 
-    def __init__(self, message, catalog=None):
+    def __init__(self, message, catalog=None, config=None):
         """
         Constructs the adapter
 
@@ -61,6 +61,8 @@ class BaseHarmonyAdapter(ABC):
             The Harmony input which needs acting upon
         catalog : pystac.Catalog
             A STAC catalog containing the files on which to act
+        config : harmony.util.Config
+            The configuration values for this runtime environment.
         """
         if catalog is None:
             warn('Invoking adapter.BaseHarmonyAdapter without a STAC catalog is deprecated',
@@ -68,19 +70,30 @@ class BaseHarmonyAdapter(ABC):
 
         self.message = message
         self.catalog = catalog
+        self.config = config
 
-        logging_context = {
-            'user': message.user,
-            'requestId': message.requestId
-        }
-        self.logger = \
-            logging.LoggerAdapter(default_logger, logging_context)
+        if self.config is not None:
+            self.init_logging()
 
         # Properties that will be deprecated
         self.temp_paths = []
         self.is_complete = False
         self.is_canceled = False
         self.is_failed = False
+
+    def set_config(self, config):
+        self.config = config
+        if self.config is not None:
+            self.init_logging()
+
+    def init_logging(self):
+        user = self.message.user if hasattr(self.message, 'user') else None
+        req_id = self.message.requestId if hasattr(self.message, 'requestId') else None
+        logging_context = {
+            'user': user,
+            'requestId': req_id
+        }
+        self.logger = logging.LoggerAdapter(util.build_logger(self.config), logging_context)
 
     def invoke(self):
         """
@@ -268,7 +281,7 @@ class BaseHarmonyAdapter(ABC):
         # Download the remote file
         for granule in granules:
             granule.local_filename = util.download(granule.url, temp_dir, logger=self.logger,
-                                                   access_token=self.message.accessToken)
+                                                   access_token=self.message.accessToken, cfg=self.config)
 
     @deprecated(details='Services must update to process and output STAC catalogs')
     def stage(self, local_file, source_granule=None, remote_filename=None, is_variable_subset=False,
@@ -312,7 +325,8 @@ class BaseHarmonyAdapter(ABC):
         if mime is None:
             mime = self.message.format.mime
 
-        return util.stage(local_file, remote_filename, mime, location=self.message.stagingLocation, logger=self.logger)
+        return util.stage(local_file, remote_filename, mime, location=self.message.stagingLocation,
+                          logger=self.logger, cfg=self.config)
 
     @deprecated(details='Services must update to process and output STAC catalogs')
     def completed_with_error(self, error_message):
@@ -695,7 +709,7 @@ class BaseHarmonyAdapter(ABC):
         """
 
         url = self.message.callback + path
-        touch_health_check_file()
+        touch_health_check_file(self.config.health_check_path)
         if os.environ.get('ENV') in ['dev', 'test']:
             self.logger.warning(
                 'ENV=' + os.environ['ENV'] + ' so we will not reply to Harmony with POST ' + url)
@@ -710,15 +724,18 @@ class BaseHarmonyAdapter(ABC):
                     urllib.request.urlopen(request).read().decode('utf-8')
                 self.logger.info('Remote response: %s', response)
                 self.logger.info('Completed response: %s', url)
-            except Exception as e:
+            except urllib.error.HTTPError as e:
                 self.is_failed = True
                 body = e.read().decode()
                 msg = f'Harmony returned an error when updating the job: {body}'
-                self.logger.error(msg)
+                self.logger.error(msg, exc_info=e)
                 if e.code == 409:
                     self.logger.warning('Harmony request was canceled.')
                     self.is_canceled = True
                     self.is_complete = True
                     raise CanceledException
-                else:
-                    raise e
+                raise
+            except Exception as e:
+                self.is_failed = True
+                self.logger.error('Error when updating the job', exc_info=e)
+                raise

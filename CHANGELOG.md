@@ -1,3 +1,33 @@
+## 2020/11/12
+
+* Adds full support for Earthdata Login (EDL) Bearer tokens. The
+  Service Lib now acquires a shared EDL token based on the user's
+  access token and Harmony EDL credentials. This shared token is used
+  to download assets from backend data sources that support EDL
+  federated tokens, including TEA backends.
+* Adds a feature flag FALLBACK_AUTHN_ENABLED that can be used to
+  download assets from data sources that do not support EDL bearer
+  tokens. This defaults to False. This flag should be enabled with
+  caution, since it will distort download metrics and can result in
+  users downloading data for which they have not approved a EULA.
+* Fixes an issue when running tests that required setting certain
+  environment variables. Now the configuration has default values that
+  allow tests to run without setting them. Note that downloads will
+  fail in a production environment if environment vars are not
+  properly set.
+* Adds validation to the environment variables at startup and will
+  fail to startup if required variables are unset. It will also warn
+  of other conditions, and will output the value of all environment
+  variables at a debug level of 'INFO'.
+
+Upgrading:
+
+* When upgrading, be sure to set all required environment
+  variables. See the README for an explanation of all variables, their
+  meaning and use, and under what conditions they are required or
+  optional.
+
+
 ## 2020/11/09
 
 * Deprecates callback-style invocations in favor of STAC invocations.  Everything is

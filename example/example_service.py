@@ -57,7 +57,8 @@ class ExampleAdapter(harmony.BaseHarmonyAdapter):
 
             # Mark any fields the service processes so later services do not repeat work
             dpi = self.message.format.process('dpi')
-            variables = source.process('variables') # Variable subsetting
+            # Variable subsetting
+            variables = source.process('variables')
 
             # Do the work here!
             var_names = [v.name for v in variables]
@@ -66,12 +67,15 @@ class ExampleAdapter(harmony.BaseHarmonyAdapter):
             shutil.copyfile(input_filename, working_filename)
 
             # Stage the output file with a conventional filename
-            output_filename = generate_output_filename(asset.href, ext=None, variable_subset=None, is_regridded=False, is_subsetted=False)
-            url = stage(working_filename, output_filename, 'text/plain', location=self.message.stagingLocation, logger=self.logger)
+            output_filename = generate_output_filename(asset.href, ext=None, variable_subset=None,
+                                                       is_regridded=False, is_subsetted=False)
+            url = stage(working_filename, output_filename, 'text/plain', location=self.message.stagingLocation,
+                        logger=self.logger)
 
             # Update the STAC record
             result.assets['data'] = Asset(url, title=output_filename, media_type='text/plain', roles=['data'])
-            # Other metadata updates may be appropriate, such as result.bbox and result.geometry if a spatial subset was performed
+            # Other metadata updates may be appropriate, such as result.bbox and result.geometry
+            # if a spatial subset was performed
 
             # Return the STAC record
             return result
@@ -95,7 +99,10 @@ def run_cli(args):
     None
     """
     print("TODO: You can implement a non-Harmony CLI here.")
-    print('To see the Harmony CLI, pass `--harmony-action=invoke --harmony-input="$(cat example/example_message.json)" --harmony-sources=example/source/catalog.json --harmony-output-dir=tmp/`')
+    print('To see the Harmony CLI, pass `--harmony-action=invoke '
+          '--harmony-input="$(cat example/example_message.json)" '
+          '--harmony-sources=example/source/catalog.json --harmony-output-dir=tmp/`')
+
 
 
 def main():
