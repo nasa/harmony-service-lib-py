@@ -282,6 +282,8 @@ class Format(JsonObject):
     ----------
     crs: string
         A proj4 string or EPSG code corresponding to the desired output projection
+    srs: dictionary
+        A dictionary with keys 'proj4', 'wkt', and 'epsg'
     isTransparent: boolean
         A boolean corresponding to whether or not nodata values should be set to transparent
         in the output if the file format allows it
@@ -313,6 +315,7 @@ class Format(JsonObject):
         """
         super().__init__(message_data, properties=[
             'crs',
+            'srs',
             'isTransparent',
             'mime',
             'width',

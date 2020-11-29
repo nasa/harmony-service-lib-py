@@ -115,6 +115,11 @@ full_message = """
         ],
         "format": {
             "crs": "CRS:84",
+            "srs": {
+                "proj4": "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs",
+                "wkt": "PROJCS[ ... ]",
+                "epsg": "EPSG:7030"
+            },
             "isTransparent": true,
             "mime": "image/tiff",
             "width": 800,
