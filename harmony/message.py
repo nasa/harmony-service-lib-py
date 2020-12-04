@@ -274,6 +274,32 @@ class ScaleSize(JsonObject):
         super().__init__(message_data, properties=['x', 'y'])
 
 
+class SRS(JsonObject):
+    """
+    Output CRS information as found in a Harmony message's "format.srs" object
+
+    Attributes
+    ----------
+    proj4 : string
+        The Proj4 representation for output CRS.
+    wkt : string
+        The WKT information for output CRS.
+    epsg : string
+        The EPSG designation, if suppplied or derived, for output CRS.
+    """
+
+    def __init__(self, message_data):
+        """
+        Constructor
+
+        Parameters
+        ----------
+        message_data : dictionary
+            The Harmony message "variables" item to deserialize
+        """
+        super().__init__(message_data, properties=['proj4', 'wkt', 'epsg'])
+
+
 class Format(JsonObject):
     """
     Output format parameters as found in a Harmony message's "format" object
@@ -282,8 +308,8 @@ class Format(JsonObject):
     ----------
     crs: string
         A proj4 string or EPSG code corresponding to the desired output projection
-    srs: dictionary
-        A dictionary with keys 'proj4', 'wkt', and 'epsg'
+    srs: message.SRS
+        The output CRS information; overlappting information with 'crs'
     isTransparent: boolean
         A boolean corresponding to whether or not nodata values should be set to transparent
         in the output if the file format allows it
@@ -325,6 +351,8 @@ class Format(JsonObject):
             'scaleExtent',
             'scaleSize'
         ])
+        if self.srs is not None:
+            self.srs = SRS(message_data['srs'])
         if self.scaleExtent is not None:
             self.scaleExtent = ScaleExtent(message_data['scaleExtent'])
         if self.scaleSize is not None:
