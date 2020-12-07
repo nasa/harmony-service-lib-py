@@ -33,6 +33,9 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.sources[1].collection, 'C0002-EXAMPLE')
         self.assertEqual(message.sources[1].variables[0].fullPath, 'example/path/ExampleVar2')
         self.assertEqual(message.format.crs, 'CRS:84')
+        self.assertEqual(message.format.srs.proj4, '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
+        self.assertEqual(message.format.srs.wkt, 'PROJCS[ ... ]')
+        self.assertEqual(message.format.srs.epsg, 'EPSG:7030')
         self.assertEqual(message.format.isTransparent, True)
         self.assertEqual(message.format.mime, 'image/tiff')
         self.assertEqual(message.format.width, 800)
@@ -131,4 +134,5 @@ class TestMessage(unittest.TestCase):
         # Nearby properties are fine
         self.assertEqual(message.subset.shape.href, 's3://example-bucket/shapefiles/abcd.json')
         self.assertEqual(output.format.crs, 'CRS:84')
+        self.assertEqual(message.format.srs.proj4, '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
         self.assertEqual(output.sources[1].variables[0].fullPath, 'example/path/ExampleVar2')
