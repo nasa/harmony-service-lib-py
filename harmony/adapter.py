@@ -74,6 +74,8 @@ class BaseHarmonyAdapter(ABC):
 
         if self.config is not None:
             self.init_logging()
+        else:
+            self.logger = logging.getLogger()
 
         # Properties that will be deprecated
         self.temp_paths = []
