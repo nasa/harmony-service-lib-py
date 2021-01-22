@@ -34,12 +34,12 @@ Upgrading:
 
   The suggested way to handle this is to call
   [`harmony.util.config(validate=False)`](https://git.earthdata.nasa.gov/projects/HARMONY/repos/harmony-service-lib-py/browse/harmony/util.py#159)
-  in a test fixture. You can use the resulting harmony.util.Config in
-  unit tests that call service library functions. The default library
-  behavior is to throw an exception if required configuration isn't
-  available. The rationale is that during actual use it should fail if
-  the library cannot be functional, and should clearly list what's
-  missing.
+  in a test fixture. You can use the resulting `harmony.util.Config`
+  in unit tests that call service library functions. The default
+  library behavior is to throw an exception if required configuration
+  isn't available. The rationale is that during actual use it should
+  fail if the library cannot be functional, and should clearly list
+  what's missing.
 
   See the [Harmony Service Library unit
   tests](https://git.earthdata.nasa.gov/projects/HARMONY/repos/harmony-service-lib-py/browse/tests/test_util.py#60)
