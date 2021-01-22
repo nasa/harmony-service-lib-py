@@ -26,7 +26,24 @@ Upgrading:
   variables. See the README for an explanation of all variables, their
   meaning and use, and under what conditions they are required or
   optional.
+* When using the Harmony Service Library in tests, the library may
+  throw an exception indicating that required environment variables
+  are not set. For example:
 
+      FAILED tests/test_foo.py::test_foo_is_bar - Exception: Required environment variables are not set: OAUTH_CLIENT_ID, OAUTH_UID, OAUTH_PASSWORD, OAUTH_REDIRECT_URI, STAGING_PATH, STAGING_BUCKET
+
+  The suggested way to handle this is to call
+  [`harmony.util.config(validate=False)`](https://git.earthdata.nasa.gov/projects/HARMONY/repos/harmony-service-lib-py/browse/harmony/util.py#159)
+  in a test fixture. You can use the resulting harmony.util.Config in
+  unit tests that call service library functions. The default library
+  behavior is to throw an exception if required configuration isn't
+  available. The rationale is that during actual use it should fail if
+  the library cannot be functional, and should clearly list what's
+  missing.
+
+  See the [Harmony Service Library unit
+  tests](https://git.earthdata.nasa.gov/projects/HARMONY/repos/harmony-service-lib-py/browse/tests/test_util.py#60)
+  for an example.
 
 ## 2020/11/09
 
