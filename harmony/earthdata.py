@@ -34,7 +34,7 @@ class EarthdataSession(Session):
     (B) When handling a redirect from Earthdata Login back to a
     resource server, the session will remove the Authorization header
     from the request (which the `requests` package copies from the
-    request which caused this redirect.
+    request which caused this redirect).
 
     """
     def rebuild_auth(self, prepared_request, response):
