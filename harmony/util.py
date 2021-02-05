@@ -61,6 +61,9 @@ from nacl.secret import SecretBox
 
 from harmony import aws
 from harmony import io
+# TODO: Temporary!
+# from harmony import http
+http = io
 
 
 DEFAULT_SHARED_SECRET_KEY = '_THIS_IS_MY_32_CHARS_SECRET_KEY_'
@@ -215,6 +218,11 @@ def config(validate=True):
         return config
 
 
+# *************** TODO **************
+# Move logging to separate module
+# Keep build_logger and maybe setup_stdout_log_formatting
+# as aliases for the functions in that module (preserve
+# the interface).
 class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
     """A JSON log entry formatter."""
     def add_fields(self, log_record, record, message_dict):
@@ -328,19 +336,19 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
     if logger is None:
         logger = build_logger(cfg)
 
-    destination_path = io.filename(destination_dir, url)
+    destination_path = http.filename(destination_dir, url)
     if destination_path.exists():
         return str(destination_path)
     destination_path = str(destination_path)
 
-    source = io.optimized_url(url, cfg.localstack_host)
+    source = http.optimized_url(url, cfg.localstack_host)
 
     if aws.is_s3(source):
         return aws.download_from_s3(cfg, source, destination_path)
 
-    if io.is_http(source):
-        return io.download_from_http(cfg, source, destination_path, access_token,
-                                     logger, data, HarmonyException, ForbiddenException)
+    if http.is_http(source):
+        return http.download_from_http(cfg, source, destination_path, access_token,
+                                       logger, data, HarmonyException, ForbiddenException)
 
     return source
 

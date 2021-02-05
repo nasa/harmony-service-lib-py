@@ -11,10 +11,14 @@ set for correct operation. See that module and the project README for details.
 """
 
 import hashlib
+import json
 import logging
 from pathlib import Path, PurePath
 from urllib.error import HTTPError
 from urllib.parse import urlencode, urlparse
+
+from harmony.earthdata import EarthdataAuth, EarthdataSession
+from harmony.util import Config, ForbiddenException, HarmonyException
 
 
 def is_http(url: str) -> bool:
@@ -78,7 +82,35 @@ def optimized_url(url, local_hostname):
         .replace('file://', '')
 
 
-def download_from_http(config, url, destination_path, access_token, logger, data):
+def _handle_possible_eula_error(http_error, body):
+    """
+    Tries to determine if the exception is due to a EULA that the user needs to
+    approve, and if so, returns a response with the url where they can do so.
+
+    Parameters
+    ----------
+    http_error : urllib.error.HTTPError
+        An error response that may indicate a EULA issue.
+    body : str
+        The body JSON string that may contain the EULA details.
+
+    Returns
+    -------
+    str
+        A message indicating that the user needs to approve a EULA.
+    """
+    try:
+        # Try to determine if this is a EULA error
+        json_object = json.loads(body)
+        eula_error = "error_description" in json_object and "resolution_url" in json_object
+        if eula_error:
+            body = (f"Request could not be completed because you need to agree to the EULA "
+                    f"at {json_object['resolution_url']}")
+    finally:
+        raise ForbiddenException(body) from http_error
+
+
+def download(config: Config, url: str, access_token: str, data=None):
     """
     .
 
@@ -107,6 +139,10 @@ def download_from_http(config, url, destination_path, access_token, logger, data
     str
         The directory path where the downloaded resource was written.
     """
+
+    # TODO: Pending move of logging from util to separate module.
+    logger = logging.getLogger()
+
     try:
         logger.info('Downloading %s', url)
 
@@ -115,32 +151,38 @@ def download_from_http(config, url, destination_path, access_token, logger, data
             data = urlencode(data).encode('utf-8')
 
         response = None
+
         if access_token is not None:
-            shared_token = shared_token_for_user(config, access_token)
-            response = _download_from_http_with_bearer_token(config, url, shared_token, data, logger)
+            auth = EarthdataAuth(config.oauth_uid, config.edl_password, access_token)
+            with EarthdataSession() as session:
+                session.auth = auth
+                response = session.get(url)
         elif config.fallback_authn_enabled:
             msg = ('No user access token in request. Fallback authentication enabled.')
             logger.warning(msg)
-            response = _download_with_fallback_authn(config, url, data, logger)
+            # TODO: Do we keep this?
+            # response = _download_with_fallback_authn(config, url, data, logger)
         else:
             msg = f"Unable to download: Missing user access token & fallback not enabled for {url}"
             logging.error(msg)
-            raise harmony_exception_klass(msg, 'Error')
+            raise HarmonyException(msg, 'Error')
 
-        with open(destination_path, 'wb') as local_file:
-            local_file.write(response.read())
+        # TODO: Not responsibility of this function!
+        # Extract to caller; just return response
+        # with open(destination_path, 'wb') as local_file:
+        #     local_file.write(response.read())
 
         logger.info('Completed %s', url)
 
-        return destination_path
+        return response
 
     except HTTPError as http_error:
         code = http_error.getcode()
-        logger.error('Download failed with status code: ' + str(code))
+        logger.error(f'Download failed with status code: {code}')
         body = http_error.read().decode()
-        logger.error('Failed to download URL:' + body)
+        logger.error('Failed to download URL: {body}')
 
         if code in (401, 403):
-            _handle_possible_eula_error(http_error, body, forbidden_exception_klass)
+            _handle_possible_eula_error(http_error, body)
 
         raise

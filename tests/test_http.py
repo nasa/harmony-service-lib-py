@@ -3,8 +3,8 @@ import pathlib
 import pytest
 import responses
 
-from harmony.earthdata import EarthdataAuth, EarthdataSession
-from harmony.http import filename, is_http, optimized_url
+from harmony.http import (download, filename, is_http, optimized_url)
+from harmony.util import config
 
 EDL_BASE_URL = 'https://uat.urs.earthdata.nasa.gov'
 
@@ -52,29 +52,38 @@ def test_when_given_urls_optimized_url_returns_correct_url(url, expected):
     assert optimized_url(url, local_hostname) == expected
 
 
-@pytest.mark.skip
-def test_download_validates_token():
-    pass
+@pytest.fixture
+def access_token(faker):
+    return faker.password(length=40, special_chars=False)
 
 
-@pytest.mark.skip
-def test_download_validates_token_and_raises_exception():
-    pass
+@pytest.fixture
+def resource_server_granule_url():
+    return 'https://resource.server.daac.com/foo/bar/granule.nc'
+
+
+@pytest.fixture
+def resource_server_redirect_url(faker):
+    return ('https://n5eil11u.ecs.nsidc.org/TS1_redirect'
+            f'?code={faker.password(length=64, special_chars=False)}'
+            f'&state={faker.password(length=128, special_chars=False)}')
+
+
+@pytest.fixture
+def edl_redirect_url(faker):
+    return ('https://uat.urs.earthdata.nasa.gov/oauth/authorize'
+            f'?client_id={faker.password(length=22, special_chars=False)}'
+            '&response_type=code'
+            '&redirect_uri=https%3A%2F%2Fn5eil11u.ecs.nsidc.org%2FTS1_redirect'
+            f'&state={faker.password(length=128, special_chars=False)}')
 
 
 @responses.activate
-def test_download_follows_redirect_to_edl_and_adds_auth_headers():
-    url = 'https://resource.server.daac.com/foo/bar/granule.nc'
-    edl_redirect_url = ('https://uat.urs.earthdata.nasa.gov/oauth/authorize'
-                        '?client_id=tiXkwDPzAkY1Xw55KBZeIw'
-                        '&response_type=code'
-                        '&redirect_uri=https%3A%2F%2Fn5eil11u.ecs.nsidc.org%2FTS1_redirect'
-                        '&state=aHR0cDovL241ZWlsMTF1LmVjcy5uc2lkYy5vcmcvVFMxL0RQMC9PVEhSL05'
-                        'JU0UuMDA0LzIwMTAuMDEuMTMvTklTRV9TU01JU0YxN18yMDEwMDExMy5IREZFT1M')
-
+def test_download_follows_redirect_to_edl_and_adds_auth_headers(access_token, resource_server_granule_url,
+                                                                edl_redirect_url):
     responses.add(
         responses.GET,
-        url,
+        resource_server_granule_url,
         status=302,
         headers=[('Location', edl_redirect_url)]
     )
@@ -84,28 +93,84 @@ def test_download_follows_redirect_to_edl_and_adds_auth_headers():
         status=302
     )
 
-    auth = EarthdataAuth(EDL_BASE_URL, 'testappid1234', 'xyzzy3fizzbizz', '1234-5678-9012-3456')
+    cfg = config(validate=False)
 
-    # TODO: replace with call to http.download...
-    with EarthdataSession() as session:
-        response = session.get(url, auth=auth)
-        assert response.status_code == 302
-        assert len(responses.calls) == 2
-        assert 'Authorization' in responses.calls[1].request.headers
+    response = download(cfg, resource_server_granule_url, access_token)
+
+    # We should get redirected to EDL
+    assert response.status_code == 302
+    assert len(responses.calls) == 2
+
+    # We shouldn't have Auth headers in the request, but they should
+    # be added on the redirect to EDL
+    request_headers = responses.calls[0].request.headers
+    redirect_headers = responses.calls[1].request.headers
+
+    assert 'Authorization' not in request_headers
+    assert 'Authorization' in redirect_headers
+    assert 'Basic' in redirect_headers['Authorization']
+    assert 'Bearer' in redirect_headers['Authorization']
+
+
+@responses.activate
+def test_download_follows_redirect_to_resource_server_with_code(access_token, edl_redirect_url,
+                                                                resource_server_redirect_url):
+    responses.add(
+        responses.GET,
+        edl_redirect_url,
+        status=302,
+        headers=[('Location', resource_server_redirect_url)]
+    )
+    responses.add(
+        responses.GET,
+        resource_server_redirect_url,
+        status=302
+    )
+
+    cfg = config(validate=False)
+
+    response = download(cfg, edl_redirect_url, access_token)
+
+    assert response.status_code == 302
+    assert len(responses.calls) == 2
+    edl_headers = responses.calls[0].request.headers
+    assert 'Authorization' in edl_headers
+    rs_headers = responses.calls[1].request.headers
+    assert 'Authorization' not in rs_headers
+
+
+@responses.activate
+def test_resource_server_redirects_to_granule_url(access_token, resource_server_redirect_url,
+                                                  resource_server_granule_url):
+    responses.add(
+        responses.GET,
+        resource_server_redirect_url,
+        status=301,
+        headers=[('Location', resource_server_granule_url)]
+    )
+    responses.add(
+        responses.GET,
+        resource_server_granule_url,
+        status=303
+    )
+
+    cfg = config(validate=False)
+
+    response = download(cfg, resource_server_redirect_url, access_token)
+
+    assert response.status_code == 303
+    assert len(responses.calls) == 2
+    rs_headers = responses.calls[0].request.headers
+    assert 'Authorization' not in rs_headers
 
 
 @pytest.mark.skip
-def test_download_follows_redirect_to_resource_server_with_code():
+def test_download_validates_token():
     pass
 
 
 @pytest.mark.skip
-def test_download_receives_data_with_cookie_from_resource_server():
-    pass
-
-
-@pytest.mark.skip
-def test_download_with_cookie_is_not_redirected_to_edl():
+def test_download_validates_token_and_raises_exception():
     pass
 
 
@@ -121,4 +186,9 @@ def test_download_sets_a_timeout():
 
 @pytest.mark.skip
 def test_download_retries_correctly():
+    pass
+
+
+@pytest.mark.skip
+def test_download_can_accept_and_use_earthdata_session():
     pass
