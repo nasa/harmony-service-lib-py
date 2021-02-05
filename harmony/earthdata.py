@@ -5,58 +5,82 @@ from urllib.parse import urlparse
 from requests.auth import AuthBase
 from requests import Session
 
+EDL_URL_PATTERN = r""".*urs\.earthdata\.nasa\.gov$"""
 
-# TODO: Is there a better way to ensure the auth is used on the EDL
-# redirect only? I'd' prefer to get rid of the EarthdataSession and
-# propagate the auth instance on the redirect request, relying on the
-# EarthdataAuth._should_add_authorization_header helper to ensure its
-# added only on the EDL request.
+
+def _edl_url(url: str) -> bool:
+    """Determine if the given URL is for Earthdata Login."""
+    hostname = urlparse(url).hostname
+    return re.fullmatch(EDL_URL_PATTERN, hostname) is not None
+
 
 class EarthdataSession(Session):
-    """Session which ensures the Authorization header is sent to correct servers"""
-    def should_strip_auth(self, old_url: str, new_url: str) -> bool:
-        urs_regex = r""".*urs\.earthdata\.nasa\.gov$"""
-        old_hostname = urlparse(old_url).hostname
-        old_tld = old_hostname.split('.')[-2:]
-        new_hostname = urlparse(new_url).hostname
-        new_tld = new_hostname.split('.')[-2:]
+    """Session which ensures the Authorization header is sent to correct
+    servers.
 
-        same_tld = (old_tld == new_tld)
-        to_edl = re.fullmatch(urs_regex, new_hostname) is not None
+    After instantiating the EarthdataSession, set its `auth` attribute
+    to a valid EarthdataAuth instance:
 
-        return (not same_tld) and (not to_edl)
+        session.auth = EarthdataAuth(...)
+
+    This lifecycle method on requests.Session is called when handling
+    redirect requests. There are two cases important for handling
+    Earthdata Login:
+
+    (A) When handling a redirect from a resource server to Earthdata
+    Login, the session will use the auth (if provided) to add the
+    required Authorization to the request.
+
+    (B) When handling a redirect from Earthdata Login back to a
+    resource server, the session will remove the Authorization header
+    from the request (which the `requests` package copies from the
+    request which caused this redirect.
+
+    """
+    def rebuild_auth(self, prepared_request, response):
+        # (A) Defer to auth to add the Authorization header
+        if self.auth:
+            self.auth(prepared_request)
+
+        # (B) Remove the Authorization header when redirecting away
+        # from EDL.
+        if not _edl_url(prepared_request.url):
+            prepared_request.headers.pop('Authorization', None)
 
 
 class EarthdataAuth(AuthBase):
-    def __init__(self, edl_base_url, app_uid, app_pwd, user_access_token):
-        self.edl_base_url = edl_base_url
-        self.uid = app_uid
-        self.pwd = app_pwd
-        self.user_access_token = user_access_token
+    """Custom Earthdata Auth provider to add EDL Authorization headers to
+    requests when required for token sharing and federated
+    authentication.
 
-    def _should_add_authorization_header(self, r):
-        # TODO: See above
-        # edl_hostname = urlparse(self.edl_base_url).hostname
-        # request_hostname = urlparse(r.url).hostname
+    When instantiated with an EDL application's credentials and a
+    user's access token, the resulting HTTP Authorization header will
+    include the properly-encoded app credentials as a Basic auth
+    header, and the user's access token as a Bearer auth header.
 
-        # return edl_hostname == request_hostname
-        return True
+    """
+    def __init__(self, app_uid: str, app_pwd: str, user_access_token: str):
+        """Instantiate the Earthdata Auth provider.
 
-    def _basic(self):
-        creds = b64encode(f"{self.uid}:{self.pwd}".encode('utf-8'))
-        creds = creds.decode('utf-8')
-        return f"Basic {creds}"
+        Parameters
+        ----------
+        app_uid:
+            The Earthdata Login Application `uid`.
 
-    def _bearer(self):
-        return f'Bearer {self.user_access_token}'
+        app_pwd:
+            The Earthdata Login Application `password`.
 
-    def _auth_header(self):
-        return ', '.join([
-            self._basic(),
-            self._bearer()
-        ])
+        user_access_token:
+            The EDL-issued token for the user making the request.
+        """
+        creds = b64encode(f"{app_uid}:{app_pwd}".encode('utf-8')).decode('utf-8')
+        self.authorization_header = f'Basic {creds}, Bearer {user_access_token}'
 
     def __call__(self, r):
-        if self._should_add_authorization_header(r):
-            r.headers['Authorization'] = self._auth_header()
+        """The EarthdataAuth is a callable which adds Authorization headers
+        when handling a request for Earthdata Login.
+
+        """
+        if _edl_url(r.url):
+            r.headers['Authorization'] = self.authorization_header
         return r
