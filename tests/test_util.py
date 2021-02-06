@@ -1,7 +1,7 @@
 from base64 import b64encode
 import pathlib
 import unittest
-from unittest.mock import mock_open, patch, MagicMock, Mock
+from unittest.mock import patch, MagicMock, Mock
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 
@@ -10,7 +10,6 @@ from nacl.utils import random
 from parameterized import parameterized
 
 from harmony import aws
-from harmony import io
 from harmony import util
 from harmony.message import Variable
 from tests.test_cli import MockAdapter, cli_test
@@ -52,33 +51,33 @@ class TestDownload(unittest.TestCase):
     #     self.assertEqual(path, 'file.txt')
     #     self.assertTrue(filename.endswith('.txt'))
 
-    def _verify_urlopen(self, url, access_token, shared_token, data,
-                        urlopen, expected_urlopen_calls=1, verify_bearer_token=True):
-        """Verify that the urlopen function was called with the correct Request values."""
+    # def _verify_urlopen(self, url, access_token, shared_token, data,
+    #                     urlopen, expected_urlopen_calls=1, verify_bearer_token=True):
+    #     """Verify that the urlopen function was called with the correct Request values."""
 
-        # In some error cases, we expect urlopen to be called more than once
-        self.assertEqual(urlopen.call_count, expected_urlopen_calls)
+    #     # In some error cases, we expect urlopen to be called more than once
+    #     self.assertEqual(urlopen.call_count, expected_urlopen_calls)
 
-        # Verify that we have a request argument with the correct url
-        args = urlopen.call_args.args
-        self.assertTrue(len(args), 1)
-        request = args[0]
-        self.assertEqual(request.full_url, url)
+    #     # Verify that we have a request argument with the correct url
+    #     args = urlopen.call_args.args
+    #     self.assertTrue(len(args), 1)
+    #     request = args[0]
+    #     self.assertEqual(request.full_url, url)
 
-        if access_token is not None and verify_bearer_token:
-            # Verify that the request has a bearer token auth header
-            # that's not redirectable, and no other headers.
-            expected_header = dict([io._auth_header(self.config, shared_token)])
-            self.assertFalse(expected_header.items() <= request.headers.items())
-            self.assertTrue(expected_header.items() <= request.unredirected_hdrs.items())
-        else:
-            # We should not have any headers
-            self.assertEqual(len(request.headers), 0)
-            self.assertEqual(len(request.unredirected_hdrs), 0)
+    #     if access_token is not None and verify_bearer_token:
+    #         # Verify that the request has a bearer token auth header
+    #         # that's not redirectable, and no other headers.
+    #         expected_header = dict([io._auth_header(self.config, shared_token)])
+    #         self.assertFalse(expected_header.items() <= request.headers.items())
+    #         self.assertTrue(expected_header.items() <= request.unredirected_hdrs.items())
+    #     else:
+    #         # We should not have any headers
+    #         self.assertEqual(len(request.headers), 0)
+    #         self.assertEqual(len(request.unredirected_hdrs), 0)
 
-        # If we've got data to POST, verify it's in the request
-        if data is not None:
-            self.assertEqual(urlencode(data).encode('utf-8'), request.data)
+    #     # If we've got data to POST, verify it's in the request
+    #     if data is not None:
+    #         self.assertEqual(urlencode(data).encode('utf-8'), request.data)
 
     # @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
     # @patch('urllib.request.OpenerDirector.open')
@@ -180,23 +179,23 @@ class TestDownload(unittest.TestCase):
     #            'https://example.com/approve_app?client_id=foo')
     #     self.assertEqual(str(cm.exception), msg)
 
-    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
-    @patch('urllib.request.OpenerDirector.open')
-    @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
-    def test_when_the_url_returns_a_500_it_does_not_raise_a_forbidden_exception_and_does_not_return_details_to_user(
-        self, name, access_token, shared_token, urlopen
-    ):
-        url = 'https://example.com/file.txt'
+    # @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
+    # @patch('urllib.request.OpenerDirector.open')
+    # @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
+    # def test_when_the_url_returns_a_500_it_does_not_raise_a_forbidden_exception_and_does_not_return_details_to_user(
+    #     self, name, access_token, shared_token, urlopen
+    # ):
+    #     url = 'https://example.com/file.txt'
 
-        urlopen.side_effect = MockHTTPError(url=url, code=500)
+    #     urlopen.side_effect = MockHTTPError(url=url, code=500)
 
-        try:
-            util.download(url, 'tmp', access_token=access_token, cfg=self.config)
-            self.fail('An exception should have been raised')
-        except util.ForbiddenException:
-            self.fail('ForbiddenException raised when it should not have')
-        except Exception:
-            pass
+    #     try:
+    #         util.download(url, 'tmp', access_token=access_token, cfg=self.config)
+    #         self.fail('An exception should have been raised')
+    #     except util.ForbiddenException:
+    #         self.fail('ForbiddenException raised when it should not have')
+    #     except Exception:
+    #         pass
 
     # @patch('urllib.request.OpenerDirector.open')
     # @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
@@ -215,18 +214,18 @@ class TestDownload(unittest.TestCase):
     #         self._verify_urlopen(url, access_token, shared_token, None,
     #                              urlopen, expected_urlopen_calls=2, verify_bearer_token=False)
 
-    @patch('urllib.request.OpenerDirector.open')
-    @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
-    def test_when_given_an_access_token_and_error_occurs_it_does_not_fall_back_to_basic_auth(
-        self, shared_token, urlopen
-    ):
-        url = 'https://example.com/file.txt'
-        access_token = 'OPENSESAME'
-        urlopen.side_effect = [MockHTTPError(url=url, code=400, msg='Forbidden 400 message'), Mock()]
+    # @patch('urllib.request.OpenerDirector.open')
+    # @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
+    # def test_when_given_an_access_token_and_error_occurs_it_does_not_fall_back_to_basic_auth(
+    #     self, shared_token, urlopen
+    # ):
+    #     url = 'https://example.com/file.txt'
+    #     access_token = 'OPENSESAME'
+    #     urlopen.side_effect = [MockHTTPError(url=url, code=400, msg='Forbidden 400 message'), Mock()]
 
-        with self.assertRaises(Exception):
-            util.download(url, 'tmp', access_token=access_token, cfg=self.config)
-            self.fail('An exception should have been raised')
+    #     with self.assertRaises(Exception):
+    #         util.download(url, 'tmp', access_token=access_token, cfg=self.config)
+    #         self.fail('An exception should have been raised')
 
     # @patch('urllib.request.OpenerDirector.open')
     # def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_enabled(self, urlopen):
@@ -379,35 +378,6 @@ class TestSQSReadHealthUpdate(unittest.TestCase):
                 mock_path.return_value.touch.assert_called()
 
 
-class TestUtilityFunctions(unittest.TestCase):
-    @parameterized.expand([('http://example.com', True),
-                           ('HTTP://YELLING.COM', True),
-                           ('https://nosuchagency.org', True),
-                           ('s3://bucketbrigade.com', False),
-                           ('file:///var/log/junk.txt', False)])
-    def test_when_given_an_urls_is_http_succeeds(self, url, expected):
-        self.assertEqual(io.is_http(url), expected)
-
-    @parameterized.expand(['http://example.com/foobar.dos',
-                           'HTTP://YELLING.COM/loud.pdf',
-                           'https://nosuchagency.org/passwords.nsa',
-                           's3://bucketbrigade.com/pricing.aws',
-                           'file:///var/log/junk.txt'])
-    def test_when_given_urls_filename_creates_filenames(self, url):
-        directory = '/foo/bar'
-        fn = str(io.filename(directory, url))
-        self.assertTrue(fn.startswith(directory))
-        self.assertTrue(fn.endswith(pathlib.PurePath(url).suffix))
-
-    @parameterized.expand([('http://example.com/ufo_sightings.nc', 'http://example.com/ufo_sightings.nc'),
-                           ('http://localhost:3000/jobs', 'http://mydevmachine.local.dev:3000/jobs'),
-                           ('file:///var/logs/virus_scan.txt', '/var/logs/virus_scan.txt'),
-                           ('s3://localghost.org/boo.gif', 's3://localghost.org/boo.gif')])
-    def test_when_given_urls_optimized_url_returns_correct_url(self, url, expected):
-        local_hostname = 'mydevmachine.local.dev'
-        self.assertEqual(io.optimized_url(url, local_hostname), expected)
-
-
 class TestGenerateOutputFilename(unittest.TestCase):
     def test_includes_provided_regridded_subsetted_ext(self):
         url = 'https://example.com/fake-path/abc.123.nc/?query=true'
@@ -415,11 +385,26 @@ class TestGenerateOutputFilename(unittest.TestCase):
 
         # Basic cases
         variables = []
-        self.assertEqual(util.generate_output_filename(url, ext), 'abc.123.zarr')
-        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True), 'abc.123_subsetted.zarr')
-        self.assertEqual(util.generate_output_filename(url, ext, is_regridded=True), 'abc.123_regridded.zarr')
-        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
-        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(
+            util.generate_output_filename(url, ext),
+            'abc.123.zarr'
+        )
+        self.assertEqual(
+            util.generate_output_filename(url, ext, is_subsetted=True),
+            'abc.123_subsetted.zarr'
+        )
+        self.assertEqual(
+            util.generate_output_filename(url, ext, is_regridded=True),
+            'abc.123_regridded.zarr'
+        )
+        self.assertEqual(
+            util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True),
+            'abc.123_regridded_subsetted.zarr'
+        )
+        self.assertEqual(
+            util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True),
+            'abc.123_regridded_subsetted.zarr'
+        )
 
     def test_includes_single_variable_name_replacing_slashes(self):
         url = 'https://example.com/fake-path/abc.123.nc/?query=true'
@@ -427,7 +412,10 @@ class TestGenerateOutputFilename(unittest.TestCase):
 
         # Variable name contains full path with '/' ('/' replaced with '_')
         variables = ['/path/to/VarB']
-        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123__path_to_VarB_regridded_subsetted.zarr')
+        self.assertEqual(
+            util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True),
+            'abc.123__path_to_VarB_regridded_subsetted.zarr'
+        )
 
     def test_includes_single_variable(self):
         url = 'https://example.com/fake-path/abc.123.nc/?query=true'
@@ -435,10 +423,22 @@ class TestGenerateOutputFilename(unittest.TestCase):
 
         # Single variable cases
         variables = ['VarA']
-        self.assertEqual(util.generate_output_filename(url, ext), 'abc.123.zarr')
-        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
-        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables), 'abc.123_VarA.zarr')
-        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
+        self.assertEqual(
+            util.generate_output_filename(url, ext),
+            'abc.123.zarr'
+        )
+        self.assertEqual(
+            util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True),
+            'abc.123_regridded_subsetted.zarr'
+        )
+        self.assertEqual(
+            util.generate_output_filename(url, ext, variable_subset=variables),
+            'abc.123_VarA.zarr'
+        )
+        self.assertEqual(
+            util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True),
+            'abc.123_VarA_regridded_subsetted.zarr'
+        )
 
     def test_excludes_multiple_variable(self):
         url = 'https://example.com/fake-path/abc.123.nc/?query=true'
@@ -446,8 +446,14 @@ class TestGenerateOutputFilename(unittest.TestCase):
 
         # Multiple variable cases (no variable name in suffix)
         variables = ['VarA', 'VarB']
-        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
-        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_regridded_subsetted.zarr')
+        self.assertEqual(
+            util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True),
+            'abc.123_regridded_subsetted.zarr'
+        )
+        self.assertEqual(
+            util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True),
+            'abc.123_regridded_subsetted.zarr'
+        )
 
     def test_avoids_overwriting_single_suffixes(self):
         ext = 'zarr'
@@ -455,22 +461,34 @@ class TestGenerateOutputFilename(unittest.TestCase):
         # URL already containing a suffix
         variables = ['VarA']
         url = 'https://example.com/fake-path/abc.123_regridded.zarr'
-        self.assertEqual(util.generate_output_filename(url, ext, is_subsetted=True), 'abc.123_regridded_subsetted.zarr')
-        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
+        self.assertEqual(
+            util.generate_output_filename(url, ext, is_subsetted=True),
+            'abc.123_regridded_subsetted.zarr'
+        )
+        self.assertEqual(
+            util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True),
+            'abc.123_VarA_regridded_subsetted.zarr'
+        )
 
     def test_avoids_overwriting_multiple_suffixes(self):
         ext = 'zarr'
         # URL already containing all suffixes
         variables = ['VarA']
         url = 'https://example.com/fake-path/abc.123_VarA_regridded_subsetted.zarr'
-        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True), 'abc.123_VarA_regridded_subsetted.zarr')
+        self.assertEqual(
+            util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True),
+            'abc.123_VarA_regridded_subsetted.zarr'
+        )
 
     def test_allows_variable_objects(self):
         ext = 'zarr'
         # URL already containing all suffixes
         variables = [Variable({'name': 'VarA'})]
         url = 'https://example.com/fake-path/abc.123.zarr'
-        self.assertEqual(util.generate_output_filename(url, ext, variable_subset=variables), 'abc.123_VarA.zarr')
+        self.assertEqual(
+            util.generate_output_filename(url, ext, variable_subset=variables),
+            'abc.123_VarA.zarr'
+        )
 
 
 class TestBboxToGeometry(unittest.TestCase):
