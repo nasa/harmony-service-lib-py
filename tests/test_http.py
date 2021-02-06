@@ -78,10 +78,12 @@ def edl_redirect_url(faker):
             f'&state={faker.password(length=128, special_chars=False)}')
 
 
-@pytest.mark.skip
 @responses.activate
-def test_download_follows_redirect_to_edl_and_adds_auth_headers(access_token, resource_server_granule_url,
-                                                                edl_redirect_url):
+def test_download_follows_redirect_to_edl_and_adds_auth_headers(
+        mocker,
+        access_token,
+        resource_server_granule_url,
+        edl_redirect_url):
     responses.add(
         responses.GET,
         resource_server_granule_url,
@@ -93,10 +95,10 @@ def test_download_follows_redirect_to_edl_and_adds_auth_headers(access_token, re
         edl_redirect_url,
         status=302
     )
-
+    destination_file = mocker.Mock()
     cfg = config(validate=False)
 
-    response = download(cfg, resource_server_granule_url, access_token)
+    response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
 
     # We should get redirected to EDL
     assert response.status_code == 302
@@ -113,10 +115,12 @@ def test_download_follows_redirect_to_edl_and_adds_auth_headers(access_token, re
     assert 'Bearer' in redirect_headers['Authorization']
 
 
-@pytest.mark.skip
 @responses.activate
-def test_download_follows_redirect_to_resource_server_with_code(access_token, edl_redirect_url,
-                                                                resource_server_redirect_url):
+def test_download_follows_redirect_to_resource_server_with_code(
+        mocker,
+        access_token,
+        edl_redirect_url,
+        resource_server_redirect_url):
     responses.add(
         responses.GET,
         edl_redirect_url,
@@ -128,10 +132,10 @@ def test_download_follows_redirect_to_resource_server_with_code(access_token, ed
         resource_server_redirect_url,
         status=302
     )
-
+    destination_file = mocker.Mock()
     cfg = config(validate=False)
 
-    response = download(cfg, edl_redirect_url, access_token)
+    response = download(cfg, edl_redirect_url, access_token, None, destination_file)
 
     assert response.status_code == 302
     assert len(responses.calls) == 2
@@ -141,10 +145,12 @@ def test_download_follows_redirect_to_resource_server_with_code(access_token, ed
     assert 'Authorization' not in rs_headers
 
 
-@pytest.mark.skip
 @responses.activate
-def test_resource_server_redirects_to_granule_url(access_token, resource_server_redirect_url,
-                                                  resource_server_granule_url):
+def test_resource_server_redirects_to_granule_url(
+        mocker,
+        access_token,
+        resource_server_redirect_url,
+        resource_server_granule_url):
     responses.add(
         responses.GET,
         resource_server_redirect_url,
@@ -156,10 +162,10 @@ def test_resource_server_redirects_to_granule_url(access_token, resource_server_
         resource_server_granule_url,
         status=303
     )
-
+    destination_file = mocker.Mock()
     cfg = config(validate=False)
 
-    response = download(cfg, resource_server_redirect_url, access_token)
+    response = download(cfg, resource_server_redirect_url, access_token, None, destination_file)
 
     assert response.status_code == 303
     assert len(responses.calls) == 2
