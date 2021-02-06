@@ -38,13 +38,17 @@ class EarthdataSession(Session):
 
     """
     def rebuild_auth(self, prepared_request, response):
-        # (A) Defer to auth to add the Authorization header
-        if self.auth:
-            self.auth(prepared_request)
+        # If not configured with an EarthdataAuth instance, defer to
+        # default behavior
+        if not self.auth:
+            return super().rebuild_auth(prepared_request, response)
 
-        # (B) Remove the Authorization header when redirecting away
-        # from EDL.
-        if not _edl_url(prepared_request.url):
+        if _edl_url(prepared_request.url):
+            # (A) Defer to auth to add the Authorization header
+            self.auth(prepared_request)
+        else:
+            # (B) Remove the Authorization header when redirecting away
+            # from EDL.
             prepared_request.headers.pop('Authorization', None)
 
 

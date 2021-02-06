@@ -48,7 +48,6 @@ Optional:
 
 from base64 import b64decode
 from collections import namedtuple
-from datetime import datetime
 from functools import lru_cache
 import logging
 from pathlib import Path
@@ -56,14 +55,11 @@ from os import environ, path
 import sys
 from urllib import parse
 
-from pythonjsonlogger import jsonlogger
 from nacl.secret import SecretBox
 
 from harmony import aws
-from harmony import io
-# TODO: Temporary!
-# from harmony import http
-http = io
+from harmony import http
+from harmony.logging import build_logger
 
 
 DEFAULT_SHARED_SECRET_KEY = '_THIS_IS_MY_32_CHARS_SECRET_KEY_'
@@ -218,85 +214,6 @@ def config(validate=True):
         return config
 
 
-# *************** TODO **************
-# Move logging to separate module
-# Keep build_logger and maybe setup_stdout_log_formatting
-# as aliases for the functions in that module (preserve
-# the interface).
-class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
-    """A JSON log entry formatter."""
-    def add_fields(self, log_record, record, message_dict):
-        super(HarmonyJsonFormatter, self).add_fields(
-            log_record, record, message_dict)
-        if not log_record.get('timestamp'):
-            now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-            log_record['timestamp'] = now
-        if log_record.get('level'):
-            log_record['level'] = log_record['level'].upper()
-        else:
-            log_record['level'] = record.levelname
-        if not log_record.get('application'):
-            log_record['application'] = self.app_name
-
-
-@lru_cache(maxsize=None)
-def build_logger(config, name=None):
-    """
-    Builds a logger with appropriate defaults for Harmony
-    Parameters
-    ----------
-    config : harmony.util.Config
-        The configuration values for this runtime environment.
-    name : string
-        The name of the logger
-
-    Returns
-    -------
-    logger : Logging
-        A logger for service output
-    """
-    logger = logging.getLogger()
-    syslog = logging.StreamHandler()
-    if config.text_logger:
-        formatter = logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s.%(funcName)s:%(lineno)d] %(message)s")
-    else:
-        formatter = HarmonyJsonFormatter()
-        formatter.app_name = config.app_name
-    syslog.setFormatter(formatter)
-    logger.addHandler(syslog)
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
-    return logger
-
-
-def setup_stdout_log_formatting(config):
-    """
-    Updates sys.stdout and sys.stderr to pass messages through the Harmony log formatter.
-    """
-    # See https://stackoverflow.com/questions/11124093/redirect-python-print-output-to-logger/11124247
-    class StreamToLogger(object):
-        def __init__(self, logger, log_level=logging.INFO):
-            self.logger = logger
-            self.log_level = log_level
-            self.linebuf = ''
-
-        def write(self, buf):
-            temp_linebuf = self.linebuf + buf
-            self.linebuf = ''
-            for line in temp_linebuf.splitlines(True):
-                if line[-1] == '\n':
-                    self.logger.log(self.log_level, line.rstrip())
-                else:
-                    self.linebuf += line
-
-        def flush(self):
-            if self.linebuf != '':
-                self.logger.log(self.log_level, self.linebuf.rstrip())
-            self.linebuf = ''
-    sys.stdout = StreamToLogger(build_logger(config), logging.INFO)
-    sys.stderr = StreamToLogger(build_logger(config), logging.ERROR)
-
-
 def download(url, destination_dir, logger=None, access_token=None, data=None, cfg=None):
     """
     Downloads the given URL to the given destination directory, using the basename of the URL
@@ -343,14 +260,16 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
 
     source = http.optimized_url(url, cfg.localstack_host)
 
-    if aws.is_s3(source):
-        return aws.download_from_s3(cfg, source, destination_path)
+    with open(destination_path, 'wb') as destination_file:
+        if aws.is_s3(source):
+            aws.download(cfg, source, destination_file)
+        elif http.is_http(source):
+            http.download(cfg, source, access_token, data, destination_file)
+        else:
+            # TODO: Log & Exception
+            pass
 
-    if http.is_http(source):
-        return http.download_from_http(cfg, source, destination_path, access_token,
-                                       logger, data, HarmonyException, ForbiddenException)
-
-    return source
+    return destination_path
 
 
 def stage(local_filename, remote_filename, mime, logger=None, location=None, cfg=None):

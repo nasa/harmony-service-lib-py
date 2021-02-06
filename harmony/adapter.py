@@ -19,6 +19,8 @@ from warnings import warn
 
 from deprecation import deprecated
 from pystac import Item, Asset
+
+from harmony.logging import build_logger
 from harmony.message import Temporal
 from harmony.util import CanceledException, touch_health_check_file
 from . import util
@@ -95,7 +97,7 @@ class BaseHarmonyAdapter(ABC):
             'user': user,
             'requestId': req_id
         }
-        self.logger = logging.LoggerAdapter(util.build_logger(self.config), logging_context)
+        self.logger = logging.LoggerAdapter(build_logger(self.config), logging_context)
 
     def invoke(self):
         """

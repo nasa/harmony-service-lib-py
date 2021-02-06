@@ -18,7 +18,6 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode, urlparse
 
 from harmony.earthdata import EarthdataAuth, EarthdataSession
-from harmony.util import Config, ForbiddenException, HarmonyException
 
 
 def is_http(url: str) -> bool:
@@ -107,12 +106,11 @@ def _handle_possible_eula_error(http_error, body):
             body = (f"Request could not be completed because you need to agree to the EULA "
                     f"at {json_object['resolution_url']}")
     finally:
-        raise ForbiddenException(body) from http_error
+        raise Exception(body) from http_error
 
 
-def download(config: Config, url: str, access_token: str, data=None):
-    """
-    .
+def download(config, url: str, access_token: str, data, destination_file):
+    """.
 
     Parameters
     ----------
@@ -120,24 +118,19 @@ def download(config: Config, url: str, access_token: str, data=None):
         The configuration for the current runtime environment.
     url : str
         The url for the resource to download
-    destination_path : str
-        The directory path where the downloaded resource will be written.
     access_token : str
-        A shared EDL access token created from the user's access token and the app identity.
-    logger : logging.Logger
-        A common Logger instance for log messages
+        A shared EDL access token created from the user's access token
+        and the app identity.
     data : dict or Tuple[str, str]
-        Optional parameter for additional data to
-        send to the server when making a HTTP POST request through
-        urllib.get.urlopen. These data will be URL encoded to a query string
-        containing a series of `key=value` pairs, separated by ampersands. If
-        None (the default), urllib.get.urlopen will use the  GET
-        method.
+        Optional parameter for additional data to send to the server
+        when making an HTTP POST request. These data will be URL
+        encoded to a query string containing a series of `key=value`
+        pairs, separated by ampersands. If None (the default), the
+        request will be sent with an HTTP GET request.
+    destination_file : file-like
+        The destination file where the data will be written. Must be
+        a file-like object opened for binary write.
 
-    Returns
-    -------
-    str
-        The directory path where the downloaded resource was written.
     """
 
     # TODO: Pending move of logging from util to separate module.
@@ -157,22 +150,18 @@ def download(config: Config, url: str, access_token: str, data=None):
             with EarthdataSession() as session:
                 session.auth = auth
                 response = session.get(url)
+                # TODO: Fallback authn
         elif config.fallback_authn_enabled:
             msg = ('No user access token in request. Fallback authentication enabled.')
             logger.warning(msg)
-            # TODO: Do we keep this?
+            # TODO: Fallback authn
             # response = _download_with_fallback_authn(config, url, data, logger)
         else:
             msg = f"Unable to download: Missing user access token & fallback not enabled for {url}"
             logging.error(msg)
-            raise HarmonyException(msg, 'Error')
+            raise Exception(msg)
 
-        # TODO: Not responsibility of this function!
-        # Extract to caller; just return response
-        # with open(destination_path, 'wb') as local_file:
-        #     local_file.write(response.read())
-
-        logger.info('Completed %s', url)
+        logger.info(f'Completed {url}')
 
         return response
 

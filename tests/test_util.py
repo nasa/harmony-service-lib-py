@@ -34,46 +34,23 @@ class MockHTTPError(HTTPError):
         return MockDecode(self.message)
 
 
-class TestRequests(unittest.TestCase):
-    def setUp(self):
-        self.config = config_fixture()
-
-    def test_when_provided_an_access_token_it_creates_a_proper_auth_header(self):
-        access_token = 'AHIGHLYRANDOMSTRING'
-        expected = ('Authorization', f'Bearer {access_token}')
-
-        actual = io._auth_header(self.config, access_token=access_token)
-
-        self.assertEqual(expected, actual)
-
-    def test_when_provided_an_access_token_it_creates_a_nonredirectable_auth_header(self):
-        url = 'https://example.com/file.txt'
-        access_token = 'OPENSESAME'
-        expected_header = dict([io._auth_header(self.config, access_token=access_token)])
-
-        actual_request = io._request_with_bearer_token_auth_header(self.config, url, access_token, None)
-
-        self.assertFalse(expected_header.items() <= actual_request.headers.items())
-        self.assertTrue(expected_header.items() <= actual_request.unredirected_hdrs.items())
-
-
 class TestDownload(unittest.TestCase):
     def setUp(self):
         util._s3 = None
         self.config = config_fixture()
 
-    @patch('boto3.client')
-    def test_when_given_an_s3_uri_it_downloads_the_s3_file(self, client):
-        s3 = MagicMock()
-        client.return_value = s3
+    # @patch('boto3.client')
+    # def test_when_given_an_s3_uri_it_downloads_the_s3_file(self, client):
+    #     s3 = MagicMock()
+    #     client.return_value = s3
 
-        util.download('s3://example/file.txt', 'tmp', access_token='FOO', cfg=self.config)
+    #     util.download('s3://example/file.txt', 'tmp', access_token='FOO', cfg=self.config)
 
-        client.assert_called_with('s3', region_name='us-west-2')
-        bucket, path, filename = s3.download_file.call_args[0]
-        self.assertEqual(bucket, 'example')
-        self.assertEqual(path, 'file.txt')
-        self.assertTrue(filename.endswith('.txt'))
+    #     client.assert_called_with('s3', region_name='us-west-2')
+    #     bucket, path, filename = s3.download_file.call_args[0]
+    #     self.assertEqual(bucket, 'example')
+    #     self.assertEqual(path, 'file.txt')
+    #     self.assertTrue(filename.endswith('.txt'))
 
     def _verify_urlopen(self, url, access_token, shared_token, data,
                         urlopen, expected_urlopen_calls=1, verify_bearer_token=True):
@@ -103,105 +80,105 @@ class TestDownload(unittest.TestCase):
         if data is not None:
             self.assertEqual(urlencode(data).encode('utf-8'), request.data)
 
-    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
-    @patch('urllib.request.OpenerDirector.open')
-    @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
-    def test_when_given_an_http_url_it_downloads_the_url(self, name, access_token, shared_token, urlopen):
-        url = 'https://example.com/file.txt'
-        mopen = mock_open()
+    # @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
+    # @patch('urllib.request.OpenerDirector.open')
+    # @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
+    # def test_when_given_an_http_url_it_downloads_the_url(self, name, access_token, shared_token, urlopen):
+    #     url = 'https://example.com/file.txt'
+    #     mopen = mock_open()
 
-        with patch('builtins.open', mopen):
-            cfg = config_fixture(fallback_authn_enabled=True)
+    #     with patch('builtins.open', mopen):
+    #         cfg = config_fixture(fallback_authn_enabled=True)
 
-            util.download(url, 'tmp', access_token=access_token, cfg=cfg)
+    #         util.download(url, 'tmp', access_token=access_token, cfg=cfg)
 
-            self._verify_urlopen(url, access_token, shared_token.return_value, None, urlopen)
-            mopen.assert_called()
+    #         self._verify_urlopen(url, access_token, shared_token.return_value, None, urlopen)
+    #         mopen.assert_called()
 
-    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
-    @patch('urllib.request.OpenerDirector.open')
-    @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
-    def test_when_given_a_url_and_data_it_downloads_with_query_string(self, name, access_token, shared_token, urlopen):
-        url = 'https://example.com/file.txt'
-        data = {'param': 'value'}
+    # @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
+    # @patch('urllib.request.OpenerDirector.open')
+    # @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
+    # def test_when_given_a_url_and_data_it_downloads_with_query_string(self, name, access_token, shared_token, urlopen):
+    #     url = 'https://example.com/file.txt'
+    #     data = {'param': 'value'}
 
-        mopen = mock_open()
-        with patch('builtins.open', mopen):
-            cfg = config_fixture(fallback_authn_enabled=True)
+    #     mopen = mock_open()
+    #     with patch('builtins.open', mopen):
+    #         cfg = config_fixture(fallback_authn_enabled=True)
 
-            util.download(url, 'tmp', access_token=access_token, data=data, cfg=cfg)
+    #         util.download(url, 'tmp', access_token=access_token, data=data, cfg=cfg)
 
-            self._verify_urlopen(url, access_token, shared_token.return_value, data, urlopen)
-            mopen.assert_called()
+    #         self._verify_urlopen(url, access_token, shared_token.return_value, data, urlopen)
+    #         mopen.assert_called()
 
-    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
-    def test_when_given_a_file_url_it_returns_the_file_path(self, name, access_token):
-        self.assertEqual(util.download('file:///example/file.txt', 'tmp', access_token=access_token, cfg=self.config),
-                         '/example/file.txt')
+    # @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
+    # def test_when_given_a_file_url_it_returns_the_file_path(self, name, access_token):
+    #     self.assertEqual(util.download('file:///example/file.txt', 'tmp', access_token=access_token, cfg=self.config),
+    #                      '/example/file.txt')
 
-    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
-    def test_when_given_a_file_path_it_returns_the_file_path(self, name, access_token):
-        self.assertEqual(util.download('/example/file.txt', 'tmp', access_token=access_token, cfg=self.config),
-                         '/example/file.txt')
+    # @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
+    # def test_when_given_a_file_path_it_returns_the_file_path(self, name, access_token):
+    #     self.assertEqual(util.download('/example/file.txt', 'tmp', access_token=access_token, cfg=self.config),
+    #                      '/example/file.txt')
 
-    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
-    @patch('urllib.request.OpenerDirector.open')
-    @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
-    def test_when_the_url_returns_a_401_it_throws_a_forbidden_exception(self, name, access_token,
-                                                                        shared_token, urlopen):
-        url = 'https://example.com/file.txt'
+    # @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
+    # @patch('urllib.request.OpenerDirector.open')
+    # @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
+    # def test_when_the_url_returns_a_401_it_throws_a_forbidden_exception(self, name, access_token,
+    #                                                                     shared_token, urlopen):
+    #     url = 'https://example.com/file.txt'
 
-        urlopen.side_effect = MockHTTPError(url=url, code=401, msg='Forbidden 401 message')
+    #     urlopen.side_effect = MockHTTPError(url=url, code=401, msg='Forbidden 401 message')
 
-        with self.assertRaises(util.ForbiddenException) as cm:
-            cfg = config_fixture(fallback_authn_enabled=True)
+    #     with self.assertRaises(util.ForbiddenException) as cm:
+    #         cfg = config_fixture(fallback_authn_enabled=True)
 
-            util.download(url, 'tmp', access_token=access_token, cfg=cfg)
+    #         util.download(url, 'tmp', access_token=access_token, cfg=cfg)
 
-            self.fail('An exception should have been raised')
-        self.assertEqual(str(cm.exception), 'Forbidden 401 message')
+    #         self.fail('An exception should have been raised')
+    #     self.assertEqual(str(cm.exception), 'Forbidden 401 message')
 
-    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
-    @patch('urllib.request.OpenerDirector.open')
-    @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
-    def test_when_the_url_returns_a_403_it_throws_a_forbidden_exception(self, name, access_token,
-                                                                        shared_token, urlopen):
-        url = 'https://example.com/file.txt'
+    # @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
+    # @patch('urllib.request.OpenerDirector.open')
+    # @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
+    # def test_when_the_url_returns_a_403_it_throws_a_forbidden_exception(self, name, access_token,
+    #                                                                     shared_token, urlopen):
+    #     url = 'https://example.com/file.txt'
 
-        urlopen.side_effect = MockHTTPError(url=url, code=403, msg='Forbidden 403 message')
+    #     urlopen.side_effect = MockHTTPError(url=url, code=403, msg='Forbidden 403 message')
 
-        with self.assertRaises(util.ForbiddenException) as cm:
-            cfg = config_fixture(fallback_authn_enabled=True)
+    #     with self.assertRaises(util.ForbiddenException) as cm:
+    #         cfg = config_fixture(fallback_authn_enabled=True)
 
-            util.download(url, 'tmp', access_token=access_token, cfg=cfg)
+    #         util.download(url, 'tmp', access_token=access_token, cfg=cfg)
 
-            self.fail('An exception should have been raised')
-        self.assertEqual(str(cm.exception), 'Forbidden 403 message')
+    #         self.fail('An exception should have been raised')
+    #     self.assertEqual(str(cm.exception), 'Forbidden 403 message')
 
-    @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
-    @patch('urllib.request.OpenerDirector.open')
-    @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
-    def test_when_the_url_returns_a_eula_error_it_returns_a_human_readable_message(self, name, access_token,
-                                                                                   shared_token, urlopen):
-        url = 'https://example.com/file.txt'
+    # @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
+    # @patch('urllib.request.OpenerDirector.open')
+    # @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
+    # def test_when_the_url_returns_a_eula_error_it_returns_a_human_readable_message(self, name, access_token,
+    #                                                                                shared_token, urlopen):
+    #     url = 'https://example.com/file.txt'
 
-        urlopen.side_effect = \
-            MockHTTPError(
-              url=url,
-              code=403,
-              msg=('{"status_code":403,"error_description":"EULA Acceptance Failure",'
-                   '"resolution_url":"https://example.com/approve_app?client_id=foo"}')
-            )
+    #     urlopen.side_effect = \
+    #         MockHTTPError(
+    #           url=url,
+    #           code=403,
+    #           msg=('{"status_code":403,"error_description":"EULA Acceptance Failure",'
+    #                '"resolution_url":"https://example.com/approve_app?client_id=foo"}')
+    #         )
 
-        with self.assertRaises(util.ForbiddenException) as cm:
-            cfg = config_fixture(fallback_authn_enabled=True)
+    #     with self.assertRaises(util.ForbiddenException) as cm:
+    #         cfg = config_fixture(fallback_authn_enabled=True)
 
-            util.download(url, 'tmp', access_token=access_token, cfg=cfg)
+    #         util.download(url, 'tmp', access_token=access_token, cfg=cfg)
 
-            self.fail('An exception should have been raised')
-        msg = ('Request could not be completed because you need to agree to the EULA at '
-               'https://example.com/approve_app?client_id=foo')
-        self.assertEqual(str(cm.exception), msg)
+    #         self.fail('An exception should have been raised')
+    #     msg = ('Request could not be completed because you need to agree to the EULA at '
+    #            'https://example.com/approve_app?client_id=foo')
+    #     self.assertEqual(str(cm.exception), msg)
 
     @parameterized.expand([('with_access_token', 'OPENSESAME'), ('without_access_token', None)])
     @patch('urllib.request.OpenerDirector.open')
@@ -221,22 +198,22 @@ class TestDownload(unittest.TestCase):
         except Exception:
             pass
 
-    @patch('urllib.request.OpenerDirector.open')
-    @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
-    def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth_if_enabled(
-        self, shared_token, urlopen
-    ):
-        url = 'https://example.com/file.txt'
-        access_token = 'OPENSESAME'
-        urlopen.side_effect = [MockHTTPError(url=url, code=400, msg='Forbidden 400 message'), Mock()]
+    # @patch('urllib.request.OpenerDirector.open')
+    # @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
+    # def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth_if_enabled(
+    #     self, shared_token, urlopen
+    # ):
+    #     url = 'https://example.com/file.txt'
+    #     access_token = 'OPENSESAME'
+    #     urlopen.side_effect = [MockHTTPError(url=url, code=400, msg='Forbidden 400 message'), Mock()]
 
-        with patch('builtins.open'):
-            cfg = config_fixture(fallback_authn_enabled=True)
+    #     with patch('builtins.open'):
+    #         cfg = config_fixture(fallback_authn_enabled=True)
 
-            util.download(url, 'tmp', access_token=access_token, cfg=cfg)
+    #         util.download(url, 'tmp', access_token=access_token, cfg=cfg)
 
-            self._verify_urlopen(url, access_token, shared_token, None,
-                                 urlopen, expected_urlopen_calls=2, verify_bearer_token=False)
+    #         self._verify_urlopen(url, access_token, shared_token, None,
+    #                              urlopen, expected_urlopen_calls=2, verify_bearer_token=False)
 
     @patch('urllib.request.OpenerDirector.open')
     @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
@@ -251,19 +228,19 @@ class TestDownload(unittest.TestCase):
             util.download(url, 'tmp', access_token=access_token, cfg=self.config)
             self.fail('An exception should have been raised')
 
-    @patch('urllib.request.OpenerDirector.open')
-    def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_enabled(self, urlopen):
-        url = 'https://example.com/file.txt'
-        mopen = mock_open()
+    # @patch('urllib.request.OpenerDirector.open')
+    # def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_enabled(self, urlopen):
+    #     url = 'https://example.com/file.txt'
+    #     mopen = mock_open()
 
-        with patch('builtins.open', mopen):
-            cfg = config_fixture(fallback_authn_enabled=True)
+    #     with patch('builtins.open', mopen):
+    #         cfg = config_fixture(fallback_authn_enabled=True)
 
-            util.download(url, 'tmp', cfg=cfg)
+    #         util.download(url, 'tmp', cfg=cfg)
 
-            self._verify_urlopen(url, None, None, None,
-                                 urlopen, expected_urlopen_calls=1, verify_bearer_token=False)
-            mopen.assert_called()
+    #         self._verify_urlopen(url, None, None, None,
+    #                              urlopen, expected_urlopen_calls=1, verify_bearer_token=False)
+    #         mopen.assert_called()
 
 
 class TestDecrypter(unittest.TestCase):

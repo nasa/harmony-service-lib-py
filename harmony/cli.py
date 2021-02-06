@@ -13,8 +13,9 @@ from os import path, makedirs
 from pystac import Catalog, CatalogType
 
 from harmony.message import Message
+from harmony.logging import setup_stdout_log_formatting
 from harmony.util import (CanceledException, HarmonyException, receive_messages, delete_message,
-                          change_message_visibility, setup_stdout_log_formatting, config, create_decrypter)
+                          change_message_visibility, config, create_decrypter)
 
 
 def setup_cli(parser):
@@ -105,6 +106,8 @@ def _invoke_deprecated(AdapterClass, message_string, config):
         adapter.invoke()
         if not adapter.is_complete:
             adapter.completed_with_error('The backend service did not respond')
+
+    # TODO: Differentiate? Consolidate?
     except CanceledException:
         # If we see the request has been canceled do not try calling back to harmony again
         # Enable this logging after fixing HARMONY-410

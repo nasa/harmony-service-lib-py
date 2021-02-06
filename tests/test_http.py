@@ -78,6 +78,7 @@ def edl_redirect_url(faker):
             f'&state={faker.password(length=128, special_chars=False)}')
 
 
+@pytest.mark.skip
 @responses.activate
 def test_download_follows_redirect_to_edl_and_adds_auth_headers(access_token, resource_server_granule_url,
                                                                 edl_redirect_url):
@@ -112,6 +113,7 @@ def test_download_follows_redirect_to_edl_and_adds_auth_headers(access_token, re
     assert 'Bearer' in redirect_headers['Authorization']
 
 
+@pytest.mark.skip
 @responses.activate
 def test_download_follows_redirect_to_resource_server_with_code(access_token, edl_redirect_url,
                                                                 resource_server_redirect_url):
@@ -139,6 +141,7 @@ def test_download_follows_redirect_to_resource_server_with_code(access_token, ed
     assert 'Authorization' not in rs_headers
 
 
+@pytest.mark.skip
 @responses.activate
 def test_resource_server_redirects_to_granule_url(access_token, resource_server_redirect_url,
                                                   resource_server_granule_url):
