@@ -243,9 +243,29 @@ def test_download_validates_token_once(
     assert responses.assert_call_count(resource_server_granule_url, 2) is True
 
 
-@pytest.mark.skip
-def test_download_validates_token_and_raises_exception():
-    pass
+@responses.activate
+def test_download_validates_token_and_raises_exception(
+        mocker,
+        faker,
+        validate_access_token_url):
+
+    client_id = faker.password(length=22, special_chars=False)
+    access_token = faker.password(length=42, special_chars=False)
+    cfg = config_fixture(oauth_client_id=client_id)
+    url = validate_access_token_url.format(
+        token=access_token,
+        client_id=client_id
+    )
+
+    responses.add(responses.POST, url, status=403, json={
+        "error": "invalid_token",
+        "error_description": "The token is either malformed or does not exist"
+    })
+    destination_file = mocker.Mock()
+
+    with pytest.raises(Exception):
+         download(cfg, 'https://xyzzy.com/foo/bar', access_token, None, destination_file)
+         # Assert content
 
 
 @pytest.mark.skip

@@ -21,6 +21,8 @@ import requests
 from harmony.earthdata import EarthdataAuth, EarthdataSession
 from harmony.logging import build_logger
 
+TIMEOUT = 30
+
 
 def is_http(url: str) -> bool:
     """Predicate to determine if the url is an http endpoint.
@@ -114,8 +116,12 @@ def _handle_possible_eula_error(http_error, body):
 @lru_cache
 def _valid(config, access_token: str) -> bool:
     url = f'{config.oauth_host}/oauth/tokens/user?token={access_token}&client_id={config.oauth_client_id}'
-    response = requests.post(url)
-    return response.ok
+    response = requests.post(url, timeout=TIMEOUT)
+
+    if response.ok:
+        return True
+
+    raise Exception(response.json())
 
 
 @lru_cache
@@ -127,7 +133,7 @@ def _download(config, url: str, access_token: str, data):
     auth = EarthdataAuth(config.oauth_uid, config.edl_password, access_token)
     with _earthdata_session() as session:
         session.auth = auth
-        return session.get(url)
+        return session.get(url, timeout=TIMEOUT)
 
 
 def _download_with_fallback_authn(config, url: str, data):
@@ -179,9 +185,8 @@ def download(config, url: str, access_token: str, data, destination_file):
         response = _download_with_fallback_authn(config, url, data)
         logger.info(f'Completed {url}')
         return response
-    else:
-        # TODO
-        pass
+
+    return response
 
 
 # TODO: Exception handling
