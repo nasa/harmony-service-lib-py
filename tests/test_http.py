@@ -3,10 +3,11 @@ import pathlib
 import pytest
 import responses
 
+import harmony.http
 from harmony.http import (download, filename, is_http, optimized_url)
-from harmony.util import config
+from tests.util import config_fixture
 
-EDL_BASE_URL = 'https://uat.urs.earthdata.nasa.gov'
+EDL_URL = 'https://uat.urs.earthdata.nasa.gov'
 
 
 @pytest.mark.parametrize('url,expected', [
@@ -58,6 +59,12 @@ def access_token(faker):
 
 
 @pytest.fixture
+def validate_access_token_url():
+    return (f'{EDL_URL}/oauth/tokens/user'
+            '?token={token}&client_id={client_id}')
+
+
+@pytest.fixture
 def resource_server_granule_url():
     return 'https://resource.server.daac.com/foo/bar/granule.nc'
 
@@ -80,10 +87,13 @@ def edl_redirect_url(faker):
 
 @responses.activate
 def test_download_follows_redirect_to_edl_and_adds_auth_headers(
+        monkeypatch,
         mocker,
         access_token,
         resource_server_granule_url,
         edl_redirect_url):
+
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b: True)
     responses.add(
         responses.GET,
         resource_server_granule_url,
@@ -96,7 +106,7 @@ def test_download_follows_redirect_to_edl_and_adds_auth_headers(
         status=302
     )
     destination_file = mocker.Mock()
-    cfg = config(validate=False)
+    cfg = config_fixture()
 
     response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
 
@@ -117,6 +127,7 @@ def test_download_follows_redirect_to_edl_and_adds_auth_headers(
 
 @responses.activate
 def test_download_follows_redirect_to_resource_server_with_code(
+        monkeypatch,
         mocker,
         access_token,
         edl_redirect_url,
@@ -127,13 +138,15 @@ def test_download_follows_redirect_to_resource_server_with_code(
         status=302,
         headers=[('Location', resource_server_redirect_url)]
     )
+
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b: True)
     responses.add(
         responses.GET,
         resource_server_redirect_url,
         status=302
     )
     destination_file = mocker.Mock()
-    cfg = config(validate=False)
+    cfg = config_fixture()
 
     response = download(cfg, edl_redirect_url, access_token, None, destination_file)
 
@@ -147,10 +160,13 @@ def test_download_follows_redirect_to_resource_server_with_code(
 
 @responses.activate
 def test_resource_server_redirects_to_granule_url(
+        monkeypatch,
         mocker,
         access_token,
         resource_server_redirect_url,
         resource_server_granule_url):
+
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b: True)
     responses.add(
         responses.GET,
         resource_server_redirect_url,
@@ -163,7 +179,7 @@ def test_resource_server_redirects_to_granule_url(
         status=303
     )
     destination_file = mocker.Mock()
-    cfg = config(validate=False)
+    cfg = config_fixture()
 
     response = download(cfg, resource_server_redirect_url, access_token, None, destination_file)
 
@@ -173,9 +189,58 @@ def test_resource_server_redirects_to_granule_url(
     assert 'Authorization' not in rs_headers
 
 
-@pytest.mark.skip
-def test_download_validates_token():
-    pass
+@responses.activate
+def test_download_validates_token(
+        mocker,
+        faker,
+        access_token,
+        validate_access_token_url,
+        resource_server_granule_url):
+
+    client_id = faker.password(length=22, special_chars=False)
+    cfg = config_fixture(oauth_client_id=client_id)
+    url = validate_access_token_url.format(
+        token=access_token,
+        client_id=client_id
+    )
+
+    responses.add(responses.POST, url, status=200)
+    responses.add(responses.GET, resource_server_granule_url, status=200)
+    destination_file = mocker.Mock()
+
+    response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
+
+    assert response.status_code == 200
+    assert responses.assert_call_count(url, 1) is True
+    assert responses.assert_call_count(resource_server_granule_url, 1) is True
+
+
+@responses.activate
+def test_download_validates_token_once(
+        mocker,
+        faker,
+        validate_access_token_url,
+        resource_server_granule_url):
+
+    client_id = faker.password(length=22, special_chars=False)
+    access_token = faker.password(length=40, special_chars=False)
+    cfg = config_fixture(oauth_client_id=client_id)
+    url = validate_access_token_url.format(
+        token=access_token,
+        client_id=client_id
+    )
+
+    responses.add(responses.POST, url, status=200)
+    responses.add(responses.GET, resource_server_granule_url, status=200)
+    responses.add(responses.GET, resource_server_granule_url, status=200)
+    destination_file = mocker.Mock()
+
+    response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
+    response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
+
+    assert response.status_code == 200
+    assert responses.assert_call_count(url, 1) is True
+    assert responses.assert_call_count(resource_server_granule_url, 2) is True
 
 
 @pytest.mark.skip
@@ -184,20 +249,19 @@ def test_download_validates_token_and_raises_exception():
 
 
 @pytest.mark.skip
+def test_TODO_add_exception_handling_cases():
+    pass
+
+
+@pytest.mark.skip
 def test_download_propagates_eula_error_message():
     pass
 
 
-@pytest.mark.skip
-def test_download_sets_a_timeout():
-    pass
-
-
-@pytest.mark.skip
+@pytest.mark.skip(reason='Feature request from EDL team')
 def test_download_retries_correctly():
-    pass
-
-
-@pytest.mark.skip
-def test_download_can_accept_and_use_earthdata_session():
+    # TODO: Feature request from EDL team
+    #       On failure to validate or authenticate with EDL, add a
+    #       handler to retry `n` times with increasing delay between
+    #       each.
     pass

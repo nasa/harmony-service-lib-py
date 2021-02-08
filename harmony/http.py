@@ -10,14 +10,16 @@ This module relies on the harmony.util.config and its environment variables to b
 set for correct operation. See that module and the project README for details.
 """
 
+from functools import lru_cache
 import hashlib
 import json
-import logging
 from pathlib import Path, PurePath
-from urllib.error import HTTPError
 from urllib.parse import urlencode, urlparse
 
+import requests
+
 from harmony.earthdata import EarthdataAuth, EarthdataSession
+from harmony.logging import build_logger
 
 
 def is_http(url: str) -> bool:
@@ -109,6 +111,30 @@ def _handle_possible_eula_error(http_error, body):
         raise Exception(body) from http_error
 
 
+@lru_cache
+def _valid(config, access_token: str) -> bool:
+    url = f'{config.oauth_host}/oauth/tokens/user?token={access_token}&client_id={config.oauth_client_id}'
+    response = requests.post(url)
+    return response.ok
+
+
+@lru_cache
+def _earthdata_session():
+    return EarthdataSession()
+
+
+def _download(config, url: str, access_token: str, data):
+    auth = EarthdataAuth(config.oauth_uid, config.edl_password, access_token)
+    with _earthdata_session() as session:
+        session.auth = auth
+        return session.get(url)
+
+
+def _download_with_fallback_authn(config, url: str, data):
+    # TODO
+    raise "NotImplemented"
+
+
 def download(config, url: str, access_token: str, data, destination_file):
     """.
 
@@ -133,45 +159,44 @@ def download(config, url: str, access_token: str, data, destination_file):
 
     """
 
-    # TODO: Pending move of logging from util to separate module.
-    logger = logging.getLogger()
+    response = None
+    logger = build_logger(config)
+    logger.info('Downloading %s', url)
 
-    try:
-        logger.info('Downloading %s', url)
+    if data is not None:
+        logger.info('Query parameters supplied, will use POST method.')
+        data = urlencode(data).encode('utf-8')
 
-        if data is not None:
-            logger.info('Query parameters supplied, will use POST method.')
-            data = urlencode(data).encode('utf-8')
+    if access_token is not None and _valid(config, access_token):
+        response = _download(config, url, access_token, data)
+        if response.ok:
+            logger.info(f'Completed {url}')
+            return response
 
-        response = None
-
-        if access_token is not None:
-            auth = EarthdataAuth(config.oauth_uid, config.edl_password, access_token)
-            with EarthdataSession() as session:
-                session.auth = auth
-                response = session.get(url)
-                # TODO: Fallback authn
-        elif config.fallback_authn_enabled:
-            msg = ('No user access token in request. Fallback authentication enabled.')
-            logger.warning(msg)
-            # TODO: Fallback authn
-            # response = _download_with_fallback_authn(config, url, data, logger)
-        else:
-            msg = f"Unable to download: Missing user access token & fallback not enabled for {url}"
-            logging.error(msg)
-            raise Exception(msg)
-
+    if config.fallback_authn_enabled:
+        msg = ('No valid user access token in request. Fallback authentication enabled.')
+        logger.warning(msg)
+        response = _download_with_fallback_authn(config, url, data)
         logger.info(f'Completed {url}')
-
         return response
+    else:
+        # TODO
+        pass
 
-    except HTTPError as http_error:
-        code = http_error.getcode()
-        logger.error(f'Download failed with status code: {code}')
-        body = http_error.read().decode()
-        logger.error('Failed to download URL: {body}')
 
-        if code in (401, 403):
-            _handle_possible_eula_error(http_error, body)
+# TODO: Exception handling
+# from urllib.error import HTTPError
+# msg = f"Unable to download: Missing or invalid user access token & fallback not enabled for {url}"
+# logging.error(msg)
+# raise Exception(msg)
 
-        raise
+# except HTTPError as http_error:
+#     code = http_error.getcode()
+#     logger.error(f'Download failed with status code: {code}')
+#     body = http_error.read().decode()
+#     logger.error('Failed to download URL: {body}')
+
+#     if code in (401, 403):
+#         _handle_possible_eula_error(http_error, body)
+
+#     raise
