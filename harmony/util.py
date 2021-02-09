@@ -130,7 +130,7 @@ def _validated_config(config):
     return config
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=128)
 def config(validate=True):
     """
     Returns the Config object with all parameters set to values that were set in the

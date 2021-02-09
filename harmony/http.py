@@ -89,7 +89,7 @@ def _eula_error_message(body: str) -> str:
             f"at {json_object['resolution_url']}")
 
 
-@lru_cache
+@lru_cache(maxsize=128)
 def _valid(oauth_host: str, oauth_client_id: str, access_token: str) -> bool:
     url = f'{oauth_host}/oauth/tokens/user?token={access_token}&client_id={oauth_client_id}'
     response = requests.post(url, timeout=TIMEOUT)
@@ -100,7 +100,7 @@ def _valid(oauth_host: str, oauth_client_id: str, access_token: str) -> bool:
     raise Exception(response.json())
 
 
-@lru_cache
+@lru_cache(maxsize=128)
 def _earthdata_session():
     return EarthdataSession()
 

@@ -22,7 +22,7 @@ class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
             log_record['application'] = self.app_name
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=128)
 def build_logger(config, name=None):
     """
     Builds a logger with appropriate defaults for Harmony
