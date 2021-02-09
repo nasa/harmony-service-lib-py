@@ -12,10 +12,11 @@ from os import path, makedirs
 
 from pystac import Catalog, CatalogType
 
+from harmony.exceptions import CanceledException, HarmonyException
 from harmony.message import Message
 from harmony.logging import setup_stdout_log_formatting
-from harmony.util import (CanceledException, HarmonyException, receive_messages, delete_message,
-                          change_message_visibility, config, create_decrypter)
+from harmony.util import (receive_messages, delete_message, change_message_visibility,
+                          config, create_decrypter)
 
 
 def setup_cli(parser):

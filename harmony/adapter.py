@@ -20,9 +20,10 @@ from warnings import warn
 from deprecation import deprecated
 from pystac import Item, Asset
 
+from harmony.exceptions import CanceledException
 from harmony.logging import build_logger
 from harmony.message import Temporal
-from harmony.util import CanceledException, touch_health_check_file
+from harmony.util import touch_health_check_file
 from . import util
 
 

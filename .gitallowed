@@ -1,6 +1,2 @@
-tests/test_io.py:.*'OPENSESAME'
-tests/test_io.py:.*'AHIGHLYRANDOMSTRING'
 tests/test_http.py:.*'xyzzy'
-tests/test_util.py:.*'OPENSESAME'
-tests/test_util.py:.*'AHIGHLYRANDOMSTRING'
-tests/test_util.py:.*'FOO'
+tests/test_http.py:.*'OPENSESAME'

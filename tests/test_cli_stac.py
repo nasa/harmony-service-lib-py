@@ -6,7 +6,7 @@ import unittest
 from pystac import Catalog, CatalogType
 
 from harmony import cli, BaseHarmonyAdapter
-from harmony.util import ForbiddenException
+from harmony.exceptions import ForbiddenException
 from tests.util import cli_parser, config_fixture
 
 

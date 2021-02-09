@@ -49,8 +49,9 @@ Optional:
 from base64 import b64decode
 from collections import namedtuple
 from functools import lru_cache
+import hashlib
 import logging
-from pathlib import Path
+from pathlib import Path, PurePath
 from os import environ, path
 import sys
 from urllib import parse
@@ -63,36 +64,6 @@ from harmony.logging import build_logger
 
 
 DEFAULT_SHARED_SECRET_KEY = '_THIS_IS_MY_32_CHARS_SECRET_KEY_'
-
-
-class HarmonyException(Exception):
-    """Base class for Harmony exceptions.
-
-    Attributes
-    ----------
-    message : string
-        Explanation of the error
-    category : string
-        Classification of the type of harmony error
-    """
-
-    def __init__(self, message, category='Service'):
-        self.message = message
-        self.category = category
-
-
-class CanceledException(HarmonyException):
-    """Class for throwing an exception indicating a Harmony request has been canceled"""
-
-    def __init__(self, message=None):
-        super().__init__(message, 'Canceled')
-
-
-class ForbiddenException(HarmonyException):
-    """Class for throwing an exception indicating download failed due to not being able to access the data"""
-
-    def __init__(self, message=None):
-        super().__init__(message, 'Forbidden')
 
 
 Config = namedtuple(
@@ -214,6 +185,49 @@ def config(validate=True):
         return config
 
 
+def _is_file_url(url: str) -> bool:
+    return url is not None and url.startswith('file://')
+
+
+def _url_as_filename(url: str) -> str:
+    """Return a version of the url optimized for local development.
+
+    If the url is a `file://` url, it will return the remaining part
+    of the url so it can be used as a local file path. For example,
+    'file:///logs/example.txt' will be converted to
+    '/logs/example.txt'.
+
+    Parameters
+    ----------
+    url: str The url to check and optaimize.
+    Returns
+    -------
+    str: The url converted to a filename.
+
+    """
+    return url.replace('file://', '')
+
+
+def _filename(directory_path: str, url: str) -> Path:
+    """Constructs a filename from the url using the specified directory
+    as its path. The constructed filename will be a sha256 hash
+    (converted to a hex digest) of the url, and the file's extension
+    will be the same as that of the filename in the url.
+
+    Parameters
+    ----------
+    directory_path : str
+        The url to use when constructing the filename and extension.
+    Returns
+    -------
+
+    """
+    return Path(
+        directory_path,
+        hashlib.sha256(url.encode('utf-8')).hexdigest()
+    ).with_suffix(PurePath(url).suffix)
+
+
 def download(url, destination_dir, logger=None, access_token=None, data=None, cfg=None):
     """
     Downloads the given URL to the given destination directory, using the basename of the URL
@@ -253,12 +267,15 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
     if logger is None:
         logger = build_logger(cfg)
 
-    destination_path = http.filename(destination_dir, url)
+    if _is_file_url(url):
+        return _url_as_filename(url)
+
+    source = http.localhost_url(url, cfg.localstack_host)
+
+    destination_path = _filename(destination_dir, url)
     if destination_path.exists():
         return str(destination_path)
     destination_path = str(destination_path)
-
-    source = http.optimized_url(url, cfg.localstack_host)
 
     with open(destination_path, 'wb') as destination_file:
         if aws.is_s3(source):
@@ -266,8 +283,9 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
         elif http.is_http(source):
             http.download(cfg, source, access_token, data, destination_file)
         else:
-            # TODO: Log & Exception
-            pass
+            msg = f'Unable to download a url of unknown type: {url}'
+            logger.error(msg)
+            raise Exception(msg)
 
     return destination_path
 

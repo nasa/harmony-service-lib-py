@@ -1,10 +1,8 @@
-import pathlib
-
 import pytest
 import responses
 
 import harmony.http
-from harmony.http import (download, filename, is_http, optimized_url)
+from harmony.http import (download, is_http, localhost_url)
 from tests.util import config_fixture
 
 EDL_URL = 'https://uat.urs.earthdata.nasa.gov'
@@ -25,32 +23,15 @@ def test_is_http(url, expected):
     assert is_http(url) is expected
 
 
-@pytest.mark.parametrize('url', [
-    'http://example.com/foobar.dos',
-    'HTTP://YELLING.COM/loud.pdf',
-    'https://nosuchagency.org/passwords.nsa',
-    's3://bucketbrigade.com/pricing.aws',
-    'file:///var/log/junk.txt'
-])
-def test_filename(url):
-    directory = '/foo/bar'
-
-    fn = str(filename(directory, url))
-
-    assert fn.startswith(directory)
-    assert fn.endswith(pathlib.PurePath(url).suffix)
-
-
 @pytest.mark.parametrize('url,expected', [
     ('http://example.com/ufo_sightings.nc', 'http://example.com/ufo_sightings.nc'),
     ('http://localhost:3000/jobs', 'http://mydevmachine.local.dev:3000/jobs'),
-    ('file:///var/logs/virus_scan.txt', '/var/logs/virus_scan.txt'),
     ('s3://localghost.org/boo.gif', 's3://localghost.org/boo.gif')
 ])
-def test_when_given_urls_optimized_url_returns_correct_url(url, expected):
+def test_when_given_urls_localhost_url_returns_correct_url(url, expected):
     local_hostname = 'mydevmachine.local.dev'
 
-    assert optimized_url(url, local_hostname) == expected
+    assert localhost_url(url, local_hostname) == expected
 
 
 @pytest.fixture
@@ -93,7 +74,7 @@ def test_download_follows_redirect_to_edl_and_adds_auth_headers(
         resource_server_granule_url,
         edl_redirect_url):
 
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
     responses.add(
         responses.GET,
         resource_server_granule_url,
@@ -139,7 +120,7 @@ def test_download_follows_redirect_to_resource_server_with_code(
         headers=[('Location', resource_server_redirect_url)]
     )
 
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
     responses.add(
         responses.GET,
         resource_server_redirect_url,
@@ -166,7 +147,7 @@ def test_resource_server_redirects_to_granule_url(
         resource_server_redirect_url,
         resource_server_granule_url):
 
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
     responses.add(
         responses.GET,
         resource_server_redirect_url,
@@ -264,18 +245,91 @@ def test_download_validates_token_and_raises_exception(
     destination_file = mocker.Mock()
 
     with pytest.raises(Exception):
-         download(cfg, 'https://xyzzy.com/foo/bar', access_token, None, destination_file)
-         # Assert content
+        download(cfg, 'https://xyzzy.com/foo/bar', access_token, None, destination_file)
+        # Assert content
+
+
+@responses.activate
+def test_when_given_a_url_and_data_it_downloads_with_query_string(
+        monkeypatch,
+        mocker,
+        access_token,
+        resource_server_granule_url):
+
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    responses.add(
+        responses.POST,
+        resource_server_granule_url,
+        status=200
+    )
+    destination_file = mocker.Mock()
+    cfg = config_fixture()
+    data = {'param': 'value'}
+
+    response = download(cfg, resource_server_granule_url, access_token, data, destination_file)
+
+    assert response.status_code == 200
+    assert len(responses.calls) == 1
+    assert responses.calls[0].request.body == b'param=value'
 
 
 @pytest.mark.skip
-def test_TODO_add_exception_handling_cases():
+def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth_if_enabled(self, shared_token, urlopen):
     pass
+
+    # @patch('urllib.request.OpenerDirector.open')
+    # @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
+    # def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth_if_enabled(
+    #     self, shared_token, urlopen
+    # ):
+    #     url = 'https://example.com/file.txt'
+    #     access_token = 'OPENSESAME'
+    #     urlopen.side_effect = [MockHTTPError(url=url, code=400, msg='Forbidden 400 message'), Mock()]
+
+    #     with patch('builtins.open'):
+    #         cfg = config_fixture(fallback_authn_enabled=True)
+
+    #         util.download(url, 'tmp', access_token=access_token, cfg=cfg)
+
+    #         self._verify_urlopen(url, access_token, shared_token, None,
+    #                              urlopen, expected_urlopen_calls=2, verify_bearer_token=False)
 
 
 @pytest.mark.skip
-def test_download_propagates_eula_error_message():
+def test_when_given_an_access_token_and_error_occurs_it_does_not_fall_back_to_basic_auth(self, shared_token, urlopen):
     pass
+
+    # @patch('urllib.request.OpenerDirector.open')
+    # @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
+    # def test_when_given_an_access_token_and_error_occurs_it_does_not_fall_back_to_basic_auth(
+    #     self, shared_token, urlopen
+    # ):
+    #     url = 'https://example.com/file.txt'
+    #     access_token = 'OPENSESAME'
+    #     urlopen.side_effect = [MockHTTPError(url=url, code=400, msg='Forbidden 400 message'), Mock()]
+
+    #     with self.assertRaises(Exception):
+    #         util.download(url, 'tmp', access_token=access_token, cfg=self.config)
+    #         self.fail('An exception should have been raised')
+
+
+@pytest.mark.skip
+def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_enabled(self, urlopen):
+    pass
+
+    # @patch('urllib.request.OpenerDirector.open')
+    # def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_enabled(self, urlopen):
+    #     url = 'https://example.com/file.txt'
+    #     mopen = mock_open()
+
+    #     with patch('builtins.open', mopen):
+    #         cfg = config_fixture(fallback_authn_enabled=True)
+
+    #         util.download(url, 'tmp', cfg=cfg)
+
+    #         self._verify_urlopen(url, None, None, None,
+    #                              urlopen, expected_urlopen_calls=1, verify_bearer_token=False)
+    #         mopen.assert_called()
 
 
 @pytest.mark.skip(reason='Feature request from EDL team')

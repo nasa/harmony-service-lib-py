@@ -14,7 +14,7 @@ from urllib.error import HTTPError
 from harmony.adapter import BaseHarmonyAdapter
 from harmony.message import Message, Granule, Variable, Temporal
 import harmony.util
-from harmony.util import CanceledException
+from harmony.exceptions import CanceledException
 from .example_messages import minimal_message, full_message
 
 

@@ -11,17 +11,22 @@ set for correct operation. See that module and the project README for details.
 """
 
 from functools import lru_cache
-import hashlib
 import json
-from pathlib import Path, PurePath
 from urllib.parse import urlencode, urlparse
 
 import requests
 
 from harmony.earthdata import EarthdataAuth, EarthdataSession
+from harmony.exceptions import ForbiddenException
 from harmony.logging import build_logger
 
-TIMEOUT = 30
+# Timeout in seconds.  Per requests docs, this is not a time limit on
+# the entire response download; rather, an exception is raised if the
+# server has not issued a response for timeout seconds (more
+# precisely, if no bytes have been received on the underlying socket
+# for timeout seconds).  See:
+# https://2.python-requests.org/en/master/user/quickstart/#timeouts
+TIMEOUT = 60
 
 
 def is_http(url: str) -> bool:
@@ -41,81 +46,52 @@ def is_http(url: str) -> bool:
     return url is not None and urlparse(url).scheme in ['http', 'https']
 
 
-def filename(directory_path: str, url: str) -> Path:
-    """Constructs a filename from the url using the specified directory
-    as its path. The constructed filename will be a sha256 hash
-    (converted to a hex digest) of the url, and the file's extension
-    will be the same as that of the filename in the url.
-
-    Parameters
-    ----------
-    directory_path : str
-        The url to use when constructing the filename and extension.
-    Returns
-    -------
-
-    """
-    return Path(
-        directory_path,
-        hashlib.sha256(url.encode('utf-8')).hexdigest()
-    ).with_suffix(PurePath(url).suffix)
-
-
-def optimized_url(url, local_hostname):
+def localhost_url(url, local_hostname):
     """Return a version of the url optimized for local development.
 
-    1. If the url includes the string `localhost`, it will be replaced by
+    If the url includes the string `localhost`, it will be replaced by
     the `local_hostname`.
-
-    2. If the url is a `file://` url, it will return the remaining
-    part of the url so it can be used as a local file path.
-
-    If neither of the above, then the url is returned unchanged.
 
     Parameters
     ----------
     url : str
-        The url to check and optimize.
+        The url to check
     Returns
     -------
-    str : The url, possibly converted to a localhost reference or filename.
+    str : The url, possibly converted to use a different local hostname
     """
-    return url \
-        .replace('localhost', local_hostname) \
-        .replace('file://', '')
+    return url.replace('localhost', local_hostname)
 
 
-def _handle_possible_eula_error(http_error, body):
+def _is_eula_error(body: str) -> bool:
     """
     Tries to determine if the exception is due to a EULA that the user needs to
     approve, and if so, returns a response with the url where they can do so.
 
     Parameters
     ----------
-    http_error : urllib.error.HTTPError
-        An error response that may indicate a EULA issue.
-    body : str
-        The body JSON string that may contain the EULA details.
+    body: The body JSON string that may contain the EULA details.
 
     Returns
     -------
-    str
-        A message indicating that the user needs to approve a EULA.
+    A boolean indicating if the body contains a EULA error
     """
     try:
-        # Try to determine if this is a EULA error
         json_object = json.loads(body)
-        eula_error = "error_description" in json_object and "resolution_url" in json_object
-        if eula_error:
-            body = (f"Request could not be completed because you need to agree to the EULA "
-                    f"at {json_object['resolution_url']}")
-    finally:
-        raise Exception(body) from http_error
+        return "error_description" in json_object and "resolution_url" in json_object
+    except Exception:
+        return False
+
+
+def _eula_error_message(body: str) -> str:
+    json_object = json.loads(body)
+    return (f"Request could not be completed because you need to agree to the EULA "
+            f"at {json_object['resolution_url']}")
 
 
 @lru_cache
-def _valid(config, access_token: str) -> bool:
-    url = f'{config.oauth_host}/oauth/tokens/user?token={access_token}&client_id={config.oauth_client_id}'
+def _valid(oauth_host: str, oauth_client_id: str, access_token: str) -> bool:
+    url = f'{oauth_host}/oauth/tokens/user?token={access_token}&client_id={oauth_client_id}'
     response = requests.post(url, timeout=TIMEOUT)
 
     if response.ok:
@@ -130,10 +106,17 @@ def _earthdata_session():
 
 
 def _download(config, url: str, access_token: str, data):
-    auth = EarthdataAuth(config.oauth_uid, config.edl_password, access_token)
+    auth = EarthdataAuth(config.oauth_uid, config.oauth_password, access_token)
     with _earthdata_session() as session:
         session.auth = auth
-        return session.get(url, timeout=TIMEOUT)
+        if data is None:
+            return session.get(url, timeout=TIMEOUT)
+        else:
+            # TODO: Should we include the header that the stdlib
+            # defaults to:
+            # Content-Type: application/x-www-form-urlencoded
+            # The requests lib does not send by default
+            return session.post(url, data=data, timeout=TIMEOUT)
 
 
 def _download_with_fallback_authn(config, url: str, data):
@@ -173,9 +156,10 @@ def download(config, url: str, access_token: str, data, destination_file):
         logger.info('Query parameters supplied, will use POST method.')
         data = urlencode(data).encode('utf-8')
 
-    if access_token is not None and _valid(config, access_token):
+    if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token):
         response = _download(config, url, access_token, data)
         if response.ok:
+            destination_file.write(response.content)
             logger.info(f'Completed {url}')
             return response
 
@@ -183,25 +167,22 @@ def download(config, url: str, access_token: str, data, destination_file):
         msg = ('No valid user access token in request. Fallback authentication enabled.')
         logger.warning(msg)
         response = _download_with_fallback_authn(config, url, data)
-        logger.info(f'Completed {url}')
-        return response
+        if response.ok:
+            destination_file.write(response.content)
+            logger.info(f'Completed {url}')
+            return response
+
+    if _is_eula_error(response.content):
+        msg = _eula_error_message(response.content)
+        logger.info(msg)
+        raise ForbiddenException(msg)
+
+    if response.status_code in (401, 403):
+        msg = f'Forbidden: Unable to download {url}'
+        logger.info(msg)
+        raise ForbiddenException(msg)
+
+    if response.status_code == 500:
+        raise Exception('Unable to download.')
 
     return response
-
-
-# TODO: Exception handling
-# from urllib.error import HTTPError
-# msg = f"Unable to download: Missing or invalid user access token & fallback not enabled for {url}"
-# logging.error(msg)
-# raise Exception(msg)
-
-# except HTTPError as http_error:
-#     code = http_error.getcode()
-#     logger.error(f'Download failed with status code: {code}')
-#     body = http_error.read().decode()
-#     logger.error('Failed to download URL: {body}')
-
-#     if code in (401, 403):
-#         _handle_possible_eula_error(http_error, body)
-
-#     raise
