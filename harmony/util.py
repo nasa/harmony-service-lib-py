@@ -60,6 +60,11 @@ from nacl.secret import SecretBox
 
 from harmony import aws
 from harmony import http
+# The following imports are for backwards-compatibility for services
+# which import them from `harmony.util`. Though they are not used in
+# this module, importing them here allows applications to work without
+# modifications.
+from harmony.exceptions import (HarmonyException, CanceledException, ForbiddenException)  # noqa: F401
 from harmony.logging import build_logger
 
 
