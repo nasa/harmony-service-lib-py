@@ -112,16 +112,18 @@ def _download(config, url: str, access_token: str, data):
         if data is None:
             return session.get(url, timeout=TIMEOUT)
         else:
-            # TODO: Should we include the header that the stdlib
-            # defaults to:
-            # Content-Type: application/x-www-form-urlencoded
-            # The requests lib does not send by default
-            return session.post(url, data=data, timeout=TIMEOUT)
+            # Including this header since the stdlib does by default,
+            # but we've switched to `requests` which does not.
+            headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+            return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
 
 
 def _download_with_fallback_authn(config, url: str, data):
-    # TODO
-    raise "NotImplemented"
+    auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
+    if data is None:
+        return requests.get(url, timeout=TIMEOUT, auth=auth)
+    else:
+        return requests.post(url, data=data, timeout=TIMEOUT, auth=auth)
 
 
 def download(config, url: str, access_token: str, data, destination_file):
@@ -164,7 +166,8 @@ def download(config, url: str, access_token: str, data, destination_file):
             return response
 
     if config.fallback_authn_enabled:
-        msg = ('No valid user access token in request. Fallback authentication enabled.')
+        msg = ('No valid user access token in request or EDL OAuth authentication failed.'
+               'Fallback authentication enabled: retrying with Basic auth.')
         logger.warning(msg)
         response = _download_with_fallback_authn(config, url, data)
         if response.ok:
@@ -185,4 +188,4 @@ def download(config, url: str, access_token: str, data, destination_file):
     if response.status_code == 500:
         raise Exception('Unable to download.')
 
-    return response
+    raise Exception('Unable to download: unknown error.')

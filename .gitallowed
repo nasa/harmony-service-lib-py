@@ -1,2 +1,1 @@
-tests/test_http.py:.*'xyzzy'
-tests/test_http.py:.*'OPENSESAME'
+tests/util.py:.*'password_this_is'

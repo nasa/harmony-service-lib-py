@@ -273,63 +273,136 @@ def test_when_given_a_url_and_data_it_downloads_with_query_string(
     assert responses.calls[0].request.body == b'param=value'
 
 
-@pytest.mark.skip
-def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth_if_enabled(self, shared_token, urlopen):
-    pass
+@responses.activate
+def test_when_authn_succeeds_it_writes_to_provided_file(
+        monkeypatch,
+        mocker,
+        access_token,
+        resource_server_granule_url):
 
-    # @patch('urllib.request.OpenerDirector.open')
-    # @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
-    # def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth_if_enabled(
-    #     self, shared_token, urlopen
-    # ):
-    #     url = 'https://example.com/file.txt'
-    #     access_token = 'OPENSESAME'
-    #     urlopen.side_effect = [MockHTTPError(url=url, code=400, msg='Forbidden 400 message'), Mock()]
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    responses.add(
+        responses.GET,
+        resource_server_granule_url,
+        status=200
+    )
+    destination_file = mocker.Mock()
+    cfg = config_fixture()
 
-    #     with patch('builtins.open'):
-    #         cfg = config_fixture(fallback_authn_enabled=True)
+    response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
 
-    #         util.download(url, 'tmp', access_token=access_token, cfg=cfg)
-
-    #         self._verify_urlopen(url, access_token, shared_token, None,
-    #                              urlopen, expected_urlopen_calls=2, verify_bearer_token=False)
-
-
-@pytest.mark.skip
-def test_when_given_an_access_token_and_error_occurs_it_does_not_fall_back_to_basic_auth(self, shared_token, urlopen):
-    pass
-
-    # @patch('urllib.request.OpenerDirector.open')
-    # @patch('harmony.io.shared_token_for_user', return_value='XYZZY')
-    # def test_when_given_an_access_token_and_error_occurs_it_does_not_fall_back_to_basic_auth(
-    #     self, shared_token, urlopen
-    # ):
-    #     url = 'https://example.com/file.txt'
-    #     access_token = 'OPENSESAME'
-    #     urlopen.side_effect = [MockHTTPError(url=url, code=400, msg='Forbidden 400 message'), Mock()]
-
-    #     with self.assertRaises(Exception):
-    #         util.download(url, 'tmp', access_token=access_token, cfg=self.config)
-    #         self.fail('An exception should have been raised')
+    assert response.status_code == 200
+    assert len(responses.calls) == 1
+    destination_file.write.assert_called()
 
 
-@pytest.mark.skip
-def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_enabled(self, urlopen):
-    pass
+@responses.activate
+def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth_if_enabled(
+        monkeypatch,
+        mocker,
+        faker,
+        resource_server_granule_url):
 
-    # @patch('urllib.request.OpenerDirector.open')
-    # def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_enabled(self, urlopen):
-    #     url = 'https://example.com/file.txt'
-    #     mopen = mock_open()
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    client_id = faker.password(length=22, special_chars=False)
+    access_token = faker.password(length=42, special_chars=False)
+    cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=True)
 
-    #     with patch('builtins.open', mopen):
-    #         cfg = config_fixture(fallback_authn_enabled=True)
+    responses.add(
+        responses.GET,
+        resource_server_granule_url,
+        status=401
+    )
+    responses.add(
+        responses.GET,
+        resource_server_granule_url,
+        status=200
+    )
+    destination_file = mocker.Mock()
 
-    #         util.download(url, 'tmp', cfg=cfg)
+    response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
 
-    #         self._verify_urlopen(url, None, None, None,
-    #                              urlopen, expected_urlopen_calls=1, verify_bearer_token=False)
-    #         mopen.assert_called()
+    assert response.status_code == 200
+    assert len(responses.calls) == 2
+    assert 'Authorization' in responses.calls[1].request.headers
+    assert 'Basic' in responses.calls[1].request.headers['Authorization']
+    destination_file.write.assert_called()
+
+
+@responses.activate
+def test_when_given_an_access_token_and_error_occurs_it_does_not_fall_back_to_basic_auth(
+        monkeypatch,
+        mocker,
+        faker,
+        resource_server_granule_url):
+
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    client_id = faker.password(length=22, special_chars=False)
+    access_token = faker.password(length=42, special_chars=False)
+    cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=False)
+
+    responses.add(
+        responses.GET,
+        resource_server_granule_url,
+        status=401
+    )
+    destination_file = mocker.Mock()
+
+    with pytest.raises(Exception):
+         download(cfg, resource_server_granule_url, access_token, None, destination_file)
+
+    assert len(responses.calls) == 1
+    assert 'Authorization' not in responses.calls[0].request.headers
+
+
+@responses.activate
+def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_enabled(
+        mocker,
+        faker,
+        resource_server_granule_url):
+
+    client_id = faker.password(length=22, special_chars=False)
+    cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=True)
+
+    responses.add(
+        responses.GET,
+        resource_server_granule_url,
+        status=200
+    )
+    destination_file = mocker.Mock()
+
+    response = download(cfg, resource_server_granule_url, None, None, destination_file)
+
+    assert response.status_code == 200
+    assert len(responses.calls) == 1
+    assert 'Authorization' in responses.calls[0].request.headers
+    assert 'Basic' in responses.calls[0].request.headers['Authorization']
+    destination_file.write.assert_called()
+
+
+@responses.activate
+def test_download_unknown_error_exception_if_all_else_fails(
+        monkeypatch,
+        mocker,
+        faker,
+        resource_server_granule_url):
+
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    client_id = faker.password(length=22, special_chars=False)
+    access_token = faker.password(length=42, special_chars=False)
+    cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=False)
+
+    responses.add(
+        responses.GET,
+        resource_server_granule_url,
+        status=599
+    )
+    destination_file = mocker.Mock()
+
+    with pytest.raises(Exception):
+         download(cfg, resource_server_granule_url, access_token, None, destination_file)
+
+    assert len(responses.calls) == 1
 
 
 @pytest.mark.skip(reason='Feature request from EDL team')
