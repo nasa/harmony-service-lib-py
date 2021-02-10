@@ -84,6 +84,18 @@ def _is_eula_error(body: str) -> bool:
 
 
 def _eula_error_message(body: str) -> str:
+    """
+    Constructs a user-friendly error indicating the required EULA
+    acceptance and the URL where the user can do so.
+
+    Parameters
+    ----------
+    body: The body JSON string that may contain the EULA details.
+
+    Returns
+    -------
+    The string with the EULA message
+    """
     json_object = json.loads(body)
     return (f"Request could not be completed because you need to agree to the EULA "
             f"at {json_object['resolution_url']}")
@@ -91,6 +103,19 @@ def _eula_error_message(body: str) -> str:
 
 @lru_cache(maxsize=128)
 def _valid(oauth_host: str, oauth_client_id: str, access_token: str) -> bool:
+    """
+    Validates the user access token with Earthdata Login.
+
+    Parameters
+    ----------
+    oauth_host: The Earthdata Login hostname
+    oauth_client_id: The EDL application's client id
+    access_token: The user's access token to validate
+
+    Returns
+    -------
+    Boolean indicating a valid or invalid user access token
+    """
     url = f'{oauth_host}/oauth/tokens/user?token={access_token}&client_id={oauth_client_id}'
     response = requests.post(url, timeout=TIMEOUT)
 
@@ -102,10 +127,38 @@ def _valid(oauth_host: str, oauth_client_id: str, access_token: str) -> bool:
 
 @lru_cache(maxsize=128)
 def _earthdata_session():
+    """Constructs an EarthdataSession for use to download one or more files."""
     return EarthdataSession()
 
 
 def _download(config, url: str, access_token: str, data):
+    """Implements the download functionality.
+
+    Using the EarthdataSession and EarthdataAuth extensions to the
+    `requests` module, this function will download the given url and
+    perform any necessary Earthdata Login OAuth handshakes.
+
+    Parameters
+    ----------
+    config : harmony.util.Config
+        The configuration for the current runtime environment.
+    url : str
+        The url for the resource to download
+    access_token : str
+        A shared EDL access token created from the user's access token
+        and the app identity.
+    data : dict or Tuple[str, str]
+        Optional parameter for additional data to send to the server
+        when making an HTTP POST request. These data will be URL
+        encoded to a query string containing a series of `key=value`
+        pairs, separated by ampersands. If None (the default), the
+        request will be sent with an HTTP GET request.
+
+    Returns
+    -------
+    requests.Response with the download result
+
+    """
     auth = EarthdataAuth(config.oauth_uid, config.oauth_password, access_token)
     with _earthdata_session() as session:
         session.auth = auth
@@ -119,6 +172,31 @@ def _download(config, url: str, access_token: str, data):
 
 
 def _download_with_fallback_authn(config, url: str, data):
+    """Downloads the given url using Basic authentication as a fallback
+    mechanism should the normal EDL Oauth handshake fail.
+
+    This function requires the `edl_username` and `edl_password`
+    attributes in the config object to be populated with valid
+    credentials.
+
+    Parameters
+    ----------
+    config : harmony.util.Config
+        The configuration for the current runtime environment.
+    url : str
+        The url for the resource to download
+    data : dict or Tuple[str, str]
+        Optional parameter for additional data to send to the server
+        when making an HTTP POST request. These data will be URL
+        encoded to a query string containing a series of `key=value`
+        pairs, separated by ampersands. If None (the default), the
+        request will be sent with an HTTP GET request.
+
+    Returns
+    -------
+    requests.Response with the download result
+
+    """
     auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
     if data is None:
         return requests.get(url, timeout=TIMEOUT, auth=auth)
@@ -127,7 +205,19 @@ def _download_with_fallback_authn(config, url: str, data):
 
 
 def download(config, url: str, access_token: str, data, destination_file):
-    """.
+    """Downloads the given url using the provided EDL user access token
+    and writes it to the provided file-like object.
+
+    Exception cases:
+    1. No user access token
+    2. Invalid user access token
+    3. Unable to authenticate the user with Earthdata Login
+       a. User credentials (could happen even after token validation
+       b. Application credentials
+    4. Error response when downloading
+    5. Data requires EULA acceptance by user
+    6. If fallback authentication enabled, the application credentials are
+       invalid, or do not have permission to download the data.
 
     Parameters
     ----------
@@ -148,6 +238,13 @@ def download(config, url: str, access_token: str, data, destination_file):
         The destination file where the data will be written. Must be
         a file-like object opened for binary write.
 
+    Returns
+    -------
+    requests.Response with the download result
+
+    Side-effects
+    ------------
+    Will write to provided destination_file
     """
 
     response = None
