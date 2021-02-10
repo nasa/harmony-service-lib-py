@@ -274,15 +274,17 @@ def download(config, url: str, access_token: str, data, destination_file):
 
     if _is_eula_error(response.content):
         msg = _eula_error_message(response.content)
-        logger.info(msg)
+        logger.info(f'{msg} due to: {response.content}')
         raise ForbiddenException(msg)
 
     if response.status_code in (401, 403):
         msg = f'Forbidden: Unable to download {url}'
-        logger.info(msg)
+        logger.info(f'{msg} due to: {response.content}')
         raise ForbiddenException(msg)
 
     if response.status_code == 500:
+        logger.info(f'Unable to download (500) due to: {response.content}')
         raise Exception('Unable to download.')
 
+    logger.info(f'Unable to download (unknown error) due to: {response.content}')
     raise Exception('Unable to download: unknown error.')
