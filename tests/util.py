@@ -78,7 +78,6 @@ def config_fixture(fallback_authn_enabled=False,
                    oauth_client_id=None):
     c = util.config(validate=False)
 
-    # TODO: Simplify
     return util.Config(
         # Override
         fallback_authn_enabled=fallback_authn_enabled,
