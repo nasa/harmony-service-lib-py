@@ -68,17 +68,17 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
             if path.exists(dirname):
                 rmtree(dirname)
 
-    # def test_download_granules_fetches_remote_granules_and_stores_their_path(self):
-    #     adapter = AdapterTester(full_message, self.config)
-    #     try:
-    #         adapter.download_granules()
-    #         granules = adapter.message.granules
-    #         self.assertEqual(granules[0].local_filename, 'example/example_granule_1.txt')
-    #         self.assertEqual(granules[1].local_filename, 'example/example_granule_2.txt')
-    #         self.assertEqual(granules[2].local_filename, 'example/example_granule_3.txt')
-    #         self.assertEqual(granules[3].local_filename, 'example/example_granule_4.txt')
-    #     finally:
-    #         adapter.cleanup()
+    def test_download_granules_fetches_remote_granules_and_stores_their_path(self):
+        adapter = AdapterTester(full_message, self.config)
+        try:
+            adapter.download_granules()
+            granules = adapter.message.granules
+            self.assertEqual(granules[0].local_filename, 'example/example_granule_1.txt')
+            self.assertEqual(granules[1].local_filename, 'example/example_granule_2.txt')
+            self.assertEqual(granules[2].local_filename, 'example/example_granule_3.txt')
+            self.assertEqual(granules[3].local_filename, 'example/example_granule_4.txt')
+        finally:
+            adapter.cleanup()
 
     def test_download_granules_adds_granule_temp_dir_to_temp_paths(self):
         adapter = AdapterTester(full_message, self.config)
