@@ -405,10 +405,8 @@ def test_download_unknown_error_exception_if_all_else_fails(
     assert len(responses.calls) == 1
 
 
-@pytest.mark.skip(reason='Feature request from EDL team')
+@pytest.mark.skip(reason='Feature request from EDL team: HARMONY-733')
 def test_download_retries_correctly():
-    # TODO: Feature request from EDL team
-    #       On failure to validate or authenticate with EDL, add a
-    #       handler to retry `n` times with increasing delay between
-    #       each.
+    # TODO: Feature request from EDL team to handle EDL failures
+    #       https://bugs.earthdata.nasa.gov/browse/HARMONY-733
     pass
