@@ -48,52 +48,27 @@ Optional:
 
 from base64 import b64decode
 from collections import namedtuple
-from datetime import datetime
 from functools import lru_cache
+import hashlib
 import logging
-from pathlib import Path
+from pathlib import Path, PurePath
 from os import environ, path
 import sys
 from urllib import parse
 
-from pythonjsonlogger import jsonlogger
 from nacl.secret import SecretBox
 
 from harmony import aws
-from harmony import io
+from harmony import http
+# The following imports are for backwards-compatibility for services
+# which import them from `harmony.util`. Though they are not used in
+# this module, importing them here allows applications to work without
+# modifications.
+from harmony.exceptions import (HarmonyException, CanceledException, ForbiddenException)  # noqa: F401
+from harmony.logging import build_logger
 
 
 DEFAULT_SHARED_SECRET_KEY = '_THIS_IS_MY_32_CHARS_SECRET_KEY_'
-
-
-class HarmonyException(Exception):
-    """Base class for Harmony exceptions.
-
-    Attributes
-    ----------
-    message : string
-        Explanation of the error
-    category : string
-        Classification of the type of harmony error
-    """
-
-    def __init__(self, message, category='Service'):
-        self.message = message
-        self.category = category
-
-
-class CanceledException(HarmonyException):
-    """Class for throwing an exception indicating a Harmony request has been canceled"""
-
-    def __init__(self, message=None):
-        super().__init__(message, 'Canceled')
-
-
-class ForbiddenException(HarmonyException):
-    """Class for throwing an exception indicating download failed due to not being able to access the data"""
-
-    def __init__(self, message=None):
-        super().__init__(message, 'Forbidden')
 
 
 Config = namedtuple(
@@ -155,7 +130,7 @@ def _validated_config(config):
     return config
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=128)
 def config(validate=True):
     """
     Returns the Config object with all parameters set to values that were set in the
@@ -215,78 +190,47 @@ def config(validate=True):
         return config
 
 
-class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
-    """A JSON log entry formatter."""
-    def add_fields(self, log_record, record, message_dict):
-        super(HarmonyJsonFormatter, self).add_fields(
-            log_record, record, message_dict)
-        if not log_record.get('timestamp'):
-            now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-            log_record['timestamp'] = now
-        if log_record.get('level'):
-            log_record['level'] = log_record['level'].upper()
-        else:
-            log_record['level'] = record.levelname
-        if not log_record.get('application'):
-            log_record['application'] = self.app_name
+def _is_file_url(url: str) -> bool:
+    return url is not None and url.startswith('file://')
 
 
-@lru_cache(maxsize=None)
-def build_logger(config, name=None):
-    """
-    Builds a logger with appropriate defaults for Harmony
+def _url_as_filename(url: str) -> str:
+    """Return a version of the url optimized for local development.
+
+    If the url is a `file://` url, it will return the remaining part
+    of the url so it can be used as a local file path. For example,
+    'file:///logs/example.txt' will be converted to
+    '/logs/example.txt'.
+
     Parameters
     ----------
-    config : harmony.util.Config
-        The configuration values for this runtime environment.
-    name : string
-        The name of the logger
-
+    url: str The url to check and optaimize.
     Returns
     -------
-    logger : Logging
-        A logger for service output
+    str: The url converted to a filename.
+
     """
-    logger = logging.getLogger()
-    syslog = logging.StreamHandler()
-    if config.text_logger:
-        formatter = logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s.%(funcName)s:%(lineno)d] %(message)s")
-    else:
-        formatter = HarmonyJsonFormatter()
-        formatter.app_name = config.app_name
-    syslog.setFormatter(formatter)
-    logger.addHandler(syslog)
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
-    return logger
+    return url.replace('file://', '')
 
 
-def setup_stdout_log_formatting(config):
+def _filename(directory_path: str, url: str) -> Path:
+    """Constructs a filename from the url using the specified directory
+    as its path. The constructed filename will be a sha256 hash
+    (converted to a hex digest) of the url, and the file's extension
+    will be the same as that of the filename in the url.
+
+    Parameters
+    ----------
+    directory_path : str
+        The url to use when constructing the filename and extension.
+    Returns
+    -------
+
     """
-    Updates sys.stdout and sys.stderr to pass messages through the Harmony log formatter.
-    """
-    # See https://stackoverflow.com/questions/11124093/redirect-python-print-output-to-logger/11124247
-    class StreamToLogger(object):
-        def __init__(self, logger, log_level=logging.INFO):
-            self.logger = logger
-            self.log_level = log_level
-            self.linebuf = ''
-
-        def write(self, buf):
-            temp_linebuf = self.linebuf + buf
-            self.linebuf = ''
-            for line in temp_linebuf.splitlines(True):
-                if line[-1] == '\n':
-                    self.logger.log(self.log_level, line.rstrip())
-                else:
-                    self.linebuf += line
-
-        def flush(self):
-            if self.linebuf != '':
-                self.logger.log(self.log_level, self.linebuf.rstrip())
-            self.linebuf = ''
-    sys.stdout = StreamToLogger(build_logger(config), logging.INFO)
-    sys.stderr = StreamToLogger(build_logger(config), logging.ERROR)
+    return Path(
+        directory_path,
+        hashlib.sha256(url.encode('utf-8')).hexdigest()
+    ).with_suffix(PurePath(url).suffix)
 
 
 def download(url, destination_dir, logger=None, access_token=None, data=None, cfg=None):
@@ -328,21 +272,27 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
     if logger is None:
         logger = build_logger(cfg)
 
-    destination_path = io.filename(destination_dir, url)
+    if _is_file_url(url):
+        return _url_as_filename(url)
+
+    source = http.localhost_url(url, cfg.localstack_host)
+
+    destination_path = _filename(destination_dir, url)
     if destination_path.exists():
         return str(destination_path)
     destination_path = str(destination_path)
 
-    source = io.optimized_url(url, cfg.localstack_host)
+    with open(destination_path, 'wb') as destination_file:
+        if aws.is_s3(source):
+            aws.download(cfg, source, destination_file)
+        elif http.is_http(source):
+            http.download(cfg, source, access_token, data, destination_file)
+        else:
+            msg = f'Unable to download a url of unknown type: {url}'
+            logger.error(msg)
+            raise Exception(msg)
 
-    if aws.is_s3(source):
-        return aws.download_from_s3(cfg, source, destination_path)
-
-    if io.is_http(source):
-        return io.download_from_http(cfg, source, destination_path, access_token,
-                                     logger, data, HarmonyException, ForbiddenException)
-
-    return source
+    return destination_path
 
 
 def stage(local_filename, remote_filename, mime, logger=None, location=None, cfg=None):

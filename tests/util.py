@@ -69,25 +69,31 @@ def cli_parser(*cli_args):
         yield parser
 
 
-def config_fixture(fallback_authn_enabled=False, use_localstack=False,
-                   staging_bucket='UNKNOWN', staging_path='UNKNOWN'):
+def config_fixture(fallback_authn_enabled=False,
+                   edl_username='yoda',
+                   edl_password='password_this_is',
+                   use_localstack=False,
+                   staging_bucket='UNKNOWN',
+                   staging_path='UNKNOWN',
+                   oauth_client_id=None):
     c = util.config(validate=False)
+
     return util.Config(
         # Override
         fallback_authn_enabled=fallback_authn_enabled,
+        edl_username=edl_username,
+        edl_password=edl_password,
         use_localstack=use_localstack,
         staging_path=staging_path,
         staging_bucket=staging_bucket,
+        oauth_client_id=oauth_client_id,
         # Default
         env=c.env,
         app_name=c.app_name,
         oauth_host=c.oauth_host,
-        oauth_client_id=c.oauth_client_id,
         oauth_uid=c.oauth_uid,
         oauth_password=c.oauth_password,
         oauth_redirect_uri=c.oauth_redirect_uri,
-        edl_username=c.edl_username,
-        edl_password=c.edl_password,
         backend_host=c.backend_host,
         localstack_host=c.localstack_host,
         aws_default_region=c.aws_default_region,

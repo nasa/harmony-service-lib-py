@@ -64,27 +64,21 @@ def _get_aws_client(config, service):
     return boto3.client(service, **service_params)
 
 
-def download_from_s3(config, url, destination_path):
-    """
-    Download an S3 object to the specified destination directory.
+def download(config, url, destination_file):
+    """Download an S3 object to the specified destination directory.
 
     Parameters
     ----------
     config : harmony.util.Config
         The configuration for the current runtime environment.
-    destination_path : str
-        The destination directory
+    destination_file : file-like
+        The destination file where the object will be written. Must be
+        a file-like object opened for binary write.
 
-    Returns
-    -------
-    destination_path : str
-        The destination directory
     """
     bucket = url.split('/')[2]
     key = '/'.join(url.split('/')[3:])
-    _get_aws_client(config, 's3').download_file(bucket, key, destination_path)
-
-    return destination_path
+    _get_aws_client(config, 's3').download_file(bucket, key, destination_file)
 
 
 def stage(config, local_filename, remote_filename, mime, logger, location=None):

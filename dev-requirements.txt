@@ -1,10 +1,13 @@
 autopep8 ~= 1.5
-coverage ~= 4.5
+debugpy ~= 1.2
+Faker ~= 6.0
 flake8 ~= 3.8
 ipython ~= 7.17
 jedi ~= 0.17
 parameterized ~= 0.7
-ptvsd ~= 4.3
-pytest ~= 5.4
+pytest ~= 6.2
+pytest-cov ~=2.11
+pytest-mock ~=3.5
 python-language-server ~= 0.35
+responses ~= 0.12
 safety ~= 1.8

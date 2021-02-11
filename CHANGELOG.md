@@ -1,3 +1,19 @@
+## 2021/2/10
+
+* A full reworking of the Earthdata Login (EDL) shared / federated
+  authentication. This is an implementation change only and does not
+  affect the public API or behavior other than to enable certain
+  downloads to succeed where they had failed on previous
+  releases. Specifically the package should now fully support all
+  endpoints hosting granule / data files that will be downloaded for
+  Harmony services.
+
+Upgrading:
+
+* This should *not* require any code changes. Update dependency
+  specification (if necessary) to use the new release and, e.g.,
+  rebuild a Docker image for the service which uses it.
+
 ## 2020/11/12
 
 * Adds full support for Earthdata Login (EDL) Bearer tokens. The
