@@ -10,25 +10,6 @@ from tests.test_cli import MockAdapter, cli_test
 from tests.util import mock_receive, config_fixture
 
 
-# Needed?
-class MockDecode():
-    def __init__(self, msg):
-        self.message = msg
-
-    def decode(self):
-        return self.message
-
-
-# Needed?
-class MockHTTPError(HTTPError):
-    def __init__(self, url='http://example.com', code=500, msg='Internal server error', hdrs=[], fp=None):
-        super().__init__(url, code, msg, hdrs, fp)
-        self.message = msg
-
-    def read(self):
-        return MockDecode(self.message)
-
-
 class TestDownload(unittest.TestCase):
     def setUp(self):
         util._s3 = None
