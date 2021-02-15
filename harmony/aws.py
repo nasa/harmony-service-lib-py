@@ -78,7 +78,7 @@ def download(config, url, destination_file):
     """
     bucket = url.split('/')[2]
     key = '/'.join(url.split('/')[3:])
-    _get_aws_client(config, 's3').download_file(bucket, key, destination_file)
+    _get_aws_client(config, 's3').download_fileobj(bucket, key, destination_file)
 
 
 def stage(config, local_filename, remote_filename, mime, logger, location=None):
