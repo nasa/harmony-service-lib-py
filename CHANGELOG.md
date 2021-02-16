@@ -1,3 +1,15 @@
+## 2021/2/15
+
+* Fixes a bug introduced in the previous release that caused a failure
+  when downloading files from S3. Specifically, when calling
+  `harmony.util.download` with an S3 URL, the previous Service Library
+  release raised an exception:
+
+        ValueError('Filename must be a string')
+
+  This release fixes that bug and supports downloading from S3 as it
+  has in past releases.
+
 ## 2021/2/10
 
 * A full reworking of the Earthdata Login (EDL) shared / federated
