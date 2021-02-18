@@ -281,7 +281,6 @@ def run_cli(parser, args, AdapterClass, cfg=None):
                         args.harmony_metadata_dir,
                         args.harmony_data_location,
                         cfg)
-                # raise Exception('Make sure it is red.')
             finally:
                 time_diff = datetime.datetime.now() - start_time
                 duration_ms = int(round(time_diff.total_seconds() * 1000))

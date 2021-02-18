@@ -143,6 +143,7 @@ class BaseHarmonyAdapter(ABC):
 
         # Process immediate child items
         items = catalog.get_items()
+        self.logger.info(f'Processing {len([items])} granule(s)')
         result.clear_items()
         source = None
         for item in items:
