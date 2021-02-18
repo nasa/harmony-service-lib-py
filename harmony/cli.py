@@ -9,12 +9,13 @@ Parses CLI arguments provided by Harmony and invokes the subsetter accordingly
 import json
 import logging
 from os import path, makedirs
+import datetime
 
 from pystac import Catalog, CatalogType
 
 from harmony.exceptions import CanceledException, HarmonyException
 from harmony.message import Message
-from harmony.logging import setup_stdout_log_formatting
+from harmony.logging import setup_stdout_log_formatting, build_logger
 from harmony.util import (receive_messages, delete_message, change_message_visibility,
                           config, create_decrypter)
 
@@ -261,7 +262,10 @@ def run_cli(parser, args, AdapterClass, cfg=None):
     if args.harmony_wrap_stdout:
         setup_stdout_log_formatting(cfg)
 
+    logger = build_logger(cfg)
     if args.harmony_action == 'invoke':
+        start_time = datetime.datetime.now()
+        logging.info('Service request starting')
         if not bool(args.harmony_input):
             parser.error(
                 '--harmony-input must be provided for --harmony-action=invoke')
@@ -270,12 +274,18 @@ def run_cli(parser, args, AdapterClass, cfg=None):
             if not successful:
                 raise Exception('Service operation failed')
         else:
-            _invoke(AdapterClass,
-                    args.harmony_input,
-                    args.harmony_sources,
-                    args.harmony_metadata_dir,
-                    args.harmony_data_location,
-                    cfg)
+            try:
+                _invoke(AdapterClass,
+                        args.harmony_input,
+                        args.harmony_sources,
+                        args.harmony_metadata_dir,
+                        args.harmony_data_location,
+                        cfg)
+                # raise Exception('Make sure it is red.')
+            finally:
+                time_diff = datetime.datetime.now() - start_time
+                duration_ms = int(round(time_diff.total_seconds() * 1000))
+                logging.info(f'Service request completed in {duration_ms} ms', extra={'durationMs': duration_ms})
 
     if args.harmony_action == 'start':
         if not bool(args.harmony_queue_url):
