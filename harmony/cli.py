@@ -262,7 +262,7 @@ def run_cli(parser, args, AdapterClass, cfg=None):
     if args.harmony_wrap_stdout:
         setup_stdout_log_formatting(cfg)
 
-    logger = build_logger(cfg)
+    build_logger(cfg)
     if args.harmony_action == 'invoke':
         start_time = datetime.datetime.now()
         logging.info('Service request starting')
