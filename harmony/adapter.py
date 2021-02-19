@@ -143,10 +143,11 @@ class BaseHarmonyAdapter(ABC):
 
         # Process immediate child items
         items = catalog.get_items()
-        self.logger.info(f'Processing {len([items])} granule(s)')
+        item_count = 0
         result.clear_items()
         source = None
         for item in items:
+            item_count = item_count + 1
             source = source or self._get_item_source(item)
             output_item = self.process_item(item.clone(), source)
             if output_item:
@@ -154,6 +155,7 @@ class BaseHarmonyAdapter(ABC):
                 if output_item.id == item.id:
                     output_item.id = str(uuid.uuid4())
                 result.add_item(output_item)
+        self.logger.info(f'Processed {item_count} granule(s)')
         return result
 
     def _process_with_callbacks(self):
