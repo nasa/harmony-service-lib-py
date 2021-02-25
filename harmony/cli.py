@@ -15,7 +15,7 @@ from pystac import Catalog, CatalogType
 
 from harmony.exceptions import CanceledException, HarmonyException
 from harmony.message import Message
-from harmony.logging import setup_stdout_log_formatting, build_logger
+from harmony.logging import setup_stdout_log_formatting
 from harmony.util import (receive_messages, delete_message, change_message_visibility,
                           config, create_decrypter)
 
@@ -146,9 +146,9 @@ def _write_error(metadata_dir, message, category='Unknown'):
         json.dump({'error': message, 'category': category}, file)
 
 
-def _invoke(AdapterClass, message_string, sources_path, metadata_dir, data_location, config):
+def _build_adapter(AdapterClass, message_string, sources_path, data_location, config):
     """
-    Handles --harmony-action=invoke by invoking the adapter for the given input message
+    Creates the adapter to be invoked for the given harmony input
 
     Parameters
     ----------
@@ -158,33 +158,49 @@ def _invoke(AdapterClass, message_string, sources_path, metadata_dir, data_locat
         The Harmony input message
     sources_path : string
         A file location containing a STAC catalog corresponding to the input message sources
-    metadata_dir : string
-        The name of the directory where STAC and message output should be written
     data_location : string
         The name of the directory where output should be written
     config : harmony.util.Config
         A configuration instance for this service
     Returns
     -------
+        BaseHarmonyAdapter subclass instance
+            The adapter to be invoked
+    """
+    catalog = Catalog.from_file(sources_path)
+    secret_key = config.shared_secret_key
+
+    if bool(secret_key):
+        decrypter = create_decrypter(bytes(secret_key, 'utf-8'))
+    else:
+        def identity(arg):
+            return arg
+        decrypter = identity
+
+    message = Message(json.loads(message_string), decrypter)
+    if data_location:
+        message.stagingLocation = data_location
+    adapter = AdapterClass(message, catalog)
+    adapter.set_config(config)
+
+    return adapter
+
+
+def _invoke(adapter, metadata_dir):
+    """
+    Handles --harmony-action=invoke by invoking the adapter for the given input message
+
+    Parameters
+    ----------
+    adapter : BaseHarmonyAdapter
+        The BaseHarmonyAdapter subclass to use to handle service invocations
+    metadata_dir : string
+        The name of the directory where STAC and message output should be written
+    Returns
+    -------
     True if the operation completed successfully, False otherwise
     """
     try:
-        catalog = Catalog.from_file(sources_path)
-        secret_key = config.shared_secret_key
-
-        if bool(secret_key):
-            decrypter = create_decrypter(bytes(secret_key, 'utf-8'))
-        else:
-            def identity(arg):
-                return arg
-            decrypter = identity
-
-        message = Message(json.loads(message_string), decrypter)
-        if data_location:
-            message.stagingLocation = data_location
-        adapter = AdapterClass(message, catalog)
-        adapter.set_config(config)
-
         makedirs(metadata_dir, exist_ok=True)
         (out_message, out_catalog) = adapter.invoke()
         out_catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
@@ -262,10 +278,8 @@ def run_cli(parser, args, AdapterClass, cfg=None):
     if args.harmony_wrap_stdout:
         setup_stdout_log_formatting(cfg)
 
-    build_logger(cfg)
     if args.harmony_action == 'invoke':
         start_time = datetime.datetime.now()
-        logging.info('Service request starting')
         if not bool(args.harmony_input):
             parser.error(
                 '--harmony-input must be provided for --harmony-action=invoke')
@@ -275,16 +289,17 @@ def run_cli(parser, args, AdapterClass, cfg=None):
                 raise Exception('Service operation failed')
         else:
             try:
-                _invoke(AdapterClass,
-                        args.harmony_input,
-                        args.harmony_sources,
-                        args.harmony_metadata_dir,
-                        args.harmony_data_location,
-                        cfg)
+                adapter = _build_adapter(AdapterClass,
+                                         args.harmony_input,
+                                         args.harmony_sources,
+                                         args.harmony_data_location,
+                                         cfg)
+                adapter.logger.info(f'timing.{cfg.app_name}.start')
+                _invoke(adapter, args.harmony_metadata_dir)
             finally:
                 time_diff = datetime.datetime.now() - start_time
                 duration_ms = int(round(time_diff.total_seconds() * 1000))
-                logging.info(f'Service request completed in {duration_ms} ms', extra={'durationMs': duration_ms})
+                adapter.logger.info(f'timing.{cfg.app_name}.stop', extra={'durationMs': duration_ms})
 
     if args.harmony_action == 'start':
         if not bool(args.harmony_queue_url):
