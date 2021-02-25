@@ -15,7 +15,7 @@ from pystac import Catalog, CatalogType
 
 from harmony.exceptions import CanceledException, HarmonyException
 from harmony.message import Message
-from harmony.logging import setup_stdout_log_formatting
+from harmony.logging import setup_stdout_log_formatting, build_logger
 from harmony.util import (receive_messages, delete_message, change_message_visibility,
                           config, create_decrypter)
 
@@ -299,7 +299,13 @@ def run_cli(parser, args, AdapterClass, cfg=None):
             finally:
                 time_diff = datetime.datetime.now() - start_time
                 duration_ms = int(round(time_diff.total_seconds() * 1000))
-                adapter.logger.info(f'timing.{cfg.app_name}.stop', extra={'durationMs': duration_ms})
+                duration_logger = build_logger(cfg)
+                extra_fields = {
+                    'user': adapter.message.user,
+                    'requestId': adapter.message.requestId,
+                    'durationMs': duration_ms
+                }
+                duration_logger.info(f'timing.{cfg.app_name}.stop', extra=extra_fields)
 
     if args.harmony_action == 'start':
         if not bool(args.harmony_queue_url):
