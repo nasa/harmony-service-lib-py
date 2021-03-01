@@ -41,7 +41,7 @@ def get_version():
 setup(
     name="harmony-service-lib",
     version=get_version(),
-    author="Patrick Quinn",
+    author="NASA EOSDIS Harmony Team",
     author_email="patrick@element84.com",
     description=("A library for Python-based Harmony services to parse incoming messages, "
                  "fetch data, stage data, and call back to Harmony"),
@@ -61,14 +61,13 @@ setup(
         'dev': DEV_DEPENDENCIES
     },
     test_suite="tests",
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     # license and classifier list:
     # https://pypi.org/pypi?%3Aaction=list_classifiers
-    license="License :: none License",
+    license="License :: OSI Approved :: Apache Software License",
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Operating System :: OS Independent",
-        "Private :: Do Not Upload"
+        "Operating System :: OS Independent"
     ],
 )
