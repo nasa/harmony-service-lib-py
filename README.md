@@ -124,6 +124,7 @@ Build & publish the package:
 
 ## Releasing
 
-Update the CHANGELOG with a short bulleted description of the changes
-to be built & deployed. Replace `DATE` with the date on which the
-feature will be released.
+GitHub release notes will automatically be generated based on pull request subjects.
+Pull request subject lines should therefore concisely emphasize library
+user-facing behavior and updates they should appear in the changelog.  If more
+information is needed for release notes, note that in the PR content.
