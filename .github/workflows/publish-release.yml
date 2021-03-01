@@ -1,8 +1,9 @@
 name: Publish Release
 
-on:
-  release:
-    types: [published]
+on: [workflow_dispatch]
+  # Harmony 683: Uncomment these lines line to publish in CI upon release after setting up secrets
+  # release:
+  #   types: [published]
 
 jobs:
   build:
