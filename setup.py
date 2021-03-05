@@ -47,7 +47,7 @@ setup(
                  "fetch data, stage data, and call back to Harmony"),
     long_description=README,
     long_description_content_type="text/markdown",
-    url="https://git.earthdata.nasa.gov/projects/HARMONY/repos/harmony-service-lib-py/browse",
+    url="https://github.com/nasa/harmony-service-lib-py",
     packages=find_packages(exclude=EXCLUDE_FROM_PACKAGES),
     include_package_data=True,
     keywords=[],
