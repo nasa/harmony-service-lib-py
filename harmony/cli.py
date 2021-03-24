@@ -305,7 +305,7 @@ def run_cli(parser, args, AdapterClass, cfg=None):
                     'requestId': adapter.message.requestId,
                     'durationMs': duration_ms
                 }
-                duration_logger.info(f'timing.{cfg.app_name}.stop', extra=extra_fields)
+                duration_logger.info(f'timing.{cfg.app_name}.end', extra=extra_fields)
 
     if args.harmony_action == 'start':
         if not bool(args.harmony_queue_url):

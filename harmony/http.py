@@ -13,6 +13,9 @@ set for correct operation. See that module and the project README for details.
 from functools import lru_cache
 import json
 from urllib.parse import urlencode, urlparse
+import datetime
+import sys
+import re
 
 import requests
 
@@ -249,7 +252,8 @@ def download(config, url: str, access_token: str, data, destination_file):
 
     response = None
     logger = build_logger(config)
-    logger.info('Downloading %s', url)
+    start_time = datetime.datetime.now()
+    logger.info(f'timing.download.start {url}')
 
     if data is not None:
         logger.info('Query parameters supplied, will use POST method.')
@@ -257,20 +261,37 @@ def download(config, url: str, access_token: str, data, destination_file):
 
     if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token):
         response = _download(config, url, access_token, data)
-        if response.ok:
-            destination_file.write(response.content)
-            logger.info(f'Completed {url}')
-            return response
 
-    if config.fallback_authn_enabled:
-        msg = ('No valid user access token in request or EDL OAuth authentication failed.'
-               'Fallback authentication enabled: retrying with Basic auth.')
-        logger.warning(msg)
-        response = _download_with_fallback_authn(config, url, data)
-        if response.ok:
-            destination_file.write(response.content)
-            logger.info(f'Completed {url}')
-            return response
+    if response is None or not response.ok:
+        if config.fallback_authn_enabled:
+            msg = ('No valid user access token in request or EDL OAuth authentication failed.'
+                  'Fallback authentication enabled: retrying with Basic auth.')
+            logger.warning(msg)
+            response = _download_with_fallback_authn(config, url, data)
+
+    if response.ok:
+        time_diff = datetime.datetime.now() - start_time
+        duration_ms = int(round(time_diff.total_seconds() * 1000))
+        destination_file.write(response.content)
+        file_size = sys.getsizeof(response.content)
+        host = 'Unknown'
+        url_path = ''
+        try:
+            match = re.search('.*://([^/]+)(.*)', url)
+            if match:
+                host = match.group(1)
+                url_path = match.group(2)
+        except:
+            logger.exception(f'Unable to extract host name from {url}')
+        duration_logger = build_logger(config)
+        extra_fields = {
+            'durationMs': duration_ms,
+            'host': host,
+            "path": url_path,
+            "size": file_size
+        }
+        duration_logger.info(f'timing.download.end', extra=extra_fields)
+        return response
 
     if _is_eula_error(response.content):
         msg = _eula_error_message(response.content)
