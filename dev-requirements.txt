@@ -11,3 +11,4 @@ pytest-mock ~=3.5
 python-language-server ~= 0.35
 responses ~= 0.12
 safety ~= 1.8
+pycodestyle ~= 2.6.0

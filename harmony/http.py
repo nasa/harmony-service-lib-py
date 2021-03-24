@@ -265,7 +265,7 @@ def download(config, url: str, access_token: str, data, destination_file):
     if response is None or not response.ok:
         if config.fallback_authn_enabled:
             msg = ('No valid user access token in request or EDL OAuth authentication failed.'
-                  'Fallback authentication enabled: retrying with Basic auth.')
+                   'Fallback authentication enabled: retrying with Basic auth.')
             logger.warning(msg)
             response = _download_with_fallback_authn(config, url, data)
 
@@ -281,7 +281,7 @@ def download(config, url: str, access_token: str, data, destination_file):
             if match:
                 host = match.group(1)
                 url_path = match.group(2)
-        except:
+        except Exception:
             logger.exception(f'Unable to extract host name from {url}')
         duration_logger = build_logger(config)
         extra_fields = {
@@ -290,7 +290,7 @@ def download(config, url: str, access_token: str, data, destination_file):
             "path": url_path,
             "size": file_size
         }
-        duration_logger.info(f'timing.download.end', extra=extra_fields)
+        duration_logger.info('timing.download.end', extra=extra_fields)
         return response
 
     if _is_eula_error(response.content):
