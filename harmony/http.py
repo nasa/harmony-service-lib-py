@@ -207,6 +207,38 @@ def _download_with_fallback_authn(config, url: str, data):
         return requests.post(url, data=data, timeout=TIMEOUT, auth=auth)
 
 
+def _log_download_performance(logger, url, duration_ms, file_size):
+    """Logs a message tracking performance information related to a file download.
+
+    Parameters
+    ----------
+    logger : logging.Logger
+        The logger to use.
+    url : str
+        The url for the resource to download
+    duration_ms: int
+        The number of milliseconds the download took
+    file_size: int
+        The size of the downloaded file
+    """
+    host = 'Unknown'
+    url_path = ''
+    try:
+        match = re.search('.*://([^/]+)(.*)', url)
+        if match:
+            host = match.group(1)
+            url_path = match.group(2)
+    except Exception:
+        logger.exception(f'Unable to extract host name from {url}')
+    extra_fields = {
+        'durationMs': duration_ms,
+        'host': host,
+        "path": url_path,
+        "size": file_size
+    }
+    logger.info('timing.download.end', extra=extra_fields)
+
+
 def download(config, url: str, access_token: str, data, destination_file):
     """Downloads the given url using the provided EDL user access token
     and writes it to the provided file-like object.
@@ -274,23 +306,9 @@ def download(config, url: str, access_token: str, data, destination_file):
         duration_ms = int(round(time_diff.total_seconds() * 1000))
         destination_file.write(response.content)
         file_size = sys.getsizeof(response.content)
-        host = 'Unknown'
-        url_path = ''
-        try:
-            match = re.search('.*://([^/]+)(.*)', url)
-            if match:
-                host = match.group(1)
-                url_path = match.group(2)
-        except Exception:
-            logger.exception(f'Unable to extract host name from {url}')
         duration_logger = build_logger(config)
-        extra_fields = {
-            'durationMs': duration_ms,
-            'host': host,
-            "path": url_path,
-            "size": file_size
-        }
-        duration_logger.info('timing.download.end', extra=extra_fields)
+        _log_download_performance(duration_logger, url, duration_ms, file_size)
+
         return response
 
     if _is_eula_error(response.content):
