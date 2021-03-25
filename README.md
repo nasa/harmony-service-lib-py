@@ -9,6 +9,7 @@ A library for Python-based Harmony services to parse incoming messages, fetch da
 Install the latest version of the package from PyPI using pip:
 
     $ pip install harmony-service-lib
+
 ### Other methods:
 
 The package is installable from source via
