@@ -80,6 +80,23 @@ def test_when_given_a_file_path_it_returns_the_file_path(monkeypatch, mocker, fa
         assert destination_path.endswith('.txt')
 
 
+def test_when_given_file_url_with_parameters_returns_file_path(monkeypatch,
+                                                               mocker, faker):
+    access_token = faker.password(length=40, special_chars=False)
+    http_download = mocker.Mock()
+    monkeypatch.setattr(util.http, 'download', http_download)
+    config = config_fixture()
+
+    with mock.patch('builtins.open', mock.mock_open()):
+        destination_path = util.download(
+            'https://example.com/file.nc4?dap4.ce=latitude',
+            '/put/file/here/', access_token=access_token, cfg=config
+        )
+
+        assert destination_path.startswith('/put/file/here/')
+        assert destination_path.endswith('.nc4')
+
+
 @responses.activate
 def test_when_the_url_returns_a_401_it_throws_a_forbidden_exception(faker):
     access_token = faker.password(length=40, special_chars=False)
