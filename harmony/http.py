@@ -134,7 +134,7 @@ def _earthdata_session():
     return EarthdataSession()
 
 
-def _download(config, url: str, access_token: str, data):
+def _download(config, url: str, access_token: str, data, user_agent=None):
     """Implements the download functionality.
 
     Using the EarthdataSession and EarthdataAuth extensions to the
@@ -156,25 +156,31 @@ def _download(config, url: str, access_token: str, data):
         encoded to a query string containing a series of `key=value`
         pairs, separated by ampersands. If None (the default), the
         request will be sent with an HTTP GET request.
+    user_agent : str
+        The user agent that is requesting the download.
+        E.g. harmony/0.0.0 harmony-sit
 
     Returns
     -------
     requests.Response with the download result
 
     """
+    headers = {}
+    if user_agent is not None:
+        headers['user-agent'] = user_agent
     auth = EarthdataAuth(config.oauth_uid, config.oauth_password, access_token)
     with _earthdata_session() as session:
         session.auth = auth
         if data is None:
-            return session.get(url, timeout=TIMEOUT)
+            return session.get(url, headers=headers, timeout=TIMEOUT)
         else:
             # Including this header since the stdlib does by default,
             # but we've switched to `requests` which does not.
-            headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+            headers['Content-Type'] = 'application/x-www-form-urlencoded'
             return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
 
 
-def _download_with_fallback_authn(config, url: str, data):
+def _download_with_fallback_authn(config, url: str, data, user_agent=None):
     """Downloads the given url using Basic authentication as a fallback
     mechanism should the normal EDL Oauth handshake fail.
 
@@ -194,17 +200,23 @@ def _download_with_fallback_authn(config, url: str, data):
         encoded to a query string containing a series of `key=value`
         pairs, separated by ampersands. If None (the default), the
         request will be sent with an HTTP GET request.
+    user_agent : str
+        The user agent that is requesting the download.
+        E.g. harmony/0.0.0 harmony-sit
 
     Returns
     -------
     requests.Response with the download result
 
     """
+    headers = {}
+    if user_agent is not None:
+        headers['user-agent'] = user_agent
     auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
     if data is None:
-        return requests.get(url, timeout=TIMEOUT, auth=auth)
+        return requests.get(url, headers=headers, timeout=TIMEOUT, auth=auth)
     else:
-        return requests.post(url, data=data, timeout=TIMEOUT, auth=auth)
+        return requests.post(url, headers=headers, data=data, timeout=TIMEOUT, auth=auth)
 
 
 def _log_download_performance(logger, url, duration_ms, file_size):
@@ -239,7 +251,7 @@ def _log_download_performance(logger, url, duration_ms, file_size):
     logger.info('timing.download.end', extra=extra_fields)
 
 
-def download(config, url: str, access_token: str, data, destination_file):
+def download(config, url: str, access_token: str, data, destination_file, user_agent=None):
     """Downloads the given url using the provided EDL user access token
     and writes it to the provided file-like object.
 
@@ -272,6 +284,9 @@ def download(config, url: str, access_token: str, data, destination_file):
     destination_file : file-like
         The destination file where the data will be written. Must be
         a file-like object opened for binary write.
+    user_agent : str
+        The user agent that is requesting the download.
+        E.g. harmony/0.0.0 harmony-sit
 
     Returns
     -------
@@ -292,14 +307,14 @@ def download(config, url: str, access_token: str, data, destination_file):
         data = urlencode(data).encode('utf-8')
 
     if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token):
-        response = _download(config, url, access_token, data)
+        response = _download(config, url, access_token, data, user_agent)
 
     if response is None or not response.ok:
         if config.fallback_authn_enabled:
             msg = ('No valid user access token in request or EDL OAuth authentication failed.'
                    'Fallback authentication enabled: retrying with Basic auth.')
             logger.warning(msg)
-            response = _download_with_fallback_authn(config, url, data)
+            response = _download_with_fallback_authn(config, url, data, user_agent)
 
     if response.ok:
         time_diff = datetime.datetime.now() - start_time

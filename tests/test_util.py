@@ -1,6 +1,6 @@
 import pathlib
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open, ANY
 from urllib.error import HTTPError
 
 from harmony import aws
@@ -12,9 +12,17 @@ from tests.util import mock_receive, config_fixture
 
 class TestDownload(unittest.TestCase):
     def setUp(self):
-        util._s3 = None
-        self.config = config_fixture()
+        self.config = util.config(validate=False)
 
+    @patch('boto3.client')
+    @patch('harmony.aws.Config')
+    def test_s3_download_sets_user_agent_on_boto_client(self, boto_cfg, client):
+        boto_cfg_instance = MagicMock()
+        boto_cfg.return_value = boto_cfg_instance
+        with patch('builtins.open', mock_open()):
+            util.download('s3://example/file.txt', 'tmp', access_token='', cfg=self.config, user_agent='harmony/0.0.0 harmony-test')
+        boto_cfg.assert_called_with(user_agent='harmony/0.0.0 harmony-test')
+        client.assert_called_with(service_name='s3', config=boto_cfg_instance, region_name=ANY)
 
 class TestStage(unittest.TestCase):
     def setUp(self):

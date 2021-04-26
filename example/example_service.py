@@ -53,7 +53,8 @@ class ExampleAdapter(harmony.BaseHarmonyAdapter):
         try:
             # Get the data file
             asset = next(v for k, v in item.assets.items() if 'data' in (v.roles or []))
-            input_filename = download(asset.href, workdir, logger=self.logger, access_token=self.message.accessToken)
+            input_filename = download(asset.href, workdir, logger=self.logger, access_token=self.message.accessToken, 
+                                    user_agent=self.message.client)
 
             # Mark any fields the service processes so later services do not repeat work
             dpi = self.message.format.process('dpi')

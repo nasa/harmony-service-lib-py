@@ -233,7 +233,7 @@ def _filename(directory_path: str, url: str) -> Path:
     ).with_suffix(PurePath(url).suffix)
 
 
-def download(url, destination_dir, logger=None, access_token=None, data=None, cfg=None):
+def download(url, destination_dir, logger=None, access_token=None, data=None, cfg=None, user_agent=None):
     """
     Downloads the given URL to the given destination directory, using the basename of the URL
     as the filename in the destination directory.  Supports http://, https:// and s3:// schemes.
@@ -261,6 +261,9 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
         method.
     cfg : harmony.util.Config
         The configuration values for this runtime environment.
+    user_agent : string
+        The user agent that is requesting the download. Usually this is
+        the same as self.message.client of the BaseHarmonyAdapter
 
     Returns
     -------
@@ -284,9 +287,9 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
 
     with open(destination_path, 'wb') as destination_file:
         if aws.is_s3(source):
-            aws.download(cfg, source, destination_file)
+            aws.download(cfg, source, destination_file, user_agent)
         elif http.is_http(source):
-            http.download(cfg, source, access_token, data, destination_file)
+            http.download(cfg, source, access_token, data, destination_file, user_agent)
         else:
             msg = f'Unable to download a url of unknown type: {url}'
             logger.error(msg)
