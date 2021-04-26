@@ -8,6 +8,7 @@ set for correct operation. See that module and the project README for details.
 import boto3
 from botocore.config import Config
 
+
 def is_s3(url: str) -> bool:
     """Predicate to determine if a url is an S3 endpoint."""
     return url is not None and url.lower().startswith('s3')
