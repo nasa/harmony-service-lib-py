@@ -230,7 +230,7 @@ def _filename(directory_path: str, url: str) -> Path:
     return Path(
         directory_path,
         hashlib.sha256(url.encode('utf-8')).hexdigest()
-    ).with_suffix(PurePath(url).suffix)
+    ).with_suffix(PurePath(parse.urlparse(url).path).suffix)
 
 
 def download(url, destination_dir, logger=None, access_token=None, data=None, cfg=None):
