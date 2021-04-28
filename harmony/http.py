@@ -12,7 +12,7 @@ set for correct operation. See that module and the project README for details.
 
 from functools import lru_cache
 import json
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlparse
 import datetime
 import sys
 import re
@@ -286,10 +286,6 @@ def download(config, url: str, access_token: str, data, destination_file):
     logger = build_logger(config)
     start_time = datetime.datetime.now()
     logger.info(f'timing.download.start {url}')
-
-    if data is not None:
-        logger.info('Query parameters supplied, will use POST method.')
-        data = urlencode(data).encode('utf-8')
 
     if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token):
         response = _download(config, url, access_token, data)

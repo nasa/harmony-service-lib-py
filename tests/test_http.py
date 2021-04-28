@@ -250,7 +250,7 @@ def test_download_validates_token_and_raises_exception(
 
 
 @responses.activate
-def test_when_given_a_url_and_data_it_downloads_with_query_string(
+def test_when_given_a_url_and_data_it_downloads_with_query_parameters(
         monkeypatch,
         mocker,
         access_token,
@@ -270,7 +270,7 @@ def test_when_given_a_url_and_data_it_downloads_with_query_string(
 
     assert response.status_code == 200
     assert len(responses.calls) == 1
-    assert responses.calls[0].request.body == b'param=value'
+    assert responses.calls[0].request.body == 'param=value'
 
 
 @responses.activate
