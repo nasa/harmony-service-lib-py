@@ -196,6 +196,24 @@ def config(validate=True):
         return config
 
 def _build_full_user_agent(cfg, service_provider_agt: str) -> str:
+    """
+    Builds a user-agent string that can be passed on to aws or http clients.
+    The user agent may consist of a user agent defined by an env variable passed
+    by newer versions of Harmony, a user agent for this service lib, and an optional user
+    agent that can be provided by users of this lib.
+
+    Parameters
+    ----------
+    cfg : harmony.util.Config
+        The configuration values for this runtime environment.
+    service_provider_agt : string
+        The optional, custom service provider user agent. 
+
+    Returns
+    -------
+    string
+        A user agent string.
+    """
     harmony_agt = cfg.user_agent
     lib_agt = f'harmony-service-lib/{get_version()}'
     full_agt = f'{harmony_agt} {lib_agt}'
