@@ -25,6 +25,9 @@ Required when using HTTPS, allowing Earthdata Login auth:
     OAUTH_REDIRECT_URI: A valid redirect URI for the EDL application (NOTE: the redirect URI is
                         not followed or used; it does need to be in the app's redirect URI list)
 
+Always provided by newer versions of the Harmony frontend:
+    USER_AGENT:     The Harmony user agent string. E.g. harmony/0.0.0 harmony-sit
+
 Optional, if support is needed for downloading data from an endpoint that is not
 EDL-share-token aware:
 
@@ -66,6 +69,7 @@ from harmony import http
 # modifications.
 from harmony.exceptions import (HarmonyException, CanceledException, ForbiddenException)  # noqa: F401
 from harmony.logging import build_logger
+from harmony.version import get_version
 
 
 DEFAULT_SHARED_SECRET_KEY = '_THIS_IS_MY_32_CHARS_SECRET_KEY_'
@@ -92,6 +96,7 @@ Config = namedtuple(
         'text_logger',
         'health_check_path',
         'shared_secret_key',
+        'user_agent'
     ])
 
 
@@ -181,7 +186,8 @@ def config(validate=True):
         env=str_envvar('ENV', ''),
         text_logger=bool_envvar('TEXT_LOGGER', False),
         health_check_path=str_envvar('HEALTH_CHECK_PATH', '/tmp/health.txt'),
-        shared_secret_key=str_envvar('SHARED_SECRET_KEY', DEFAULT_SHARED_SECRET_KEY)
+        shared_secret_key=str_envvar('SHARED_SECRET_KEY', DEFAULT_SHARED_SECRET_KEY),
+        user_agent=str_envvar('USER_AGENT', 'harmony (unknown version)')
     )
 
     if validate:
@@ -189,6 +195,13 @@ def config(validate=True):
     else:
         return config
 
+def _build_full_user_agent(cfg, service_provider_agt: str) -> str:
+    harmony_agt = cfg.user_agent
+    lib_agt = f'harmony-service-lib/{get_version()}'
+    full_agt = f'{harmony_agt} {lib_agt}'
+    if service_provider_agt is not None:
+        full_agt += f' {service_provider_agt}'
+    return full_agt
 
 def _is_file_url(url: str) -> bool:
     return url is not None and url.startswith('file://')
@@ -262,8 +275,8 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
     cfg : harmony.util.Config
         The configuration values for this runtime environment.
     user_agent : string
-        The user agent that is requesting the download. Usually this is
-        the same as self.message.client of the BaseHarmonyAdapter
+        The user agent that is requesting the download.
+        E.g.: my-custom-subsetter-service/2.0 
 
     Returns
     -------
@@ -285,11 +298,13 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
         return str(destination_path)
     destination_path = str(destination_path)
 
+    full_user_agt = _build_full_user_agent(cfg, user_agent)
+
     with open(destination_path, 'wb') as destination_file:
         if aws.is_s3(source):
-            aws.download(cfg, source, destination_file, user_agent)
+            aws.download(cfg, source, destination_file, full_user_agt)
         elif http.is_http(source):
-            http.download(cfg, source, access_token, data, destination_file, user_agent)
+            http.download(cfg, source, access_token, data, destination_file, full_user_agt)
         else:
             msg = f'Unable to download a url of unknown type: {url}'
             logger.error(msg)

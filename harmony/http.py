@@ -158,7 +158,7 @@ def _download(config, url: str, access_token: str, data, user_agent=None):
         request will be sent with an HTTP GET request.
     user_agent : str
         The user agent that is requesting the download.
-        E.g. harmony/0.0.0 harmony-sit
+        E.g. harmony/0.0.0 harmony-sit harmony-service-lib/4.0 custom-service/2.0
 
     Returns
     -------
@@ -202,7 +202,7 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None):
         request will be sent with an HTTP GET request.
     user_agent : str
         The user agent that is requesting the download.
-        E.g. harmony/0.0.0 harmony-sit
+        E.g. harmony/0.0.0 harmony-sit harmony-service-lib/4.0 custom-service/2.0
 
     Returns
     -------
@@ -286,7 +286,7 @@ def download(config, url: str, access_token: str, data, destination_file, user_a
         a file-like object opened for binary write.
     user_agent : str
         The user agent that is requesting the download.
-        E.g. harmony/0.0.0 harmony-sit
+        E.g. harmony/0.0.0 harmony-sit harmony-service-lib/4.0 custom-service/2.0
 
     Returns
     -------
