@@ -1,12 +1,11 @@
 import ast
-import io
 import re
 import os
 
 
 def get_version():
     """
-    Get the version of the currently running service lib. 
+    Get the version of the currently running service lib.
 
     Returns
     -------

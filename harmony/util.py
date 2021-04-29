@@ -195,6 +195,7 @@ def config(validate=True):
     else:
         return config
 
+
 def _build_full_user_agent(cfg, service_provider_agt: str) -> str:
     """
     Builds a user-agent string that can be passed on to aws or http clients.
@@ -207,7 +208,7 @@ def _build_full_user_agent(cfg, service_provider_agt: str) -> str:
     cfg : harmony.util.Config
         The configuration values for this runtime environment.
     service_provider_agt : string
-        The optional, custom service provider user agent. 
+        The optional, custom service provider user agent.
 
     Returns
     -------
@@ -220,6 +221,7 @@ def _build_full_user_agent(cfg, service_provider_agt: str) -> str:
     if service_provider_agt is not None:
         full_agt += f' {service_provider_agt}'
     return full_agt
+
 
 def _is_file_url(url: str) -> bool:
     return url is not None and url.startswith('file://')
@@ -294,7 +296,7 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
         The configuration values for this runtime environment.
     user_agent : string
         The user agent that is requesting the download.
-        E.g.: my-custom-subsetter-service/2.0 
+        E.g.: my-custom-subsetter-service/2.0
 
     Returns
     -------
