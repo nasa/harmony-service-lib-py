@@ -475,8 +475,8 @@ class Message(JsonObject):
         The Earthdata Login token for the caller. If present, the token is used as the
         identity for HTTP downloads.
     client : string
-        A string indicating the harmony client that sent this message.
-        E.g. harmony-sit
+        A string indicating the client accessing the service, usually the harmony
+        environment, e.g. "harmony-sit"
     requestId : string
         A UUID identifying the originating user request.  This should only be used for
         logging and tracing purposes, as a single user request may produce multiple
