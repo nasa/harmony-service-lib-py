@@ -476,7 +476,7 @@ class Message(JsonObject):
         identity for HTTP downloads.
     client : string
         A string indicating the harmony client that sent this message.
-        E.g. harmony/0.0.0 harmony-sit
+        E.g. harmony-sit
     requestId : string
         A UUID identifying the originating user request.  This should only be used for
         logging and tracing purposes, as a single user request may produce multiple
