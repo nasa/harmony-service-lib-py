@@ -196,7 +196,7 @@ def config(validate=True):
         return config
 
 
-def _build_full_user_agent(cfg, service_provider_agt: str) -> str:
+def _build_full_user_agent(config, service_provider_agent: str) -> str:
     """
     Builds a user-agent string that can be passed on to aws or http clients.
     The user agent may consist of a user agent defined by an env variable passed
@@ -205,9 +205,9 @@ def _build_full_user_agent(cfg, service_provider_agt: str) -> str:
 
     Parameters
     ----------
-    cfg : harmony.util.Config
+    config : harmony.util.Config
         The configuration values for this runtime environment.
-    service_provider_agt : string
+    service_provider_agent : string
         The optional, custom service provider user agent.
 
     Returns
@@ -215,12 +215,12 @@ def _build_full_user_agent(cfg, service_provider_agt: str) -> str:
     string
         A user agent string.
     """
-    harmony_agt = cfg.user_agent
-    lib_agt = f'harmony-service-lib/{get_version()}'
-    full_agt = f'{harmony_agt} {lib_agt}'
-    if service_provider_agt is not None:
-        full_agt += f' {service_provider_agt}'
-    return full_agt
+    harmony_user_agent = config.user_agent
+    lib_user_agent = f'harmony-service-lib/{get_version()}'
+    full_user_agent = f'{harmony_user_agent} {lib_user_agent}'
+    if service_provider_agent is not None:
+        full_user_agent += f' {service_provider_agent}'
+    return full_user_agent
 
 
 def _is_file_url(url: str) -> bool:
