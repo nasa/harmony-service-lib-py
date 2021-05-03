@@ -25,6 +25,9 @@ Required when using HTTPS, allowing Earthdata Login auth:
     OAUTH_REDIRECT_URI: A valid redirect URI for the EDL application (NOTE: the redirect URI is
                         not followed or used; it does need to be in the app's redirect URI list)
 
+Always provided by newer versions of the Harmony frontend:
+    USER_AGENT:     The Harmony user agent string. E.g. harmony/0.0.0 (harmony-sit)
+
 Optional, if support is needed for downloading data from an endpoint that is not
 EDL-share-token aware:
 
@@ -66,6 +69,7 @@ from harmony import http
 # modifications.
 from harmony.exceptions import (HarmonyException, CanceledException, ForbiddenException)  # noqa: F401
 from harmony.logging import build_logger
+from harmony.version import get_version
 
 
 DEFAULT_SHARED_SECRET_KEY = '_THIS_IS_MY_32_CHARS_SECRET_KEY_'
@@ -92,6 +96,7 @@ Config = namedtuple(
         'text_logger',
         'health_check_path',
         'shared_secret_key',
+        'user_agent'
     ])
 
 
@@ -181,13 +186,40 @@ def config(validate=True):
         env=str_envvar('ENV', ''),
         text_logger=bool_envvar('TEXT_LOGGER', False),
         health_check_path=str_envvar('HEALTH_CHECK_PATH', '/tmp/health.txt'),
-        shared_secret_key=str_envvar('SHARED_SECRET_KEY', DEFAULT_SHARED_SECRET_KEY)
+        shared_secret_key=str_envvar('SHARED_SECRET_KEY', DEFAULT_SHARED_SECRET_KEY),
+        user_agent=str_envvar('USER_AGENT', 'harmony (unknown version)')
     )
 
     if validate:
         return _validated_config(config)
     else:
         return config
+
+
+def _build_full_user_agent(config) -> str:
+    """
+    Builds a user-agent string that can be passed on to aws or http clients.
+    The user agent may consist of a user agent defined by an env variable passed
+    by newer versions of Harmony, a user agent for this service lib, and an optional user
+    agent that can be provided by users of this lib.
+
+    Parameters
+    ----------
+    config : harmony.util.Config
+        The configuration values for this runtime environment.
+
+    Returns
+    -------
+    string
+        A user agent string.
+    """
+    harmony_user_agent = config.user_agent
+    app_name = config.app_name
+    lib_user_agent = f'harmony-service-lib/{get_version()}'
+    full_user_agent = f'{harmony_user_agent} {lib_user_agent}'
+    if app_name is not None:
+        full_user_agent += f' ({app_name})'
+    return full_user_agent
 
 
 def _is_file_url(url: str) -> bool:
@@ -282,11 +314,13 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
         return str(destination_path)
     destination_path = str(destination_path)
 
+    full_user_agt = _build_full_user_agent(cfg)
+
     with open(destination_path, 'wb') as destination_file:
         if aws.is_s3(source):
-            aws.download(cfg, source, destination_file)
+            aws.download(cfg, source, destination_file, full_user_agt)
         elif http.is_http(source):
-            http.download(cfg, source, access_token, data, destination_file)
+            http.download(cfg, source, access_token, data, destination_file, full_user_agt)
         else:
             msg = f'Unable to download a url of unknown type: {url}'
             logger.error(msg)

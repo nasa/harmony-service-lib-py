@@ -6,6 +6,7 @@ This module relies on the harmony.util.config and its environment variables to b
 set for correct operation. See that module and the project README for details.
 """
 import boto3
+from botocore.config import Config
 
 
 def is_s3(url: str) -> bool:
@@ -42,7 +43,7 @@ def _aws_parameters(use_localstack, localstack_host, region):
         }
 
 
-def _get_aws_client(config, service):
+def _get_aws_client(config, service, user_agent=None):
     """
     Returns a boto3 client for accessing the provided service.  Accesses the service in us-west-2
     unless "AWS_DEFAULT_REGION" is set.  If the environment variable "USE_LOCALSTACK" is set to "true",
@@ -54,17 +55,22 @@ def _get_aws_client(config, service):
         The configuration for the current runtime environment.
     service : string
         The AWS service name for which to construct a client, e.g. "s3" or "sqs"
+    user_agent : string
+        The user agent that is requesting the aws service.
+        E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
 
     Returns
     -------
     s3_client : boto3.*.Client
         A client appropriate for accessing the provided service
     """
+    boto_cfg = Config(user_agent_extra=user_agent)
     service_params = _aws_parameters(config.use_localstack, config.localstack_host, config.aws_default_region)
-    return boto3.client(service, **service_params)
+
+    return boto3.client(service_name=service, config=boto_cfg, **service_params)
 
 
-def download(config, url, destination_file):
+def download(config, url, destination_file, user_agent=None):
     """Download an S3 object to the specified destination directory.
 
     Parameters
@@ -74,11 +80,14 @@ def download(config, url, destination_file):
     destination_file : file-like
         The destination file where the object will be written. Must be
         a file-like object opened for binary write.
-
+    user_agent : string
+        The user agent that is requesting the download.
+        E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
     """
     bucket = url.split('/')[2]
     key = '/'.join(url.split('/')[3:])
-    _get_aws_client(config, 's3').download_fileobj(bucket, key, destination_file)
+    aws_client = _get_aws_client(config, 's3', user_agent)
+    aws_client.download_fileobj(bucket, key, destination_file)
 
 
 def stage(config, local_filename, remote_filename, mime, logger, location=None):

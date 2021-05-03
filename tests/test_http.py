@@ -404,6 +404,95 @@ def test_download_unknown_error_exception_if_all_else_fails(
 
     assert len(responses.calls) == 1
 
+@responses.activate
+def test_user_agent_is_passed_to_request_headers_when_using_basic_auth(
+        mocker,
+        faker,
+        resource_server_granule_url):
+
+    client_id = faker.password(length=22, special_chars=False)
+    cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=True)
+
+    responses.add(
+        responses.GET,
+        resource_server_granule_url,
+        status=200
+    )
+    destination_file = mocker.Mock()
+
+    user_agent = 'test-agent/0.0.0'
+    response = download(cfg, resource_server_granule_url, None, None, destination_file, user_agent=user_agent)
+
+    assert 'User-Agent' in responses.calls[0].request.headers
+    assert user_agent in responses.calls[0].request.headers['User-Agent']
+
+@responses.activate
+def test_user_agent_is_passed_to_request_headers_when_using_basic_auth_and_post_param(
+        mocker,
+        faker,
+        resource_server_granule_url):
+
+    client_id = faker.password(length=22, special_chars=False)
+    cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=True)
+    data = {'param': 'value'}
+
+    responses.add(
+        responses.POST,
+        resource_server_granule_url,
+        status=200
+    )
+    destination_file = mocker.Mock()
+
+    user_agent = 'test-agent/0.0.0'
+    response = download(cfg, resource_server_granule_url, None, data, destination_file, user_agent=user_agent)
+
+    assert 'User-Agent' in responses.calls[0].request.headers
+    assert user_agent in responses.calls[0].request.headers['User-Agent']
+
+@responses.activate
+def test_user_agent_is_passed_to_request_headers_when_using_edl_auth(
+        monkeypatch,
+        mocker,
+        access_token,
+        resource_server_granule_url):
+
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    responses.add(
+        responses.GET,
+        resource_server_granule_url,
+        status=200
+    )
+    destination_file = mocker.Mock()
+    cfg = config_fixture()
+
+    user_agent = 'test-agent/0.0.0'
+    response = download(cfg, resource_server_granule_url, access_token, None, destination_file, user_agent=user_agent)
+
+    assert 'User-Agent' in responses.calls[0].request.headers
+    assert user_agent in responses.calls[0].request.headers['User-Agent']
+    
+@responses.activate
+def test_user_agent_is_passed_to_request_headers_when_using_edl_auth_and_post_param(
+        monkeypatch,
+        mocker,
+        access_token,
+        resource_server_granule_url):
+
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    responses.add(
+        responses.POST,
+        resource_server_granule_url,
+        status=200
+    )
+    destination_file = mocker.Mock()
+    cfg = config_fixture()
+    data = {'param': 'value'}
+
+    user_agent = 'test-agent/0.0.0'
+    response = download(cfg, resource_server_granule_url, access_token, data, destination_file, user_agent=user_agent)
+
+    assert 'User-Agent' in responses.calls[0].request.headers
+    assert user_agent in responses.calls[0].request.headers['User-Agent']
 
 @pytest.mark.skip(reason='Feature request from EDL team: HARMONY-733')
 def test_download_retries_correctly():

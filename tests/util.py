@@ -75,9 +75,10 @@ def config_fixture(fallback_authn_enabled=False,
                    use_localstack=False,
                    staging_bucket='UNKNOWN',
                    staging_path='UNKNOWN',
-                   oauth_client_id=None):
+                   oauth_client_id=None,
+                   user_agent=None,
+                   app_name=None):
     c = util.config(validate=False)
-
     return util.Config(
         # Override
         fallback_authn_enabled=fallback_authn_enabled,
@@ -87,9 +88,9 @@ def config_fixture(fallback_authn_enabled=False,
         staging_path=staging_path,
         staging_bucket=staging_bucket,
         oauth_client_id=oauth_client_id,
+        app_name=app_name,
         # Default
         env=c.env,
-        app_name=c.app_name,
         oauth_host=c.oauth_host,
         oauth_uid=c.oauth_uid,
         oauth_password=c.oauth_password,
@@ -100,4 +101,6 @@ def config_fixture(fallback_authn_enabled=False,
         text_logger=c.text_logger,
         health_check_path=c.health_check_path,
         shared_secret_key=c.shared_secret_key,
+        # Override if provided, else default
+        user_agent=c.user_agent if user_agent is None else user_agent
     )
