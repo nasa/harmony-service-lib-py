@@ -26,7 +26,7 @@ Required when using HTTPS, allowing Earthdata Login auth:
                         not followed or used; it does need to be in the app's redirect URI list)
 
 Always provided by newer versions of the Harmony frontend:
-    USER_AGENT:     The Harmony user agent string. E.g. harmony/0.0.0 harmony-sit
+    USER_AGENT:     The Harmony user agent string. E.g. harmony/0.0.0 (harmony-sit)
 
 Optional, if support is needed for downloading data from an endpoint that is not
 EDL-share-token aware:
@@ -196,7 +196,7 @@ def config(validate=True):
         return config
 
 
-def _build_full_user_agent(config, service_provider_agent: str) -> str:
+def _build_full_user_agent(config) -> str:
     """
     Builds a user-agent string that can be passed on to aws or http clients.
     The user agent may consist of a user agent defined by an env variable passed
@@ -207,8 +207,6 @@ def _build_full_user_agent(config, service_provider_agent: str) -> str:
     ----------
     config : harmony.util.Config
         The configuration values for this runtime environment.
-    service_provider_agent : string
-        The optional, custom service provider user agent.
 
     Returns
     -------
@@ -216,10 +214,11 @@ def _build_full_user_agent(config, service_provider_agent: str) -> str:
         A user agent string.
     """
     harmony_user_agent = config.user_agent
+    app_name = config.app_name
     lib_user_agent = f'harmony-service-lib/{get_version()}'
     full_user_agent = f'{harmony_user_agent} {lib_user_agent}'
-    if service_provider_agent is not None:
-        full_user_agent += f' {service_provider_agent}'
+    if app_name is not None:
+        full_user_agent += f' ({app_name})'
     return full_user_agent
 
 
@@ -266,7 +265,7 @@ def _filename(directory_path: str, url: str) -> Path:
     ).with_suffix(PurePath(url).suffix)
 
 
-def download(url, destination_dir, logger=None, access_token=None, data=None, cfg=None, user_agent=None):
+def download(url, destination_dir, logger=None, access_token=None, data=None, cfg=None):
     """
     Downloads the given URL to the given destination directory, using the basename of the URL
     as the filename in the destination directory.  Supports http://, https:// and s3:// schemes.
@@ -294,9 +293,6 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
         method.
     cfg : harmony.util.Config
         The configuration values for this runtime environment.
-    user_agent : string
-        The user agent that is requesting the download.
-        E.g.: my-custom-subsetter-service/2.0
 
     Returns
     -------
@@ -318,7 +314,7 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
         return str(destination_path)
     destination_path = str(destination_path)
 
-    full_user_agt = _build_full_user_agent(cfg, user_agent)
+    full_user_agt = _build_full_user_agent(cfg)
 
     with open(destination_path, 'wb') as destination_file:
         if aws.is_s3(source):

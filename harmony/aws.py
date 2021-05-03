@@ -57,7 +57,7 @@ def _get_aws_client(config, service, user_agent=None):
         The AWS service name for which to construct a client, e.g. "s3" or "sqs"
     user_agent : string
         The user agent that is requesting the aws service.
-        E.g. harmony/0.0.0 harmony-sit harmony-service-lib/4.0 custom-service/2.0
+        E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
 
     Returns
     -------
@@ -66,6 +66,7 @@ def _get_aws_client(config, service, user_agent=None):
     """
     boto_cfg = Config(user_agent_extra=user_agent)
     service_params = _aws_parameters(config.use_localstack, config.localstack_host, config.aws_default_region)
+
     return boto3.client(service_name=service, config=boto_cfg, **service_params)
 
 
@@ -81,7 +82,7 @@ def download(config, url, destination_file, user_agent=None):
         a file-like object opened for binary write.
     user_agent : string
         The user agent that is requesting the download.
-        E.g. harmony/0.0.0 harmony-sit harmony-service-lib/4.0 custom-service/2.0
+        E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
     """
     bucket = url.split('/')[2]
     key = '/'.join(url.split('/')[3:])

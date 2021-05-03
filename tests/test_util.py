@@ -24,7 +24,7 @@ class TestDownload(unittest.TestCase):
         boto_cfg_instance = MagicMock()
         boto_cfg.return_value = boto_cfg_instance
         with patch('builtins.open', mock_open()):
-            util.download('s3://example/file.txt', 'tmp', access_token='', cfg=cfg, user_agent=None)
+            util.download('s3://example/file.txt', 'tmp', access_token='', cfg=cfg)
         boto_cfg.assert_called_with(user_agent_extra=f'harmony (unknown version) harmony-service-lib/{fake_lib_version}')
         client.assert_called_with(service_name='s3', config=boto_cfg_instance, region_name=ANY)
 
@@ -34,28 +34,28 @@ class TestDownload(unittest.TestCase):
     def test_s3_download_sets_harmony_user_agent_on_boto_client(self, boto_cfg, client, get_version):
         fake_lib_version = '0.1.0'
         get_version.return_value = fake_lib_version 
-        harmony_user_agt = 'harmony/3.3.3 harmony-test'
+        harmony_user_agt = 'harmony/3.3.3 (harmony-test)'
         cfg = config_fixture(user_agent=harmony_user_agt)
         boto_cfg_instance = MagicMock()
         boto_cfg.return_value = boto_cfg_instance
         with patch('builtins.open', mock_open()):
-            util.download('s3://example/file.txt', 'tmp', access_token='', cfg=cfg, user_agent=None)
+            util.download('s3://example/file.txt', 'tmp', access_token='', cfg=cfg)
         boto_cfg.assert_called_with(user_agent_extra=f'{harmony_user_agt} harmony-service-lib/{fake_lib_version}')
         client.assert_called_with(service_name='s3', config=boto_cfg_instance, region_name=ANY)
 
     @patch('harmony.util.get_version')
     @patch('boto3.client')
     @patch('harmony.aws.Config')
-    def test_s3_download_sets_custom_user_agent_on_boto_client(self, boto_cfg, client, get_version):
-        custom_agt = 'custom-service/2.2.2'
+    def test_s3_download_sets_app_name_on_boto_client(self, boto_cfg, client, get_version):
+        app_name = 'gdal-subsetter'
         fake_lib_version = '0.1.0'
         get_version.return_value = fake_lib_version 
-        cfg = config_fixture()
+        cfg = config_fixture(app_name=app_name)
         boto_cfg_instance = MagicMock()
         boto_cfg.return_value = boto_cfg_instance
         with patch('builtins.open', mock_open()):
-            util.download('s3://example/file.txt', 'tmp', access_token='', cfg=cfg, user_agent=custom_agt)
-        boto_cfg.assert_called_with(user_agent_extra=f'harmony (unknown version) harmony-service-lib/{fake_lib_version} {custom_agt}')
+            util.download('s3://example/file.txt', 'tmp', access_token='', cfg=cfg)
+        boto_cfg.assert_called_with(user_agent_extra=f'harmony (unknown version) harmony-service-lib/{fake_lib_version} ({app_name})')
         client.assert_called_with(service_name='s3', config=boto_cfg_instance, region_name=ANY)
 
 class TestStage(unittest.TestCase):
