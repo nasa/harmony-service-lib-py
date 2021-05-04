@@ -24,13 +24,21 @@ jobs:
         echo "make publish to ${BRANCH}"
         # make publish
 
+        # Setup git
         # https://api.github.com/users/github-actions%5Bbot%5D
         git config --global user.name "github-actions[bot]"
         git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+        # Commit and push updated release files
         git checkout -b "${BRANCH}"
         git add .
         git commit -m "Update release version to ${VERSION_TAG}"
-        git tag -f "${VERSION_TAG}"
         git push origin "${BRANCH}"
+
+        # Move the tag without using --force
+        # Delete the old tag and push the change
+        git tag -d "${VERSION_TAG}"
+        git push origin :"${VERSION_TAG}"
+        # Create the new tag and push the change
+        git tag "${VERSION_TAG}"
         git push origin "${VERSION_TAG}"
