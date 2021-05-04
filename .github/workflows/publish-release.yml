@@ -17,17 +17,20 @@ jobs:
     - shell: bash
       env:
         REPO_PASS: ${{ secrets.PYPI }}
-        VERSION_TAG: ${{github.event.release.tag_name}}
+        VERSION_TAG: ${{ github.event.release.tag_name }}
+        BRANCH: ${{ github.event.release.target_commitish }}
       run: |
         VERSION=$(echo "${VERSION_TAG}" | cut -c2-) make build
-        echo "make publish"
+        echo "make publish to ${BRANCH}"
         # make publish
 
-        git config --global user.name $(git show -s --format='%an')
-        git config --global user.email $(git show -s --format='%ae')
-        git commit -a -m "Update release version (Automated commit)"
+        # https://api.github.com/users/github-actions%5Bbot%5D
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+        git checkout -b "${BRANCH}"
         git add .
-        git commit -m "Version bump to ${VERSION_TAG}"
+        git commit -m "Update release version to ${VERSION_TAG}"
         git tag -f "${VERSION_TAG}"
-        git push
+        git push origin "${BRANCH}"
         git push origin "${VERSION_TAG}"
