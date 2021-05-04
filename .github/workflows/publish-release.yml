@@ -8,22 +8,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    # github.sha, github.ref : https://docs.github.com/en/actions/reference/events-that-trigger-workflows#release
-    #
     - uses: actions/checkout@v2
       with:
         fetch-depth: '0'
     - uses: actions/setup-python@v2
       with:
         python-version: '3.8'
-    - uses: pocket-apps/action-update-version@v1
-      with:
-        files: 'harmony/__init__.py'
-        version-regexp: '\d+.\d+.\d+'
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
     - shell: bash
       env:
         REPO_PASS: ${{ secrets.PYPI }}
+        VERSION_TAG: ${{github.event.release.tag_name}}
       run: |
-        VERSION=$(echo ${{github.event.release.tag_name}} | cut -c2-) make build
-        make publish
+        VERSION=$(echo "${VERSION_TAG}" | cut -c2-) make build
+        echo "make publish"
+        # make publish
+
+        git config --global user.name $(git show -s --format='%an')
+        git config --global user.email $(git show -s --format='%ae')
+        git commit -a -m "Update release version (Automated commit)"
+        git add .
+        git commit -m "Version bump to ${VERSION_TAG}"
+        git tag -f "${VERSION_TAG}"
+        git push
+        git push origin "${VERSION_TAG}"
