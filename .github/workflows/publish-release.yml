@@ -34,10 +34,5 @@ jobs:
         git commit -m "Update release version to ${VERSION_TAG}"
         git push origin "${BRANCH}"
 
-        # Move the tag without using --force
-        # Delete the old tag and push the change
-        git tag -d "${VERSION_TAG}"
-        git push origin :"${VERSION_TAG}"
-        # Create the new tag and push the change
-        git tag "${VERSION_TAG}"
-        git push origin "${VERSION_TAG}"
+        git tag --force "${VERSION_TAG}"
+        git push --force origin "${VERSION_TAG}"
