@@ -104,8 +104,8 @@ OPTIONAL -- Use with CAUTION:
 ## Development Setup
 
 Prerequisites:
-  - Python 3.7+, ideally installed via a virtual environment such as `pyenv`
-  - A local copy of the code
+  - Python 3.7+, ideally installed via a virtual environment. We recommend using [pyenv](https://github.com/pyenv/pyenv) for managing multiple Python installations with different versions, in conjunction with a tool like [pyenv-virtualenv](https://github.com/pyenv/pyenv-virtualenv) or [Python's venv module](https://docs.python.org/3.7/library/venv.html) for creating an isolated virtual environment.
+  - A local copy of the code.
 
 Install dependencies:
 
