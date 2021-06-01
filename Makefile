@@ -19,7 +19,7 @@ publish: build
 clean:
 	rm -rf build dist *.egg-info || true
 
-develop:
+install:
 	pip install -e .[dev]
 
 lint:

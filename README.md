@@ -109,7 +109,7 @@ Prerequisites:
 
 Install dependencies:
 
-    $ make develop
+    $ make install
 
 Run linter against production code:
 
