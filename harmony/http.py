@@ -172,7 +172,7 @@ def _download(config, url: str, access_token: str, data, user_agent=None):
     with _earthdata_session() as session:
         session.auth = auth
         if data is None:
-            return session.get(url, headers=headers, timeout=TIMEOUT)
+            return session.get(url, stream=True, headers=headers, timeout=TIMEOUT)
         else:
             # Including this header since the stdlib does by default,
             # but we've switched to `requests` which does not.
