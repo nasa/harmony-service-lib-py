@@ -104,7 +104,7 @@ OPTIONAL -- Use with CAUTION:
 ## Development Setup
 
 Prerequisites:
-  - Python 3.7+, ideally installed via a virtual environment. We recommend using [pyenv](https://github.com/pyenv/pyenv) for managing multiple Python installations with different versions, in conjunction with a tool like [pyenv-virtualenv](https://github.com/pyenv/pyenv-virtualenv) or [Python's venv module](https://docs.python.org/3.7/library/venv.html) for creating an isolated virtual environment.
+  - Python 3.7+, ideally installed via a [virtual environment](https://github.com/nasa/harmony-service-example/blob/main/ENVHELP.md)
   - A local copy of the code.
 
 Install dependencies:
