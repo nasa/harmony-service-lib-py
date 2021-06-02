@@ -214,7 +214,7 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None):
         headers['user-agent'] = user_agent
     auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
     if data is None:
-        return requests.get(url, headers=headers, timeout=TIMEOUT, auth=auth)
+        return requests.get(url, stream=True, headers=headers, timeout=TIMEOUT, auth=auth)
     else:
         return requests.post(url, headers=headers, data=data, timeout=TIMEOUT, auth=auth)
 
