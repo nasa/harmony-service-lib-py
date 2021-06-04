@@ -134,7 +134,7 @@ def _earthdata_session():
     return EarthdataSession()
 
 
-def _download(config, url: str, access_token: str, data, user_agent=None, **kwargs):
+def _download(config, url: str, access_token: str, data, user_agent=None, **kwargs_download_agent):
     """Implements the download functionality.
 
     Using the EarthdataSession and EarthdataAuth extensions to the
@@ -172,15 +172,15 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **kwar
     with _earthdata_session() as session:
         session.auth = auth
         if data is None:
-            return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs)
+            return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
         else:
             # Including this header since the stdlib does by default,
             # but we've switched to `requests` which does not.
             headers['Content-Type'] = 'application/x-www-form-urlencoded'
-            return session.post(url, headers=headers, data=data, timeout=TIMEOUT, **kwargs)
+            return session.post(url, headers=headers, data=data, timeout=TIMEOUT, **kwargs_download_agent)
 
 
-def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwargs):
+def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwargs_download_agent):
     """Downloads the given url using Basic authentication as a fallback
     mechanism should the normal EDL Oauth handshake fail.
 
@@ -214,9 +214,9 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwa
         headers['user-agent'] = user_agent
     auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
     if data is None:
-        return requests.get(url, headers=headers, timeout=TIMEOUT, auth=auth, **kwargs)
+        return requests.get(url, headers=headers, timeout=TIMEOUT, auth=auth, **kwargs_download_agent)
     else:
-        return requests.post(url, headers=headers, data=data, timeout=TIMEOUT, auth=auth, **kwargs)
+        return requests.post(url, headers=headers, data=data, timeout=TIMEOUT, auth=auth, **kwargs_download_agent)
 
 
 def _log_download_performance(logger, url, duration_ms, file_size):
