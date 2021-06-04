@@ -159,6 +159,9 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **kwar
     user_agent : str
         The user agent that is requesting the download.
         E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
+    kwargs_download_agent: dict
+        kwargs to be passed to the download agent
+        E.g. stream=True
 
     Returns
     -------
@@ -203,6 +206,9 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwa
     user_agent : str
         The user agent that is requesting the download.
         E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
+    kwargs_download_agent: dict
+        kwargs to be passed to the download agent
+        E.g. stream=True
 
     Returns
     -------
