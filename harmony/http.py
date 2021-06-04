@@ -180,7 +180,7 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **kwar
             # Including this header since the stdlib does by default,
             # but we've switched to `requests` which does not.
             headers['Content-Type'] = 'application/x-www-form-urlencoded'
-            return session.post(url, headers=headers, data=data, timeout=TIMEOUT, **kwargs_download_agent)
+            return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
 
 
 def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwargs_download_agent):
@@ -222,7 +222,7 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwa
     if data is None:
         return requests.get(url, headers=headers, timeout=TIMEOUT, auth=auth, **kwargs_download_agent)
     else:
-        return requests.post(url, headers=headers, data=data, timeout=TIMEOUT, auth=auth, **kwargs_download_agent)
+        return requests.post(url, headers=headers, data=data, timeout=TIMEOUT, auth=auth)
 
 
 def _log_download_performance(logger, url, duration_ms, file_size):
