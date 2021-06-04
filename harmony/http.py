@@ -319,9 +319,10 @@ def download(config, url: str, access_token: str, data, destination_file, user_a
             response = _download_with_fallback_authn(config, url, data, user_agent, stream=True)
 
     if response.ok:
+        for chunk in response.iter_content(chunk_size=1024*1024*16):
+            destination_file.write(chunk)
         time_diff = datetime.datetime.now() - start_time
         duration_ms = int(round(time_diff.total_seconds() * 1000))
-        destination_file.write(response.content)
         file_size = sys.getsizeof(response.content)
         duration_logger = build_logger(config)
         _log_download_performance(duration_logger, url, duration_ms, file_size)
