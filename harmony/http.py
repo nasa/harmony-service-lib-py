@@ -309,14 +309,14 @@ def download(config, url: str, access_token: str, data, destination_file, user_a
     logger.info(f'timing.download.start {url}')
 
     if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token):
-        response = _download(config, url, access_token, data, user_agent)
+        response = _download(config, url, access_token, data, user_agent, stream=True)
 
     if response is None or not response.ok:
         if config.fallback_authn_enabled:
             msg = ('No valid user access token in request or EDL OAuth authentication failed.'
                    'Fallback authentication enabled: retrying with Basic auth.')
             logger.warning(msg)
-            response = _download_with_fallback_authn(config, url, data, user_agent)
+            response = _download_with_fallback_authn(config, url, data, user_agent, stream=True)
 
     if response.ok:
         time_diff = datetime.datetime.now() - start_time
