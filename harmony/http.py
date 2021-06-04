@@ -134,7 +134,7 @@ def _earthdata_session():
     return EarthdataSession()
 
 
-def _download(config, url: str, access_token: str, data, user_agent=None, stream=True):
+def _download(config, url: str, access_token: str, data, user_agent=None, **kwargs):
     """Implements the download functionality.
 
     Using the EarthdataSession and EarthdataAuth extensions to the
@@ -159,8 +159,6 @@ def _download(config, url: str, access_token: str, data, user_agent=None, stream
     user_agent : str
         The user agent that is requesting the download.
         E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
-    stream : boolean
-        Flag which will be passed to requests module when making download request
 
     Returns
     -------
@@ -174,15 +172,15 @@ def _download(config, url: str, access_token: str, data, user_agent=None, stream
     with _earthdata_session() as session:
         session.auth = auth
         if data is None:
-            return session.get(url, stream=stream, headers=headers, timeout=TIMEOUT)
+            return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs)
         else:
             # Including this header since the stdlib does by default,
             # but we've switched to `requests` which does not.
             headers['Content-Type'] = 'application/x-www-form-urlencoded'
-            return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
+            return session.post(url, headers=headers, data=data, timeout=TIMEOUT, **kwargs)
 
 
-def _download_with_fallback_authn(config, url: str, data, user_agent=None, stream=True):
+def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwargs):
     """Downloads the given url using Basic authentication as a fallback
     mechanism should the normal EDL Oauth handshake fail.
 
@@ -205,8 +203,6 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, strea
     user_agent : str
         The user agent that is requesting the download.
         E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
-    stream : boolean
-        Flag which will be passed to requests module when making download request
 
     Returns
     -------
@@ -218,9 +214,9 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, strea
         headers['user-agent'] = user_agent
     auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
     if data is None:
-        return requests.get(url, stream=stream, headers=headers, timeout=TIMEOUT, auth=auth)
+        return requests.get(url, headers=headers, timeout=TIMEOUT, auth=auth, **kwargs)
     else:
-        return requests.post(url, headers=headers, data=data, timeout=TIMEOUT, auth=auth)
+        return requests.post(url, headers=headers, data=data, timeout=TIMEOUT, auth=auth, **kwargs)
 
 
 def _log_download_performance(logger, url, duration_ms, file_size):
