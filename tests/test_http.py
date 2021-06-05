@@ -284,6 +284,7 @@ def test_when_authn_succeeds_it_writes_to_provided_file(
     responses.add(
         responses.GET,
         resource_server_granule_url,
+        body='dummy response body',
         status=200
     )
     destination_file = mocker.Mock()
@@ -316,6 +317,7 @@ def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth
     responses.add(
         responses.GET,
         resource_server_granule_url,
+        body='dummy response body',
         status=200
     )
     destination_file = mocker.Mock()
@@ -367,6 +369,7 @@ def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_
     responses.add(
         responses.GET,
         resource_server_granule_url,
+        body='dummy response body',
         status=200
     )
     destination_file = mocker.Mock()
