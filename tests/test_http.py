@@ -8,6 +8,7 @@ from tests.util import config_fixture
 
 EDL_URL = 'https://uat.urs.earthdata.nasa.gov'
 
+
 @pytest.mark.parametrize('url,expected', [
     ('http://example.com', True),
     ('HTTP://YELLING.COM', True),
