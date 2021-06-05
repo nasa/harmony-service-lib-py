@@ -302,6 +302,9 @@ def download(config, url: str, access_token: str, data, destination_file, user_a
     Side-effects
     ------------
     Will write to provided destination_file
+    NOTE: streaming request is used to download the file,
+    and the chunksize of 16MB is chosen based on the experiment with a large file of 1.8Gb
+    for optimized speed and memory consumption.
     """
 
     response = None
