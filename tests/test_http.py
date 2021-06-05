@@ -1,12 +1,12 @@
 import pytest
 import responses
+import os
 
 import harmony.http
 from harmony.http import (download, is_http, localhost_url)
 from tests.util import config_fixture
 
 EDL_URL = 'https://uat.urs.earthdata.nasa.gov'
-
 
 @pytest.mark.parametrize('url,expected', [
     ('http://example.com', True),
@@ -51,6 +51,11 @@ def resource_server_granule_url():
 
 
 @pytest.fixture
+def response_body_from_granule_url():
+    return "dummy response body"
+
+
+@pytest.fixture
 def resource_server_redirect_url(faker):
     return ('https://n5eil11u.ecs.nsidc.org/TS1_redirect'
             f'?code={faker.password(length=64, special_chars=False)}'
@@ -89,6 +94,7 @@ def test_download_follows_redirect_to_edl_and_adds_auth_headers(
     destination_file = mocker.Mock()
     cfg = config_fixture()
 
+    monkeypatch.setattr(os.path, "getsize", lambda a: 0)
     response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
 
     # We should get redirected to EDL
@@ -129,6 +135,7 @@ def test_download_follows_redirect_to_resource_server_with_code(
     destination_file = mocker.Mock()
     cfg = config_fixture()
 
+    monkeypatch.setattr(os.path, "getsize", lambda a: 0)
     response = download(cfg, edl_redirect_url, access_token, None, destination_file)
 
     assert response.status_code == 302
@@ -162,6 +169,7 @@ def test_resource_server_redirects_to_granule_url(
     destination_file = mocker.Mock()
     cfg = config_fixture()
 
+    monkeypatch.setattr(os.path, "getsize", lambda a: 0)
     response = download(cfg, resource_server_redirect_url, access_token, None, destination_file)
 
     assert response.status_code == 303
@@ -172,6 +180,7 @@ def test_resource_server_redirects_to_granule_url(
 
 @responses.activate
 def test_download_validates_token(
+        monkeypatch,
         mocker,
         faker,
         access_token,
@@ -189,6 +198,7 @@ def test_download_validates_token(
     responses.add(responses.GET, resource_server_granule_url, status=200)
     destination_file = mocker.Mock()
 
+    monkeypatch.setattr(os.path, "getsize", lambda a: 0)
     response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
 
     assert response.status_code == 200
@@ -198,6 +208,7 @@ def test_download_validates_token(
 
 @responses.activate
 def test_download_validates_token_once(
+        monkeypatch,
         mocker,
         faker,
         validate_access_token_url,
@@ -216,6 +227,7 @@ def test_download_validates_token_once(
     responses.add(responses.GET, resource_server_granule_url, status=200)
     destination_file = mocker.Mock()
 
+    monkeypatch.setattr(os.path, "getsize", lambda a: 0)
     response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
     response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
 
@@ -266,6 +278,7 @@ def test_when_given_a_url_and_data_it_downloads_with_query_parameters(
     cfg = config_fixture()
     data = {'param': 'value'}
 
+    monkeypatch.setattr(os.path, "getsize", lambda a: 0)
     response = download(cfg, resource_server_granule_url, access_token, data, destination_file)
 
     assert response.status_code == 200
@@ -278,18 +291,20 @@ def test_when_authn_succeeds_it_writes_to_provided_file(
         monkeypatch,
         mocker,
         access_token,
-        resource_server_granule_url):
+        resource_server_granule_url,
+        response_body_from_granule_url):
 
     monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
     responses.add(
         responses.GET,
         resource_server_granule_url,
-        body='dummy response body',
+        body=response_body_from_granule_url,
         status=200
     )
     destination_file = mocker.Mock()
     cfg = config_fixture()
 
+    monkeypatch.setattr(os.path, "getsize", lambda a: len(response_body_from_granule_url))
     response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
 
     assert response.status_code == 200
@@ -302,7 +317,8 @@ def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth
         monkeypatch,
         mocker,
         faker,
-        resource_server_granule_url):
+        resource_server_granule_url,
+        response_body_from_granule_url):
 
     monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
     client_id = faker.password(length=22, special_chars=False)
@@ -317,11 +333,12 @@ def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth
     responses.add(
         responses.GET,
         resource_server_granule_url,
-        body='dummy response body',
+        body=response_body_from_granule_url,
         status=200
     )
     destination_file = mocker.Mock()
 
+    monkeypatch.setattr(os.path, "getsize", lambda a: len(response_body_from_granule_url))
     response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
 
     assert response.status_code == 200
@@ -359,9 +376,11 @@ def test_when_given_an_access_token_and_error_occurs_it_does_not_fall_back_to_ba
 
 @responses.activate
 def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_enabled(
+        monkeypatch,
         mocker,
         faker,
-        resource_server_granule_url):
+        resource_server_granule_url,
+        response_body_from_granule_url):
 
     client_id = faker.password(length=22, special_chars=False)
     cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=True)
@@ -369,11 +388,12 @@ def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_
     responses.add(
         responses.GET,
         resource_server_granule_url,
-        body='dummy response body',
+        body=response_body_from_granule_url,
         status=200
     )
     destination_file = mocker.Mock()
 
+    monkeypatch.setattr(os.path, "getsize", lambda a: len(response_body_from_granule_url))
     response = download(cfg, resource_server_granule_url, None, None, destination_file)
 
     assert response.status_code == 200
@@ -409,6 +429,7 @@ def test_download_unknown_error_exception_if_all_else_fails(
 
 @responses.activate
 def test_user_agent_is_passed_to_request_headers_when_using_basic_auth(
+        monkeypatch,
         mocker,
         faker,
         resource_server_granule_url):
@@ -424,6 +445,7 @@ def test_user_agent_is_passed_to_request_headers_when_using_basic_auth(
     destination_file = mocker.Mock()
 
     user_agent = 'test-agent/0.0.0'
+    monkeypatch.setattr(os.path, "getsize", lambda a: 0)
     response = download(cfg, resource_server_granule_url, None, None, destination_file, user_agent=user_agent)
 
     assert 'User-Agent' in responses.calls[0].request.headers
@@ -431,6 +453,7 @@ def test_user_agent_is_passed_to_request_headers_when_using_basic_auth(
 
 @responses.activate
 def test_user_agent_is_passed_to_request_headers_when_using_basic_auth_and_post_param(
+        monkeypatch,
         mocker,
         faker,
         resource_server_granule_url):
@@ -447,6 +470,7 @@ def test_user_agent_is_passed_to_request_headers_when_using_basic_auth_and_post_
     destination_file = mocker.Mock()
 
     user_agent = 'test-agent/0.0.0'
+    monkeypatch.setattr(os.path, "getsize", lambda a: 0)
     response = download(cfg, resource_server_granule_url, None, data, destination_file, user_agent=user_agent)
 
     assert 'User-Agent' in responses.calls[0].request.headers
@@ -469,6 +493,7 @@ def test_user_agent_is_passed_to_request_headers_when_using_edl_auth(
     cfg = config_fixture()
 
     user_agent = 'test-agent/0.0.0'
+    monkeypatch.setattr(os.path, "getsize", lambda a: 0)
     response = download(cfg, resource_server_granule_url, access_token, None, destination_file, user_agent=user_agent)
 
     assert 'User-Agent' in responses.calls[0].request.headers
@@ -492,6 +517,7 @@ def test_user_agent_is_passed_to_request_headers_when_using_edl_auth_and_post_pa
     data = {'param': 'value'}
 
     user_agent = 'test-agent/0.0.0'
+    monkeypatch.setattr(os.path, "getsize", lambda a: 0)
     response = download(cfg, resource_server_granule_url, access_token, data, destination_file, user_agent=user_agent)
 
     assert 'User-Agent' in responses.calls[0].request.headers
