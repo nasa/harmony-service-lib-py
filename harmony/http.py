@@ -14,7 +14,6 @@ from functools import lru_cache
 import json
 from urllib.parse import urlparse
 import datetime
-import sys
 import os
 import re
 
