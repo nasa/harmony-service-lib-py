@@ -104,7 +104,7 @@ OPTIONAL -- Use with CAUTION:
 ## Development Setup
 
 Prerequisites:
-  - Python 3.7+, ideally installed via a [virtual environment](https://github.com/nasa/harmony-service-example/blob/main/ENVHELP.md)
+  - Python 3.7+, ideally installed via a virtual environment
   - A local copy of the code
 
 Install dependencies:
