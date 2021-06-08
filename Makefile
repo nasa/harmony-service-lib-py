@@ -1,4 +1,4 @@
-.PHONY: clean build publish test develop
+.PHONY: clean build publish test install
 
 VERSION ?= $(shell git describe --tags | sed 's/-/\+/' | sed 's/-/\./g')
 REPO ?= https://upload.pypi.org/legacy/
@@ -19,7 +19,7 @@ publish: build
 clean:
 	rm -rf build dist *.egg-info || true
 
-develop:
+install:
 	pip install -e .[dev]
 
 lint:

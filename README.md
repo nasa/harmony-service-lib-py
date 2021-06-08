@@ -104,12 +104,12 @@ OPTIONAL -- Use with CAUTION:
 ## Development Setup
 
 Prerequisites:
-  - Python 3.7+, ideally installed via a virtual environment such as `pyenv`
+  - Python 3.7+, ideally installed via a virtual environment
   - A local copy of the code
 
 Install dependencies:
 
-    $ make develop
+    $ make install
 
 Run linter against production code:
 

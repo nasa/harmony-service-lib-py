@@ -18,7 +18,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: make develop
+      run: make install
 
     - name: CVE Checks
       run: make cve-check
