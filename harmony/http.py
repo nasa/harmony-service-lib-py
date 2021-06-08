@@ -257,7 +257,8 @@ def _log_download_performance(logger, url, duration_ms, file_size):
     logger.info('timing.download.end', extra=extra_fields)
 
 
-def download(config, url: str, access_token: str, data, destination_file, user_agent=None):
+def download(config, url: str, access_token: str, data, destination_file,
+             user_agent=None, stream=True, chunk_size=1024*1024*16):
     """Downloads the given url using the provided EDL user access token
     and writes it to the provided file-like object.
 
@@ -302,7 +303,7 @@ def download(config, url: str, access_token: str, data, destination_file, user_a
     ------------
     Will write to provided destination_file
     NOTE: streaming request is used to download the file,
-          and the chunksize of 16MB is chosen based on the experiment with a large file of 1.8Gb
+          and the chunksize is defaulted to 16MB based on the experiment with a large file of 1.8Gb
           for optimized speed and memory consumption.
     """
 
@@ -312,17 +313,17 @@ def download(config, url: str, access_token: str, data, destination_file, user_a
     logger.info(f'timing.download.start {url}')
 
     if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token):
-        response = _download(config, url, access_token, data, user_agent, stream=True)
+        response = _download(config, url, access_token, data, user_agent, stream=stream)
 
     if response is None or not response.ok:
         if config.fallback_authn_enabled:
             msg = ('No valid user access token in request or EDL OAuth authentication failed.'
                    'Fallback authentication enabled: retrying with Basic auth.')
             logger.warning(msg)
-            response = _download_with_fallback_authn(config, url, data, user_agent, stream=True)
+            response = _download_with_fallback_authn(config, url, data, user_agent, stream=stream)
 
     if response.ok:
-        for chunk in response.iter_content(chunk_size=1024*1024*16):
+        for chunk in response.iter_content(chunk_size=chunk_size):
             destination_file.write(chunk)
         time_diff = datetime.datetime.now() - start_time
         duration_ms = int(round(time_diff.total_seconds() * 1000))
