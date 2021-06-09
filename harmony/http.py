@@ -272,10 +272,8 @@ def _preprocess_download_kwargs(download_kwargs: dict, logger):
           and the chunksize is set to be 16MB based on the experiment with a large file of 1.8Gb
           for optimized speed and memory consumption.
     """
-    download_kwargs.setdefault('stream', True)
-    download_kwargs.setdefault('chunk_size', 1024*1024*16)
-    stream = download_kwargs['stream'] if 'stream' in download_kwargs else False
-    chunk_size = download_kwargs['chunk_size'] if 'chunk_size' in download_kwargs else None
+    stream = download_kwargs.setdefault('stream', True)
+    chunk_size = download_kwargs.setdefault('chunk_size', 1024*1024*16)
     if (not stream) and chunk_size:
         logger.warn(
             f"In download paramters, chunk_size={chunk_size} will be ignored since stream is set to be {stream}."
