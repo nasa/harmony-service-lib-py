@@ -306,6 +306,8 @@ def download(config, url: str, access_token: str, data, destination_file,
     NOTE: streaming request is used to download the file,
           and the chunksize is defaulted to 16MB based on the experiment with a large file of 1.8Gb
           for optimized speed and memory consumption.
+          If you are experiencing some performance decay for high-throughput small-sized granules,
+          you may want to set stream=False.
     """
 
     response = None
