@@ -313,8 +313,12 @@ def download(config, url: str, access_token: str, data, destination_file,
     start_time = datetime.datetime.now()
     logger.info(f'timing.download.start {url}')
 
-    if bool(stream) != bool(chunk_size):
-        raise Exception(f'Mis-configured download parameters: stream={stream} and chunk_size={chunk_size}.')
+    if (not stream) and chunk_size:
+        logger.warn(
+            f"In download paramters, chunk_size={chunk_size} will be ignored since stream is set to be {stream}."
+        )
+    elif stream and not isinstance(chunk_size, int):
+        raise Exception(f"In download parameters: chunk_size must be integer when stream={stream}.")
 
     if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token):
         response = _download(config, url, access_token, data, user_agent, stream=stream)
