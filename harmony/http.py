@@ -259,7 +259,7 @@ def _log_download_performance(logger, url, duration_ms, file_size):
 
 
 def download(config, url: str, access_token: str, data, destination_file,
-             user_agent=None, stream=True, chunk_size=1024*1024*16):
+             user_agent=None, stream=True, buffer_size=1024*1024*16):
     """Downloads the given url using the provided EDL user access token
     and writes it to the provided file-like object.
 
@@ -313,12 +313,12 @@ def download(config, url: str, access_token: str, data, destination_file,
     start_time = datetime.datetime.now()
     logger.info(f'timing.download.start {url}')
 
-    if (not stream) and chunk_size:
+    if (not stream) and buffer_size:
         logger.warn(
-            f"In download paramters, chunk_size={chunk_size} will be ignored since stream is set to be {stream}."
+            f"In download paramters, buffer_size={buffer_size} will be ignored since stream is set to be {stream}."
         )
-    elif stream and not isinstance(chunk_size, int):
-        raise Exception(f"In download parameters: chunk_size must be integer when stream={stream}.")
+    elif stream and not isinstance(buffer_size, int):
+        raise Exception(f"In download parameters: buffer_size must be integer when stream={stream}.")
 
     if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token):
         response = _download(config, url, access_token, data, user_agent, stream=stream)
@@ -335,7 +335,7 @@ def download(config, url: str, access_token: str, data, destination_file,
             destination_file.write(response.content)
             file_size = sys.getsizeof(response.content)
         else:
-            for chunk in response.iter_content(chunk_size=chunk_size):
+            for chunk in response.iter_content(chunk_size=buffer_size):
                 destination_file.write(chunk)
             file_size = os.path.getsize(destination_file.name)
         time_diff = datetime.datetime.now() - start_time
