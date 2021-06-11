@@ -135,7 +135,7 @@ def _earthdata_session():
     return EarthdataSession()
 
 
-def _download(config, url: str, access_token: str, data, user_agent=None, **download_kwargs):
+def _download(config, url: str, access_token: str, data, user_agent=None, **kwargs_download_agent):
     """Implements the download functionality.
 
     Using the EarthdataSession and EarthdataAuth extensions to the
@@ -160,7 +160,7 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **down
     user_agent : str
         The user agent that is requesting the download.
         E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
-    download_kwargs: dict
+    kwargs_download_agent: dict
         kwargs to be passed to the download agent
         E.g. stream=True
 
@@ -176,7 +176,7 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **down
     with _earthdata_session() as session:
         session.auth = auth
         if data is None:
-            return session.get(url, headers=headers, timeout=TIMEOUT, **download_kwargs)
+            return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
         else:
             # Including this header since the stdlib does by default,
             # but we've switched to `requests` which does not.
@@ -184,7 +184,7 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **down
             return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
 
 
-def _download_with_fallback_authn(config, url: str, data, user_agent=None, **download_kwargs):
+def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwargs_download_agent):
     """Downloads the given url using Basic authentication as a fallback
     mechanism should the normal EDL Oauth handshake fail.
 
@@ -207,7 +207,7 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, **dow
     user_agent : str
         The user agent that is requesting the download.
         E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
-    download_kwargs: dict
+    kwargs_download_agent: dict
         kwargs to be passed to the download agent
         E.g. stream=True
 
@@ -221,7 +221,7 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, **dow
         headers['user-agent'] = user_agent
     auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
     if data is None:
-        return requests.get(url, headers=headers, timeout=TIMEOUT, auth=auth, **download_kwargs)
+        return requests.get(url, headers=headers, timeout=TIMEOUT, auth=auth, **kwargs_download_agent)
     else:
         return requests.post(url, headers=headers, data=data, timeout=TIMEOUT, auth=auth)
 
@@ -258,32 +258,8 @@ def _log_download_performance(logger, url, duration_ms, file_size):
     logger.info('timing.download.end', extra=extra_fields)
 
 
-def _preprocess_download_kwargs(download_kwargs: dict, logger):
-    """Preprocess the download kwargs.
-
-    Parameters
-    ----------
-    download_kwargs: dict
-        kwargs to be passed to the download agent
-        E.g. stream=True
-    logger : logging.Logger
-        The logger to use.
-    NOTE: By default, streaming request is used to download the file,
-          and the chunksize is set to be 16MB based on the experiment with a large file of 1.8Gb
-          for optimized speed and memory consumption.
-    """
-    stream = download_kwargs.setdefault('stream', True)
-    chunk_size = download_kwargs.setdefault('chunk_size', 1024*1024*16)
-    if (not stream) and chunk_size:
-        logger.warn(
-            f"In download paramters, chunk_size={chunk_size} will be ignored since stream is set to be {stream}."
-        )
-    elif stream and not isinstance(chunk_size, int):
-        raise Exception(f"In download parameters: chunk_size must be integer when stream={stream}.")
-
-
 def download(config, url: str, access_token: str, data, destination_file,
-             user_agent=None, **download_kwargs):
+             user_agent=None, stream=True, chunk_size=1024*1024*16):
     """Downloads the given url using the provided EDL user access token
     and writes it to the provided file-like object.
 
@@ -327,6 +303,9 @@ def download(config, url: str, access_token: str, data, destination_file,
     Side-effects
     ------------
     Will write to provided destination_file
+    NOTE: streaming request is used to download the file,
+          and the chunksize is defaulted to 16MB based on the experiment with a large file of 1.8Gb
+          for optimized speed and memory consumption.
     """
 
     response = None
@@ -334,24 +313,25 @@ def download(config, url: str, access_token: str, data, destination_file,
     start_time = datetime.datetime.now()
     logger.info(f'timing.download.start {url}')
 
-    _preprocess_download_kwargs(download_kwargs, logger)
+    if bool(stream) != bool(chunk_size):
+        raise Exception(f'Mis-configured download parameters: stream={stream} and chunk_size={chunk_size}.')
 
     if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token):
-        response = _download(config, url, access_token, data, user_agent, stream=download_kwargs["stream"])
+        response = _download(config, url, access_token, data, user_agent, stream=stream)
 
     if response is None or not response.ok:
         if config.fallback_authn_enabled:
             msg = ('No valid user access token in request or EDL OAuth authentication failed.'
                    'Fallback authentication enabled: retrying with Basic auth.')
             logger.warning(msg)
-            response = _download_with_fallback_authn(config, url, data, user_agent, stream=download_kwargs["stream"])
+            response = _download_with_fallback_authn(config, url, data, user_agent, stream=stream)
 
     if response.ok:
-        if not download_kwargs["stream"]:
+        if not stream:
             destination_file.write(response.content)
             file_size = sys.getsizeof(response.content)
         else:
-            for chunk in response.iter_content(chunk_size=download_kwargs["chunk_size"]):
+            for chunk in response.iter_content(chunk_size=chunk_size):
                 destination_file.write(chunk)
             file_size = os.path.getsize(destination_file.name)
         time_diff = datetime.datetime.now() - start_time
