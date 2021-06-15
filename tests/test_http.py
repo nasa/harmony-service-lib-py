@@ -380,7 +380,6 @@ def test_when_given_an_access_token_and_error_occurs_it_does_not_fall_back_to_ba
 
 @responses.activate
 def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_enabled(
-        monkeypatch,
         mocker,
         faker,
         resource_server_granule_url,
@@ -433,7 +432,6 @@ def test_download_unknown_error_exception_if_all_else_fails(
 
 @responses.activate
 def test_user_agent_is_passed_to_request_headers_when_using_basic_auth(
-        monkeypatch,
         mocker,
         faker,
         resource_server_granule_url,
@@ -457,7 +455,6 @@ def test_user_agent_is_passed_to_request_headers_when_using_basic_auth(
 
 @responses.activate
 def test_user_agent_is_passed_to_request_headers_when_using_basic_auth_and_post_param(
-        monkeypatch,
         mocker,
         faker,
         resource_server_granule_url,
