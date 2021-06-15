@@ -186,7 +186,6 @@ def test_resource_server_redirects_to_granule_url(
 
 @responses.activate
 def test_download_validates_token(
-        monkeypatch,
         mocker,
         faker,
         access_token,
@@ -214,7 +213,6 @@ def test_download_validates_token(
 
 @responses.activate
 def test_download_validates_token_once(
-        monkeypatch,
         mocker,
         faker,
         validate_access_token_url,
