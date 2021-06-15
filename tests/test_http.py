@@ -298,7 +298,8 @@ def test_when_authn_succeeds_it_writes_to_provided_file(
         mocker,
         access_token,
         resource_server_granule_url,
-        response_body_from_granule_url):
+        response_body_from_granule_url,
+        getsize_patched):
 
     monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
     responses.add(
@@ -310,7 +311,6 @@ def test_when_authn_succeeds_it_writes_to_provided_file(
     destination_file = mocker.Mock()
     cfg = config_fixture()
 
-    monkeypatch.setattr(os.path, "getsize", lambda a: len(response_body_from_granule_url))
     response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
 
     assert response.status_code == 200
@@ -324,7 +324,8 @@ def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth
         mocker,
         faker,
         resource_server_granule_url,
-        response_body_from_granule_url):
+        response_body_from_granule_url,
+        getsize_patched):
 
     monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
     client_id = faker.password(length=22, special_chars=False)
@@ -344,7 +345,6 @@ def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth
     )
     destination_file = mocker.Mock()
 
-    monkeypatch.setattr(os.path, "getsize", lambda a: len(response_body_from_granule_url))
     response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
 
     assert response.status_code == 200
@@ -386,7 +386,8 @@ def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_
         mocker,
         faker,
         resource_server_granule_url,
-        response_body_from_granule_url):
+        response_body_from_granule_url,
+        getsize_patched):
 
     client_id = faker.password(length=22, special_chars=False)
     cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=True)
@@ -399,7 +400,6 @@ def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_
     )
     destination_file = mocker.Mock()
 
-    monkeypatch.setattr(os.path, "getsize", lambda a: len(response_body_from_granule_url))
     response = download(cfg, resource_server_granule_url, None, None, destination_file)
 
     assert response.status_code == 200
