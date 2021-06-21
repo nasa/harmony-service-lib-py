@@ -15,6 +15,7 @@ import json
 from urllib.parse import urlparse
 import datetime
 import sys
+import os
 import re
 
 import requests
@@ -134,7 +135,7 @@ def _earthdata_session():
     return EarthdataSession()
 
 
-def _download(config, url: str, access_token: str, data, user_agent=None):
+def _download(config, url: str, access_token: str, data, user_agent=None, **kwargs_download_agent):
     """Implements the download functionality.
 
     Using the EarthdataSession and EarthdataAuth extensions to the
@@ -159,6 +160,9 @@ def _download(config, url: str, access_token: str, data, user_agent=None):
     user_agent : str
         The user agent that is requesting the download.
         E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
+    kwargs_download_agent: dict
+        kwargs to be passed to the download agent
+        E.g. stream=True
 
     Returns
     -------
@@ -172,7 +176,7 @@ def _download(config, url: str, access_token: str, data, user_agent=None):
     with _earthdata_session() as session:
         session.auth = auth
         if data is None:
-            return session.get(url, headers=headers, timeout=TIMEOUT)
+            return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
         else:
             # Including this header since the stdlib does by default,
             # but we've switched to `requests` which does not.
@@ -180,7 +184,7 @@ def _download(config, url: str, access_token: str, data, user_agent=None):
             return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
 
 
-def _download_with_fallback_authn(config, url: str, data, user_agent=None):
+def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwargs_download_agent):
     """Downloads the given url using Basic authentication as a fallback
     mechanism should the normal EDL Oauth handshake fail.
 
@@ -203,6 +207,9 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None):
     user_agent : str
         The user agent that is requesting the download.
         E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
+    kwargs_download_agent: dict
+        kwargs to be passed to the download agent
+        E.g. stream=True
 
     Returns
     -------
@@ -214,7 +221,7 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None):
         headers['user-agent'] = user_agent
     auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
     if data is None:
-        return requests.get(url, headers=headers, timeout=TIMEOUT, auth=auth)
+        return requests.get(url, headers=headers, timeout=TIMEOUT, auth=auth, **kwargs_download_agent)
     else:
         return requests.post(url, headers=headers, data=data, timeout=TIMEOUT, auth=auth)
 
@@ -251,7 +258,8 @@ def _log_download_performance(logger, url, duration_ms, file_size):
     logger.info('timing.download.end', extra=extra_fields)
 
 
-def download(config, url: str, access_token: str, data, destination_file, user_agent=None):
+def download(config, url: str, access_token: str, data, destination_file,
+             user_agent=None, stream=True, buffer_size=1024*1024*16):
     """Downloads the given url using the provided EDL user access token
     and writes it to the provided file-like object.
 
@@ -295,6 +303,11 @@ def download(config, url: str, access_token: str, data, destination_file, user_a
     Side-effects
     ------------
     Will write to provided destination_file
+    NOTE: streaming request is used to download the file,
+          and the chunksize is defaulted to 16MB based on the experiment with a large file of 1.8Gb
+          for optimized speed and memory consumption.
+          If you are experiencing some performance decay for high-throughput small-sized granules,
+          you may want to set stream=False.
     """
 
     response = None
@@ -302,21 +315,33 @@ def download(config, url: str, access_token: str, data, destination_file, user_a
     start_time = datetime.datetime.now()
     logger.info(f'timing.download.start {url}')
 
+    if (not stream) and buffer_size:
+        logger.warn(
+            f"In download paramters, buffer_size={buffer_size} will be ignored since stream is set to be {stream}."
+        )
+    elif stream and not isinstance(buffer_size, int):
+        raise Exception(f"In download parameters: buffer_size must be integer when stream={stream}.")
+
     if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token):
-        response = _download(config, url, access_token, data, user_agent)
+        response = _download(config, url, access_token, data, user_agent, stream=stream)
 
     if response is None or not response.ok:
         if config.fallback_authn_enabled:
             msg = ('No valid user access token in request or EDL OAuth authentication failed.'
                    'Fallback authentication enabled: retrying with Basic auth.')
             logger.warning(msg)
-            response = _download_with_fallback_authn(config, url, data, user_agent)
+            response = _download_with_fallback_authn(config, url, data, user_agent, stream=stream)
 
     if response.ok:
+        if not stream:
+            destination_file.write(response.content)
+            file_size = sys.getsizeof(response.content)
+        else:
+            for chunk in response.iter_content(chunk_size=buffer_size):
+                destination_file.write(chunk)
+            file_size = os.path.getsize(destination_file.name)
         time_diff = datetime.datetime.now() - start_time
         duration_ms = int(round(time_diff.total_seconds() * 1000))
-        destination_file.write(response.content)
-        file_size = sys.getsizeof(response.content)
         duration_logger = build_logger(config)
         _log_download_performance(duration_logger, url, duration_ms, file_size)
 
