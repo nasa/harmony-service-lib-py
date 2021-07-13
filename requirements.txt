@@ -2,5 +2,5 @@ boto3 ~= 1.14
 deprecation ~= 2.1.0
 pynacl ~= 1.4
 pystac ~= 0.5.3
-python-json-logger ~= 0.1
+python-json-logger ~= 2.0.1
 requests ~= 2.24
