@@ -186,7 +186,7 @@ class TestGenerateOutputFilename(unittest.TestCase):
         variables = ['/path/to/VarB']
         self.assertEqual(
             util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True),
-            'abc.123__path_to_VarB_regridded_subsetted.zarr'
+            'abc.123_path_to_VarB_regridded_subsetted.zarr'
         )
 
     def test_includes_single_variable(self):
