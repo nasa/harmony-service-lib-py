@@ -542,10 +542,10 @@ def generate_output_filename(filename, ext=None, variable_subset=None, is_regrid
 
     # runs of underscores are replaced with single underscore
     result = re.sub(r'_{2,}', '_', result)
-    
+
     # leading or trailing underscores are removed
     result = re.sub(r'^_+|_+$', '', result)
-    
+
     # underscores before or after periods are removed
     result = re.sub(r'_{0,}\._{0,}', '.', result)
 
