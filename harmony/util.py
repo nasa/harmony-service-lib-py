@@ -523,7 +523,7 @@ def generate_output_filename(filename, ext=None, variable_subset=None, is_regrid
         var = variable_subset[0]
         if hasattr(var, 'name'):
             var = var.name
-        suffixes.append('_' + var.replace('/', '_'))
+        suffixes.append('_' + var)
     if is_regridded:
         suffixes.append('_regridded')
     if is_subsetted:
@@ -539,6 +539,9 @@ def generate_output_filename(filename, ext=None, variable_subset=None, is_regrid
             result = result[:-len(suffix)]
 
     result += "".join(suffixes)
+
+    # replace any slashes that may have been encoded or present in variable_subset
+    result = result.replace('/', '_')
 
     # runs of underscores are replaced with single underscore
     result = re.sub(r'_{2,}', '_', result)

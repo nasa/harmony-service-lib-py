@@ -189,6 +189,41 @@ class TestGenerateOutputFilename(unittest.TestCase):
             'abc.123_path_to_VarB_regridded_subsetted.zarr'
         )
 
+    def test_decodes_encoded_chars(self):
+        url = 'https://example.com/fake-path/GPM_3IMERGHH.06%3A3B-HHR.MS.MRG.3IMERG.20200101-S120000-E122959.0720.V06B.HDF5'
+        self.assertEqual(
+            util.generate_output_filename(url),
+            'GPM_3IMERGHH.06:3B-HHR.MS.MRG.3IMERG.20200101-S120000-E122959.0720.V06B.HDF5'
+        )
+
+    def test_replaces_encoded_slash_with_underscore(self):
+        url = 'https://example.com/fake-path/a/b/a%2fb%2F%2Fc.hdf5'
+        self.assertEqual(
+            util.generate_output_filename(url),
+            'a_b_c.hdf5'
+        )
+
+    def test_runs_of_underscores_replaced_with_single(self):
+        url = 'https://example.com/fake-path/granule__base___name.nc4'
+        self.assertEqual(
+            util.generate_output_filename(url, variable_subset=['/Grid/precipitationCal']),
+            'granule_base_name_Grid_precipitationCal.nc4'
+        )
+
+    def test_leading_or_trailing_underscores_are_removed(self):
+        url = 'https://example.com/fake-path/__granule__base___name.nc4__'
+        self.assertEqual(
+            util.generate_output_filename(url, variable_subset=['/Grid/precipitationCal']),
+            'granule_base_name_Grid_precipitationCal.nc4'
+        )
+
+    def test_underscores_before_or_after_periods_are_removed(self):
+        url = 'https://example.com/fake-path/__granule__base___name_.__nc4__'
+        self.assertEqual(
+            util.generate_output_filename(url, variable_subset=['/Grid/precipitationCal']),
+            'granule_base_name_Grid_precipitationCal.nc4'
+        )
+
     def test_includes_single_variable(self):
         url = 'https://example.com/fake-path/abc.123.nc/?query=true'
         ext = 'zarr'
