@@ -57,6 +57,7 @@ import logging
 from pathlib import Path, PurePath
 from os import environ, path
 import sys
+import re
 from urllib import parse
 
 from nacl.secret import SecretBox
@@ -509,7 +510,8 @@ def generate_output_filename(filename, ext=None, variable_subset=None, is_regrid
     # Do this instead of using a URL parser, because our URLs are not complex in practice and
     # it is useful to allow relative file paths to work for local testing.
     original_filename = url.split('?')[0].rstrip('/').split('/')[-1]
-    (original_basename, original_ext) = path.splitext(original_filename)
+    decoded_original_filename = parse.unquote(original_filename)
+    (original_basename, original_ext) = path.splitext(decoded_original_filename)
     if ext is None:
         ext = original_ext
 
@@ -521,7 +523,7 @@ def generate_output_filename(filename, ext=None, variable_subset=None, is_regrid
         var = variable_subset[0]
         if hasattr(var, 'name'):
             var = var.name
-        suffixes.append('_' + var.replace('/', '_'))
+        suffixes.append('_' + var)
     if is_regridded:
         suffixes.append('_regridded')
     if is_subsetted:
@@ -536,7 +538,21 @@ def generate_output_filename(filename, ext=None, variable_subset=None, is_regrid
         if result.endswith(suffix):
             result = result[:-len(suffix)]
 
-    return result + "".join(suffixes)
+    result += "".join(suffixes)
+
+    # replace any slashes that may have been encoded or present in variable_subset
+    result = result.replace('/', '_')
+
+    # runs of underscores are replaced with single underscore
+    result = re.sub(r'_{2,}', '_', result)
+
+    # leading or trailing underscores are removed
+    result = re.sub(r'^_+|_+$', '', result)
+
+    # underscores before or after periods are removed
+    result = re.sub(r'_{0,}\._{0,}', '.', result)
+
+    return result
 
 
 def bbox_to_geometry(bbox):
