@@ -190,10 +190,10 @@ class TestGenerateOutputFilename(unittest.TestCase):
         )
 
     def test_decodes_encoded_chars(self):
-        url = 'https://example.com/fake-path/GPM_3IMERGHH.06%3A3B-HHR.MS.MRG.3IMERG.20200101-S120000-E122959.0720.V06B.HDF5'
+        url = 'https://example.com/fake-path/GPM_3IMERGHH.06%5D3B-HHR.MS.MRG.3IMERG.20200101-S120000-E122959.0720.V06B.HDF5'
         self.assertEqual(
             util.generate_output_filename(url),
-            'GPM_3IMERGHH.06:3B-HHR.MS.MRG.3IMERG.20200101-S120000-E122959.0720.V06B.HDF5'
+            'GPM_3IMERGHH.06]3B-HHR.MS.MRG.3IMERG.20200101-S120000-E122959.0720.V06B.HDF5'
         )
 
     def test_replaces_encoded_slash_with_underscore(self):
@@ -222,6 +222,23 @@ class TestGenerateOutputFilename(unittest.TestCase):
         self.assertEqual(
             util.generate_output_filename(url, variable_subset=['/Grid/precipitationCal']),
             'granule_base_name_Grid_precipitationCal.nc4'
+        )
+
+    def test_replaces_colon_with_underscore(self):
+        url = 'https://example.com/fake-path/q:q.nc4'
+        self.assertEqual(
+            util.generate_output_filename(url),
+            'q_q.nc4'
+        )
+        url = 'https://example.com/fake-path/q%3Aq.nc4'
+        self.assertEqual(
+            util.generate_output_filename(url),
+            'q_q.nc4'
+        )
+        url = 'https://example.com/fake-path/q%3Aq:q%2fq.nc4'
+        self.assertEqual(
+            util.generate_output_filename(url),
+            'q_q_q_q.nc4'
         )
 
     def test_includes_single_variable(self):
