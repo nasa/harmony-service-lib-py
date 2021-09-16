@@ -540,8 +540,8 @@ def generate_output_filename(filename, ext=None, variable_subset=None, is_regrid
 
     result += "".join(suffixes)
 
-    # replace any slashes that may have been encoded or present in variable_subset
-    result = result.replace('/', '_')
+    # replace special chars that may have been encoded or present in variable_subset
+    result = re.sub('\\/|:', '_', result)
 
     # runs of underscores are replaced with single underscore
     result = re.sub(r'_{2,}', '_', result)
