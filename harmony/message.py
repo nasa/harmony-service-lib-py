@@ -145,6 +145,8 @@ class Variable(JsonObject):
     fullPath : string
          The variable's absolute path within the file, including hierarchy.  Derived from
          UMM-Var group path combined with name.
+    reltedUrls : list
+         A list of RelatedUrl(s) for the variable.
     """
 
     def __init__(self, message_data):
@@ -156,7 +158,42 @@ class Variable(JsonObject):
         message_data : dictionary
             The Harmony message "variables" item to deserialize
         """
-        super().__init__(message_data, properties=['id', 'name', 'fullPath'])
+        super().__init__(message_data, properties=['id', 'name', 'fullPath', 'relatedUrls'])
+
+
+class RelatedUrl(JsonObject):
+    """
+    A related URL describes an external resource or location on the web
+    (data access location, project home page, relevant software packages, etc.)
+
+    Attributes
+    ----------
+    url : string
+        Points to the location of the resource described by the RelatedUrl.
+    urlContentType : string
+        A keyword which describes the content of a link at a high level.
+    type : string
+        A keyword which specifies the content of a link.
+    subtype : string
+        A keyword which further specifies the content of a link.
+    description : string
+        Explains where the link navigates and the type of information it contains.
+    format : string
+        The format of the data.
+    mimeType : string
+        The mime type of the data.
+    """
+
+    def __init__(self, message_data):
+        """
+        Constructor
+
+        Parameters
+        ----------
+        message_data : dictionary
+            The Harmony message "relatedUrls" item to deserialize
+        """
+        super().__init__(message_data, properties=['url', 'urlContentType', 'type', 'subtype', 'description', 'format', 'mimeType'])
 
 
 class Granule(JsonObject):
