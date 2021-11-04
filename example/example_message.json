@@ -1,12 +1,13 @@
 {
-  "$schema": "../../harmony/app/schemas/data-operation/0.10.0/data-operation-v0.10.0.json",
-  "version": "0.10.0",
+  "$schema": "../../harmony/app/schemas/data-operation/0.12.0/data-operation-v0.12.0.json",
+  "version": "0.12.0",
   "callback": "http://localhost/some-path",
   "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
   "user": "jdoe",
   "isSynchronous": false,
   "client": "harmony-example",
   "requestId": "00001111-2222-3333-4444-555566667777",
+  "accessToken": "ABCD1234567890",
   "sources": [
     {
       "collection": "C1233800302-EEDTEST",
@@ -14,7 +15,16 @@
         {
           "id": "V0001-EXAMPLE",
           "name": "ExampleVar",
-          "fullPath": "example/group/path/ExampleVar"
+          "fullPath": "example/group/path/ExampleVar",
+          "relatedUrls": [{
+            "description": "This URL points to some text data.",
+            "urlContentType": "DistributionURL",
+            "type": "GET DATA",
+            "subtype": "EOSDIS DATA POOL",
+            "url": "http://example.com/file649.txt",
+            "mimeType": "text/plain",
+            "format": "ASCII"
+          }]
         }
       ]
     }

@@ -158,7 +158,12 @@ class Variable(JsonObject):
         message_data : dictionary
             The Harmony message "variables" item to deserialize
         """
-        super().__init__(message_data, properties=['id', 'name', 'fullPath', 'relatedUrls'])
+        super().__init__(
+            message_data,
+            properties=['id', 'name', 'fullPath'],
+            list_properties={
+                'relatedUrls': RelatedUrl
+            })
 
 
 class RelatedUrl(JsonObject):
@@ -193,7 +198,9 @@ class RelatedUrl(JsonObject):
         message_data : dictionary
             The Harmony message "relatedUrls" item to deserialize
         """
-        super().__init__(message_data, properties=['url', 'urlContentType', 'type', 'subtype', 'description', 'format', 'mimeType'])
+        super().__init__(message_data, properties=[
+            'url', 'urlContentType', 'type', 'subtype', 'description', 'format', 'mimeType']
+        )
 
 
 class Granule(JsonObject):
