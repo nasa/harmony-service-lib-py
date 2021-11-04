@@ -145,7 +145,7 @@ class Variable(JsonObject):
     fullPath : string
          The variable's absolute path within the file, including hierarchy.  Derived from
          UMM-Var group path combined with name.
-    reltedUrls : list
+    relatedUrls : list
          A list of RelatedUrl(s) for the variable.
     """
 
