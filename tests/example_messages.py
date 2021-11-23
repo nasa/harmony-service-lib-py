@@ -1,12 +1,13 @@
 minimal_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.7.0/data-operation-v0.7.0.json",
-        "version": "0.7.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.12.0/data-operation-v0.12.0.json",
+        "version": "0.12.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
         "client": "curl",
         "requestId": "00001111-2222-3333-4444-555566667777",
+        "accessToken": "ABCD1234567890",
         "sources": [
         ],
         "format": {
@@ -18,13 +19,14 @@ minimal_message = """
 
 minimal_source_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.7.0/data-operation-v0.7.0.json",
-        "version": "0.7.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.12.0/data-operation-v0.12.0.json",
+        "version": "0.12.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
         "client": "curl",
         "requestId": "00001111-2222-3333-4444-555566667777",
+        "accessToken": "ABCD1234567890",
         "sources": [
             {
             "collection": "C0001-EXAMPLE",
@@ -41,14 +43,15 @@ minimal_source_message = """
 
 full_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.7.0/data-operation-v0.7.0.json",
-        "version": "0.7.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.12.0/data-operation-v0.12.0.json",
+        "version": "0.12.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
         "client": "curl",
         "requestId": "00001111-2222-3333-4444-555566667777",
         "isSynchronous": true,
+        "accessToken": "ABCD1234567890",
         "sources": [
             {
             "collection": "C0001-EXAMPLE",
@@ -56,7 +59,16 @@ full_message = """
                 {
                 "id": "V0001-EXAMPLE",
                 "name": "ExampleVar1",
-                "fullPath": "example/path/ExampleVar1"
+                "fullPath": "example/path/ExampleVar1",
+                "relatedUrls": [{
+                    "description": "This URL points to some text data.",
+                    "urlContentType": "DistributionURL",
+                    "type": "GET DATA",
+                    "subtype": "EOSDIS DATA POOL",
+                    "url": "http://example.com/file649.txt",
+                    "mimeType": "text/plain",
+                    "format": "ASCII"
+                    }]
                 }
             ],
             "granules": [
