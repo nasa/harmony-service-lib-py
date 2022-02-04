@@ -13,7 +13,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_full_message_it_parses_it_into_objects(self):
         message = Message(full_message)
 
-        self.assertEqual(message.version, '0.12.0')
+        self.assertEqual(message.version, '0.13.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -21,6 +21,7 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.requestId, '00001111-2222-3333-4444-555566667777')
         self.assertEqual(message.isSynchronous, True)
         self.assertEqual(message.accessToken, 'ABCD1234567890')
+        self.assertEqual(message.concatenate, True)
         self.assertEqual(message.sources[0].collection, 'C0001-EXAMPLE')
         self.assertEqual(message.sources[0].variables[0].id, 'V0001-EXAMPLE')
         self.assertEqual(message.sources[0].variables[0].name, 'ExampleVar1')
@@ -63,7 +64,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_minimal_message_it_parses_it_into_objects(self):
         message = Message(minimal_message)
 
-        self.assertEqual(message.version, '0.12.0')
+        self.assertEqual(message.version, '0.13.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -82,7 +83,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_message_with_minimal_source_it_parses_it_into_objects(self):
         message = Message(minimal_source_message)
 
-        self.assertEqual(message.version, '0.12.0')
+        self.assertEqual(message.version, '0.13.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.user, 'jdoe')
         self.assertEqual(message.accessToken, 'ABCD1234567890')
