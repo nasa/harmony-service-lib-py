@@ -531,6 +531,9 @@ class Message(JsonObject):
         The Harmony message's subsetting parameters
     temporal: message.Temporal
         The Harmony message's temporal subsetting parameters
+    concatenate: bool
+        True if the service should concatenate multiple input files into a single output
+        file and false otherwise.
     """
 
     def __init__(self, json_str_or_dict, decrypter=lambda x: x):
@@ -564,7 +567,8 @@ class Message(JsonObject):
                 'requestId',
                 'format',
                 'subset',
-                'temporal'
+                'temporal',
+                'concatenate'
             ],
             list_properties={'sources': Source}
         )

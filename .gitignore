@@ -129,3 +129,6 @@ tmp*
 tmp
 config-*.json
 config.json
+ 
+# Snyk / Deepcode AI
+.dccache
