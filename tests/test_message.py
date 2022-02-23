@@ -148,3 +148,6 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(output.format.crs, 'CRS:84')
         self.assertEqual(message.format.srs.proj4, '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
         self.assertEqual(output.sources[1].variables[0].fullPath, 'example/path/ExampleVar2')
+
+        # Point property is generated
+        self.assertEqual(message.point, [-160.2, 80.2])
