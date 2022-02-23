@@ -567,6 +567,7 @@ class Message(JsonObject):
                 'requestId',
                 'format',
                 'subset',
+                'point',
                 'temporal',
                 'concatenate'
             ],
