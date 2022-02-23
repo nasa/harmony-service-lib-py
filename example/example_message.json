@@ -1,6 +1,6 @@
 {
-  "$schema": "../../harmony/app/schemas/data-operation/0.13.0/data-operation-v0.13.0.json",
-  "version": "0.13.0",
+  "$schema": "../../harmony/app/schemas/data-operation/0.14.0/data-operation-v0.14.0.json",
+  "version": "0.14.0",
   "callback": "http://localhost/some-path",
   "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
   "user": "jdoe",
@@ -50,5 +50,6 @@
       45.0
     ]
   },
+  "point": [-160.2, 80.2],
   "concatenate": false
 }
