@@ -1,7 +1,7 @@
 minimal_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.13.0/data-operation-v0.13.0.json",
-        "version": "0.13.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.14.0/data-operation-v0.14.0.json",
+        "version": "0.14.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -19,8 +19,8 @@ minimal_message = """
 
 minimal_source_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.13.0/data-operation-v0.13.0.json",
-        "version": "0.13.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.14.0/data-operation-v0.14.0.json",
+        "version": "0.14.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -43,8 +43,8 @@ minimal_source_message = """
 
 full_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.13.0/data-operation-v0.13.0.json",
-        "version": "0.13.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.14.0/data-operation-v0.14.0.json",
+        "version": "0.14.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -157,6 +157,7 @@ full_message = """
                 "type": "application/geo+json"
             }
         },
+        "point": [-160.2, 80.2],
         "concatenate": true
     }
 """
