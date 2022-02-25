@@ -152,12 +152,12 @@ full_message = """
             91.1,
             45.0
             ],
+            "point": [-160.2, 80.2],
             "shape": {
                 "href": "s3://example-bucket/shapefiles/abcd.json",
                 "type": "application/geo+json"
             }
         },
-        "point": [-160.2, 80.2],
         "concatenate": true
     }
 """

@@ -60,7 +60,7 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.subset.bbox, [-91.1, -45.0, 91.1, 45.0])
         self.assertEqual(message.subset.shape.href, 's3://example-bucket/shapefiles/abcd.json')
         self.assertEqual(message.subset.shape.type, 'application/geo+json')
-        self.assertEqual(message.point, [-160.2, 80.2])
+        self.assertEqual(message.subset.point, [-160.2, 80.2])
 
     def test_when_provided_a_minimal_message_it_parses_it_into_objects(self):
         message = Message(minimal_message)
@@ -150,4 +150,4 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(output.sources[1].variables[0].fullPath, 'example/path/ExampleVar2')
 
         # Point property is generated
-        self.assertEqual(message.point, [-160.2, 80.2])
+        self.assertEqual(message.subset.point, [-160.2, 80.2])
