@@ -13,7 +13,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_full_message_it_parses_it_into_objects(self):
         message = Message(full_message)
 
-        self.assertEqual(message.version, '0.13.0')
+        self.assertEqual(message.version, '0.14.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -60,11 +60,12 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.subset.bbox, [-91.1, -45.0, 91.1, 45.0])
         self.assertEqual(message.subset.shape.href, 's3://example-bucket/shapefiles/abcd.json')
         self.assertEqual(message.subset.shape.type, 'application/geo+json')
+        self.assertEqual(message.subset.point, [-160.2, 80.2])
 
     def test_when_provided_a_minimal_message_it_parses_it_into_objects(self):
         message = Message(minimal_message)
 
-        self.assertEqual(message.version, '0.13.0')
+        self.assertEqual(message.version, '0.14.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -83,7 +84,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_message_with_minimal_source_it_parses_it_into_objects(self):
         message = Message(minimal_source_message)
 
-        self.assertEqual(message.version, '0.13.0')
+        self.assertEqual(message.version, '0.14.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.user, 'jdoe')
         self.assertEqual(message.accessToken, 'ABCD1234567890')
@@ -147,3 +148,6 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(output.format.crs, 'CRS:84')
         self.assertEqual(message.format.srs.proj4, '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
         self.assertEqual(output.sources[1].variables[0].fullPath, 'example/path/ExampleVar2')
+
+        # Point property is generated
+        self.assertEqual(message.subset.point, [-160.2, 80.2])

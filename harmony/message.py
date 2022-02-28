@@ -447,7 +447,7 @@ class Subset(JsonObject):
         message_data : dictionary
             The Harmony message "subset" object to deserialize
         """
-        super().__init__(message_data, properties=['bbox', 'shape'])
+        super().__init__(message_data, properties=['bbox', 'point', 'shape'])
         if self.shape is not None:
             self.shape = RemoteResource(message_data['shape'])
 
