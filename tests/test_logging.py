@@ -11,9 +11,9 @@ class TestLogging(unittest.TestCase):
 
     def setUp(self):
         self.harmony_message = Message(minimal_message)
+        self.buffer = StringIO()
 
     def configure_logger(self, text_logger):
-        self.buffer = StringIO()
         self.logger = build_logger(
             config_fixture(text_logger=text_logger), 
             stream=self.buffer)
