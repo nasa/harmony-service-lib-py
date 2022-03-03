@@ -7,9 +7,11 @@ from harmony.message import Message
 from .example_messages import minimal_message
 
 
-class TestLogging(unittest.TestCase):
+class TestLoggingRedaction(unittest.TestCase):
 
     def setUp(self):
+        # the access token of harmony_message
+        self.token = "ABCD1234567890"
         self.harmony_message = Message(minimal_message)
         self.buffer = StringIO()
 
@@ -23,13 +25,13 @@ class TestLogging(unittest.TestCase):
         self.logger.info(self.harmony_message)
         log = self.buffer.getvalue()
         assert("accessToken = '<redacted>'" in log)
-        assert("ABCD1234567890" not in log) # the access token of minimal_message
+        assert(self.token not in log) 
         # check the same but with the text logger
         self.configure_logger(text_logger=True)
         self.logger.info(self.harmony_message)
         log = self.buffer.getvalue()
         assert("accessToken = '<redacted>'" in log)
-        assert("ABCD1234567890" not in log) # the access token of minimal_message
+        assert(self.token not in log)
 
     def test_arg_token_not_logged(self):
         log_call_arguments = ['the Harmony message is %s', self.harmony_message]
@@ -37,13 +39,13 @@ class TestLogging(unittest.TestCase):
         self.logger.info(*log_call_arguments)
         log = self.buffer.getvalue()
         assert("accessToken = '<redacted>'" in log)
-        assert("ABCD1234567890" not in log) # the access token of minimal_message
+        assert(self.token not in log)
         # check the same but with the text logger
         self.configure_logger(text_logger=True)
         self.logger.info(*log_call_arguments)
         log = self.buffer.getvalue()
         assert("accessToken = '<redacted>'" in log)
-        assert("ABCD1234567890" not in log) # the access token of minimal_message
+        assert(self.token not in log)
 
     def test_dict_token_not_logged(self):
         log_call_arguments = ['the Harmony message is %s', { 'the_harmony_message': self.harmony_message }]
@@ -51,12 +53,12 @@ class TestLogging(unittest.TestCase):
         self.logger.info(*log_call_arguments)
         log = self.buffer.getvalue()
         assert("accessToken = '<redacted>'" in log)
-        assert("ABCD1234567890" not in log) # the access token of minimal_message
+        assert(self.token not in log)
         # check the same but with the text logger
         self.configure_logger(text_logger=True)
         self.logger.info(*log_call_arguments)
         log = self.buffer.getvalue()
         assert("accessToken = '<redacted>'" in log)
-        assert("ABCD1234567890" not in log) # the access token of minimal_message
+        assert(self.token not in log)
         
         
