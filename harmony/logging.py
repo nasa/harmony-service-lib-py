@@ -26,8 +26,8 @@ class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
 
 class RedactorFormatter(object):
     """Redacts sensitive information from logs."""
-    def __init__(self, orig_formatter):
-        self.orig_formatter = orig_formatter
+    def __init__(self, original_formatter):
+        self.original_formatter = original_formatter
 
     def format(self, record):
         # copy so that we don't mutate original values
@@ -41,7 +41,7 @@ class RedactorFormatter(object):
                 record.args[k] = self.redact(record.args[k])
         else:
             record.args = tuple(self.redact(arg) for arg in record.args)
-        msg = self.orig_formatter.format(record)
+        msg = self.original_formatter.format(record)
         return msg
 
     def redact(self, obj):
@@ -51,7 +51,7 @@ class RedactorFormatter(object):
         return obj
 
     def __getattr__(self, attr):
-        return getattr(self.orig_formatter, attr)
+        return getattr(self.original_formatter, attr)
 
 
 @lru_cache(maxsize=128)
