@@ -2,8 +2,10 @@ import datetime as dt
 from functools import lru_cache
 import logging
 import sys
+import copy
 
 from pythonjsonlogger import jsonlogger
+from harmony import message
 
 
 class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
@@ -22,8 +24,38 @@ class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
             log_record['application'] = self.app_name
 
 
+class RedactorFormatter(object):
+    """Redacts sensitive information from logs."""
+    def __init__(self, orig_formatter):
+        self.orig_formatter = orig_formatter
+
+    def format(self, record):
+        # copy so that we don't mutate original values
+        record.args = copy.deepcopy(record.args)
+        record.msg = copy.deepcopy(record.msg)
+        # need to check the log records msg and args for sensitive values
+        # https://docs.python.org/3/library/logging.html#logrecord-attributes
+        record.msg = self.redact(record.msg)
+        if isinstance(record.args, dict):
+            for k in record.args.keys():
+                record.args[k] = self.redact(record.args[k])
+        else:
+            record.args = tuple(self.redact(arg) for arg in record.args)
+        msg = self.orig_formatter.format(record)
+        return msg
+
+    def redact(self, obj):
+        if isinstance(obj, message.Message):
+            obj.accessToken = '<redacted>'
+            return obj
+        return obj
+
+    def __getattr__(self, attr):
+        return getattr(self.orig_formatter, attr)
+
+
 @lru_cache(maxsize=128)
-def build_logger(config, name=None):
+def build_logger(config, name=None, stream=None):
     """
     Builds a logger with appropriate defaults for Harmony
     Parameters
@@ -32,6 +64,8 @@ def build_logger(config, name=None):
         The configuration values for this runtime environment.
     name : string
         The name of the logger
+    stream :
+        The stream to write to (optional)
 
     Returns
     -------
@@ -39,7 +73,7 @@ def build_logger(config, name=None):
         A logger for service output
     """
     logger = logging.getLogger()
-    syslog = logging.StreamHandler()
+    syslog = logging.StreamHandler(stream)
     if config.text_logger:
         formatter = logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s.%(funcName)s:%(lineno)d] %(message)s")
     else:
@@ -49,6 +83,9 @@ def build_logger(config, name=None):
     logger.addHandler(syslog)
     logger.setLevel(logging.INFO)
     logger.propagate = False
+    # wrap each handler in the redactor formatter
+    for handler in logging.root.handlers:
+        handler.setFormatter(RedactorFormatter(handler.formatter))
     return logger
 
 
