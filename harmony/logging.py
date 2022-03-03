@@ -41,8 +41,8 @@ class RedactorFormatter(object):
                 record.args[k] = self.redact(record.args[k])
         else:
             record.args = tuple(self.redact(arg) for arg in record.args)
-        msg = self.original_formatter.format(record)
-        return msg
+        formatted_message = self.original_formatter.format(record)
+        return formatted_message
 
     def redact(self, obj):
         if isinstance(obj, message.Message):
