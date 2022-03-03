@@ -45,6 +45,7 @@ class RedactorFormatter(object):
         return formatted_message
 
     def redact(self, obj):
+        """Redacts values if they're sensitive. Returns original object."""
         if isinstance(obj, message.Message):
             obj.accessToken = '<redacted>'
             return obj
