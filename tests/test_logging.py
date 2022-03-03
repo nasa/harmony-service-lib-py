@@ -10,9 +10,8 @@ from .example_messages import minimal_message
 class TestLoggingRedaction(unittest.TestCase):
 
     def setUp(self):
-        # the access token of harmony_message
-        self.token = "ABCD1234567890"
         self.harmony_message = Message(minimal_message)
+        self.token = self.harmony_message.accessToken
         self.buffer = StringIO()
 
     def configure_logger(self, text_logger):
