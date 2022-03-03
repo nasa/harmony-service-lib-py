@@ -33,7 +33,7 @@ class RedactorFormatter(object):
         # copy so that we don't mutate original values
         record.args = copy.deepcopy(record.args)
         record.msg = copy.deepcopy(record.msg)
-        # need to check the log records msg and args for sensitive values
+        # need to check the log record's msg and args for sensitive values
         # https://docs.python.org/3/library/logging.html#logrecord-attributes
         record.msg = self.redact(record.msg)
         if isinstance(record.args, dict):
