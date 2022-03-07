@@ -1,4 +1,5 @@
 import unittest
+import copy
 from io import StringIO
 
 from harmony.logging import build_logger
@@ -31,6 +32,8 @@ class TestLoggingRedaction(unittest.TestCase):
         log = self.buffer.getvalue()
         assert("accessToken = '<redacted>'" in log)
         assert(self.token not in log)
+        # check that the message wasn't mutated
+        assert(self.harmony_message.accessToken == self.token)
 
     def test_arg_token_not_logged(self):
         log_call_arguments = ['the Harmony message is %s', self.harmony_message]
@@ -45,6 +48,8 @@ class TestLoggingRedaction(unittest.TestCase):
         log = self.buffer.getvalue()
         assert("accessToken = '<redacted>'" in log)
         assert(self.token not in log)
+        # check that the message wasn't mutated
+        assert(self.harmony_message.accessToken == self.token)
 
     def test_dict_token_not_logged(self):
         log_call_arguments = ['the Harmony message is %s', { 'the_harmony_message': self.harmony_message }]
@@ -59,5 +64,7 @@ class TestLoggingRedaction(unittest.TestCase):
         log = self.buffer.getvalue()
         assert("accessToken = '<redacted>'" in log)
         assert(self.token not in log)
+        # check that the message wasn't mutated
+        assert(self.harmony_message.accessToken == self.token)
         
         
