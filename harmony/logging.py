@@ -43,7 +43,7 @@ class RedactorFormatter(object):
                     if not args_clone:
                         args_clone = copy.deepcopy(record.args)
                     args_clone[k].accessToken = '<redacted>'
-        else: # args is a tuple
+        else:  # args is a tuple
             for index, arg in enumerate(record.args):
                 if isinstance(arg, message.Message):
                     if not args_clone:
