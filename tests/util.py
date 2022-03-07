@@ -77,7 +77,8 @@ def config_fixture(fallback_authn_enabled=False,
                    staging_path='UNKNOWN',
                    oauth_client_id=None,
                    user_agent=None,
-                   app_name=None):
+                   app_name=None,
+                   text_logger=False):
     c = util.config(validate=False)
     return util.Config(
         # Override
@@ -89,6 +90,7 @@ def config_fixture(fallback_authn_enabled=False,
         staging_bucket=staging_bucket,
         oauth_client_id=oauth_client_id,
         app_name=app_name,
+        text_logger=text_logger,
         # Default
         env=c.env,
         oauth_host=c.oauth_host,
@@ -98,7 +100,6 @@ def config_fixture(fallback_authn_enabled=False,
         backend_host=c.backend_host,
         localstack_host=c.localstack_host,
         aws_default_region=c.aws_default_region,
-        text_logger=c.text_logger,
         health_check_path=c.health_check_path,
         shared_secret_key=c.shared_secret_key,
         # Override if provided, else default

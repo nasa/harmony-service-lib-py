@@ -2,8 +2,10 @@ import datetime as dt
 from functools import lru_cache
 import logging
 import sys
+import copy
 
 from pythonjsonlogger import jsonlogger
+from harmony import message
 
 
 class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
@@ -22,8 +24,44 @@ class HarmonyJsonFormatter(jsonlogger.JsonFormatter):
             log_record['application'] = self.app_name
 
 
+class RedactorFormatter(object):
+    """Redacts sensitive information from logs."""
+    def __init__(self, original_formatter):
+        self.original_formatter = original_formatter
+
+    def format(self, record):
+        # need to check the log record's msg and args for sensitive values
+        # https://docs.python.org/3/library/logging.html#logrecord-attributes
+        msg_clone = None
+        args_clone = None
+        if isinstance(record.msg, message.Message):
+            msg_clone = copy.deepcopy(record.msg)
+            msg_clone.accessToken = '<redacted>'
+        if isinstance(record.args, dict):
+            for k in record.args.keys():
+                if isinstance(record.args[k], message.Message):
+                    if not args_clone:
+                        args_clone = copy.deepcopy(record.args)
+                    args_clone[k].accessToken = '<redacted>'
+        else:  # args is a tuple
+            for index, arg in enumerate(record.args):
+                if isinstance(arg, message.Message):
+                    if not args_clone:
+                        args_clone = copy.deepcopy(record.args)
+                    args_clone[index].accessToken = '<redacted>'
+        if msg_clone:
+            record.msg = msg_clone
+        if args_clone:
+            record.args = args_clone
+        formatted_message = self.original_formatter.format(record)
+        return formatted_message
+
+    def __getattr__(self, attr):
+        return getattr(self.original_formatter, attr)
+
+
 @lru_cache(maxsize=128)
-def build_logger(config, name=None):
+def build_logger(config, name=None, stream=None):
     """
     Builds a logger with appropriate defaults for Harmony
     Parameters
@@ -32,6 +70,8 @@ def build_logger(config, name=None):
         The configuration values for this runtime environment.
     name : string
         The name of the logger
+    stream :
+        The stream to write to (optional)
 
     Returns
     -------
@@ -39,7 +79,7 @@ def build_logger(config, name=None):
         A logger for service output
     """
     logger = logging.getLogger()
-    syslog = logging.StreamHandler()
+    syslog = logging.StreamHandler(stream)
     if config.text_logger:
         formatter = logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s.%(funcName)s:%(lineno)d] %(message)s")
     else:
@@ -49,6 +89,9 @@ def build_logger(config, name=None):
     logger.addHandler(syslog)
     logger.setLevel(logging.INFO)
     logger.propagate = False
+    # wrap each handler in the redactor formatter
+    for handler in logging.root.handlers:
+        handler.setFormatter(RedactorFormatter(handler.formatter))
     return logger
 
 
