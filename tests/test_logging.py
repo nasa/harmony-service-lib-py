@@ -51,6 +51,22 @@ class TestLoggingRedaction(unittest.TestCase):
         # check that the message wasn't mutated
         assert(self.harmony_message.accessToken == self.token)
 
+    def test_multiple_args_token_not_logged(self):
+        log_call_arguments = ['the Harmony message is %s. Another arg: %s', self.harmony_message, "another arg"]
+        self.configure_logger(text_logger=False)
+        self.logger.info(*log_call_arguments)
+        log = self.buffer.getvalue()
+        assert("accessToken = '<redacted>'" in log)
+        assert(self.token not in log)
+        # check the same but with the text logger
+        self.configure_logger(text_logger=True)
+        self.logger.info(*log_call_arguments)
+        log = self.buffer.getvalue()
+        assert("accessToken = '<redacted>'" in log)
+        assert(self.token not in log)
+        # check that the message wasn't mutated
+        assert(self.harmony_message.accessToken == self.token)
+
     def test_dict_token_not_logged(self):
         log_call_arguments = ['the Harmony message is %s', { 'the_harmony_message': self.harmony_message }]
         self.configure_logger(text_logger=False)
