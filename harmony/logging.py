@@ -30,26 +30,31 @@ class RedactorFormatter(object):
         self.original_formatter = original_formatter
 
     def format(self, record):
-        # copy so that we don't mutate original values
-        record.args = copy.deepcopy(record.args)
-        record.msg = copy.deepcopy(record.msg)
         # need to check the log record's msg and args for sensitive values
         # https://docs.python.org/3/library/logging.html#logrecord-attributes
-        record.msg = self.redact(record.msg)
+        msg_clone = None
+        args_clone = None
+        if isinstance(record.msg, message.Message):
+            msg_clone = copy.deepcopy(record.msg)
+            msg_clone.accessToken = '<redacted>'
         if isinstance(record.args, dict):
             for k in record.args.keys():
-                record.args[k] = self.redact(record.args[k])
-        else:
-            record.args = tuple(self.redact(arg) for arg in record.args)
+                if isinstance(record.args[k], message.Message):
+                    if not args_clone:
+                        args_clone = copy.deepcopy(record.args)
+                    args_clone[k].accessToken = '<redacted>'
+        else: # args is a tuple
+            for index, arg in enumerate(record.args):
+                if isinstance(arg, message.Message):
+                    if not args_clone:
+                        args_clone = copy.deepcopy(record.args)
+                    args_clone[index].accessToken = '<redacted>'
+        if msg_clone:
+            record.msg = msg_clone
+        if args_clone:
+            record.args = args_clone
         formatted_message = self.original_formatter.format(record)
         return formatted_message
-
-    def redact(self, obj):
-        """Redacts values if they're sensitive. Returns original object."""
-        if isinstance(obj, message.Message):
-            obj.accessToken = '<redacted>'
-            return obj
-        return obj
 
     def __getattr__(self, attr):
         return getattr(self.original_formatter, attr)
