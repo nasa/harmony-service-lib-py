@@ -1,7 +1,7 @@
 minimal_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.14.0/data-operation-v0.14.0.json",
-        "version": "0.14.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.15.0/data-operation-v0.15.0.json",
+        "version": "0.15.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -19,8 +19,8 @@ minimal_message = """
 
 minimal_source_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.14.0/data-operation-v0.14.0.json",
-        "version": "0.14.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.15.0/data-operation-v0.15.0.json",
+        "version": "0.15.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -31,6 +31,7 @@ minimal_source_message = """
             {
             "collection": "C0001-EXAMPLE",
             "variables": [],
+            "coordinateVariables": [],
             "granules": []
             }
         ],
@@ -43,8 +44,8 @@ minimal_source_message = """
 
 full_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.14.0/data-operation-v0.14.0.json",
-        "version": "0.14.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.15.0/data-operation-v0.15.0.json",
+        "version": "0.15.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -52,11 +53,9 @@ full_message = """
         "requestId": "00001111-2222-3333-4444-555566667777",
         "isSynchronous": true,
         "accessToken": "ABCD1234567890",
-        "sources": [
-            {
+        "sources": [{
             "collection": "C0001-EXAMPLE",
-            "variables": [
-                {
+            "variables": [{
                 "id": "V0001-EXAMPLE",
                 "name": "ExampleVar1",
                 "fullPath": "example/path/ExampleVar1",
@@ -68,9 +67,17 @@ full_message = """
                     "url": "http://example.com/file649.txt",
                     "mimeType": "text/plain",
                     "format": "ASCII"
-                    }]
-                }
-            ],
+                }],
+                "type": "SCIENCE_VARIABLE",
+                 "subtype": "SCIENCE_ARRAY"
+            }],
+            "coordinateVariables": [{
+              "id": "V1233801718-EEDTEST",
+              "name": "lat",
+              "fullPath": "lat",
+              "type": "COORDINATE",
+              "subtype": "LATITUDE"
+            }],
             "granules": [
                 {
                 "id": "G0001-EXAMPLE",
