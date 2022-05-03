@@ -13,7 +13,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_full_message_it_parses_it_into_objects(self):
         message = Message(full_message)
 
-        self.assertEqual(message.version, '0.14.0')
+        self.assertEqual(message.version, '0.15.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -26,6 +26,8 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.sources[0].variables[0].id, 'V0001-EXAMPLE')
         self.assertEqual(message.sources[0].variables[0].name, 'ExampleVar1')
         self.assertEqual(message.sources[0].variables[0].fullPath, 'example/path/ExampleVar1')
+        self.assertEqual(message.sources[0].variables[0].type, 'SCIENCE_VARIABLE')
+        self.assertEqual(message.sources[0].variables[0].subtype, 'SCIENCE_ARRAY')
         self.assertEqual(message.sources[0].variables[0].relatedUrls[0].urlContentType, 'DistributionURL')
         self.assertEqual(message.sources[0].variables[0].relatedUrls[0].type, 'GET DATA')
         self.assertEqual(message.sources[0].variables[0].relatedUrls[0].subtype, 'EOSDIS DATA POOL')
@@ -33,6 +35,11 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.sources[0].variables[0].relatedUrls[0].url, 'http://example.com/file649.txt')
         self.assertEqual(message.sources[0].variables[0].relatedUrls[0].mimeType, 'text/plain')
         self.assertEqual(message.sources[0].variables[0].relatedUrls[0].format, 'ASCII')
+        self.assertEqual(message.sources[0].coordinateVariables[0].id, 'V1233801718-EEDTEST')
+        self.assertEqual(message.sources[0].coordinateVariables[0].name, 'lat')
+        self.assertEqual(message.sources[0].coordinateVariables[0].fullPath, 'lat')
+        self.assertEqual(message.sources[0].coordinateVariables[0].type, 'COORDINATE')
+        self.assertEqual(message.sources[0].coordinateVariables[0].subtype, 'LATITUDE')
         self.assertEqual(message.sources[0].granules[1].id, 'G0002-EXAMPLE')
         self.assertEqual(message.sources[0].granules[1].name, 'Example2')
         self.assertEqual(message.sources[0].granules[1].url, 'file://example/example_granule_2.txt')
@@ -65,7 +72,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_minimal_message_it_parses_it_into_objects(self):
         message = Message(minimal_message)
 
-        self.assertEqual(message.version, '0.14.0')
+        self.assertEqual(message.version, '0.15.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -84,12 +91,13 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_message_with_minimal_source_it_parses_it_into_objects(self):
         message = Message(minimal_source_message)
 
-        self.assertEqual(message.version, '0.14.0')
+        self.assertEqual(message.version, '0.15.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.user, 'jdoe')
         self.assertEqual(message.accessToken, 'ABCD1234567890')
         self.assertEqual(message.sources[0].collection, 'C0001-EXAMPLE')
         self.assertEqual(message.sources[0].variables, [])
+        self.assertEqual(message.sources[0].coordinateVariables, [])
         self.assertEqual(message.sources[0].granules, [])
 
     def test_granules_attribute_returns_all_child_granules(self):

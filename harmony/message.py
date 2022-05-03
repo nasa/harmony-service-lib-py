@@ -99,8 +99,8 @@ class JsonObject(object):
 
 class Source(JsonObject):
     """
-    A collection / granule / variable data source as found in the Harmony message
-    "sources" list.
+    A collection / granule / variable / coordinateVariable data source as found in
+    the Harmony message "sources" list.
 
     Attributes
     ----------
@@ -108,6 +108,9 @@ class Source(JsonObject):
         The id of the collection the data source's variables and granules are in
     variables : list
         A list of Variable objects for the variables which should be transformed
+    coordinateVariables: list
+        A list of Variable objects containing the coordinate variables for the
+        collection.
     granules : list
         A list of Granule objects for the granules which should be operated on
     """
@@ -124,7 +127,10 @@ class Source(JsonObject):
         super().__init__(message_data,
                          properties=['collection'],
                          list_properties={
-                             'variables': Variable, 'granules': Granule}
+                             'variables': Variable,
+                             'coordinateVariables': Variable,
+                             'granules': Granule
+                            }
                          )
         for granule in self.granules:
             granule.collection = self.collection
@@ -156,11 +162,11 @@ class Variable(JsonObject):
         Parameters
         ----------
         message_data : dictionary
-            The Harmony message "variables" item to deserialize
+            The Harmony message "variables" or "coordinateVariables" item to deserialize
         """
         super().__init__(
             message_data,
-            properties=['id', 'name', 'fullPath'],
+            properties=['id', 'name', 'fullPath', 'type', 'subtype'],
             list_properties={
                 'relatedUrls': RelatedUrl
             })
