@@ -272,6 +272,32 @@ class MinMax(JsonObject):
         super().__init__(message_data, properties=['min', 'max'])
 
 
+class Dimension(JsonObject):
+    """
+    Dimension subset parameters as found in a Harmony message's "subset.dimensions" list
+
+    Attributes
+    ----------
+    name: string
+        The name of the dimension
+    min: float
+        The min value for the dimension
+    max: float
+        The max value for the dimension
+    """
+
+    def __init__(self, message_data):
+        """
+        Constructor
+
+        Parameters
+        ----------
+        message_data : dictionary
+            The Harmony message "format.scaleExtent" object to deserialize
+        """
+        super().__init__(message_data, properties=['name', 'min', 'max'])
+
+
 class ScaleExtent(JsonObject):
     """
     Scale extent parameters as found in a Harmony message's "format.scaleExtent" object
@@ -442,6 +468,7 @@ class Subset(JsonObject):
     bbox : list
         A list of 4 floating point values corresponding to [West, South, East, North]
         coordinates
+    point: list
     """
 
     def __init__(self, message_data):
@@ -453,9 +480,14 @@ class Subset(JsonObject):
         message_data : dictionary
             The Harmony message "subset" object to deserialize
         """
-        super().__init__(message_data, properties=['bbox', 'point', 'shape'])
+        super().__init__(message_data, properties=['bbox', 'point', 'shape', 'dimensions'])
         if self.shape is not None:
             self.shape = RemoteResource(message_data['shape'])
+        if self.dimensions is not None:
+            dimensions = []
+            for dimension in self.dimensions:
+                dimensions.append(Dimension(dimension))
+            self.dimensions = dimensions
 
 
 class Temporal(JsonObject):

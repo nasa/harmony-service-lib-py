@@ -13,7 +13,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_full_message_it_parses_it_into_objects(self):
         message = Message(full_message)
 
-        self.assertEqual(message.version, '0.15.0')
+        self.assertEqual(message.version, '0.16.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -68,11 +68,18 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.subset.shape.href, 's3://example-bucket/shapefiles/abcd.json')
         self.assertEqual(message.subset.shape.type, 'application/geo+json')
         self.assertEqual(message.subset.point, [-160.2, 80.2])
+        self.assertEqual(message.subset.dimensions[0].name, 'XDim')
+        self.assertEqual(message.subset.dimensions[0].min, 0.5)
+        self.assertEqual(message.subset.dimensions[0].max, 12.0)
+        self.assertEqual(message.subset.dimensions[1].name, 'YDim')
+        self.assertEqual(message.subset.dimensions[1].min, None)
+        self.assertEqual(message.subset.dimensions[1].max, 10)
+
 
     def test_when_provided_a_minimal_message_it_parses_it_into_objects(self):
         message = Message(minimal_message)
 
-        self.assertEqual(message.version, '0.15.0')
+        self.assertEqual(message.version, '0.16.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -87,11 +94,12 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.format.height, None)
         self.assertEqual(message.format.dpi, None)
         self.assertEqual(message.subset.bbox, None)
+        self.assertEqual(message.subset.dimensions, None)
 
     def test_when_provided_a_message_with_minimal_source_it_parses_it_into_objects(self):
         message = Message(minimal_source_message)
 
-        self.assertEqual(message.version, '0.15.0')
+        self.assertEqual(message.version, '0.16.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.user, 'jdoe')
         self.assertEqual(message.accessToken, 'ABCD1234567890')
