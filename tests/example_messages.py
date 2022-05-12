@@ -1,7 +1,7 @@
 minimal_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.15.0/data-operation-v0.15.0.json",
-        "version": "0.15.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.16.0/data-operation-v0.16.0.json",
+        "version": "0.16.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -19,8 +19,8 @@ minimal_message = """
 
 minimal_source_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.15.0/data-operation-v0.15.0.json",
-        "version": "0.15.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.16.0/data-operation-v0.16.0.json",
+        "version": "0.16.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -44,8 +44,8 @@ minimal_source_message = """
 
 full_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.15.0/data-operation-v0.15.0.json",
-        "version": "0.15.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.16.0/data-operation-v0.16.0.json",
+        "version": "0.16.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -163,7 +163,15 @@ full_message = """
             "shape": {
                 "href": "s3://example-bucket/shapefiles/abcd.json",
                 "type": "application/geo+json"
-            }
+            },
+            "dimensions": [{
+                "name": "XDim",
+                "min": 0.5,
+                "max": 12.0
+            },{
+                "name": "YDim",
+                "max": 10.0
+            }]
         },
         "concatenate": true
     }
