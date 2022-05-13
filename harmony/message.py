@@ -274,7 +274,8 @@ class MinMax(JsonObject):
 
 class Dimension(JsonObject):
     """
-    Dimension subset parameters as found in a Harmony message's "subset.dimensions" list
+    Dimension subset parameters as found in a single dimension from the list of the
+    Harmony message's "subset.dimensions" field.
 
     Attributes
     ----------
@@ -293,7 +294,8 @@ class Dimension(JsonObject):
         Parameters
         ----------
         message_data : dictionary
-            The Harmony message "format.scaleExtent" object to deserialize
+            A single dimension from the list of the Harmony message's "subset.dimensions"
+            field
         """
         super().__init__(message_data, properties=['name', 'min', 'max'])
 
@@ -468,7 +470,11 @@ class Subset(JsonObject):
     bbox : list
         A list of 4 floating point values corresponding to [West, South, East, North]
         coordinates
-    point: list
+    point: list containing 2 floating point values corresponding to longitude and latitude
+    shape: RemoteResource
+        A reference to a location containing a shapefile
+    dimensions: list
+        A list of Dimension objects to subset against
     """
 
     def __init__(self, message_data):
