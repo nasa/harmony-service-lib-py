@@ -189,7 +189,7 @@ def _build_adapter(AdapterClass, message_string, sources_path, data_location, co
 def _invoke(adapter, metadata_dir):
     """
     Handles --harmony-action=invoke by invoking the adapter for the given input message
-
+vim 
     Parameters
     ----------
     adapter : BaseHarmonyAdapter

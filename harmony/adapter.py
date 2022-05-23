@@ -18,7 +18,7 @@ from tempfile import mkdtemp
 from warnings import warn
 
 from deprecation import deprecated
-from pystac import Item, Asset
+from pystac import Catalog, Item, Asset, read_file
 
 from harmony.exceptions import CanceledException
 from harmony.logging import build_logger
@@ -118,6 +118,36 @@ class BaseHarmonyAdapter(ABC):
         # Current processing using callbacks
         self._process_with_callbacks()
 
+    def get_all_catalog_items(self, catalog: Catalog, follow_page_links=True):
+        """
+        Returns a lazy sequence of all the items (including from child catalogs) in the catalog.
+        Can handle paged catalogs (catalogs with next/prev).
+
+        Parameters
+        ----------
+        catalog : pystac.Catalog
+            The catalog from which to get items
+        follow_page_links : boolean
+            Whether or not to follow 'next' links - defaults to True
+
+        Returns
+        -------
+        A generator that can be iterated to provide a lazy sequence of `pystac.Item`s
+        """
+        # Return immediate items and items from sub-catalogs
+        for item in catalog.get_all_items():
+            yield item
+
+        # process 'next' link if present
+        if follow_page_links:
+            link = catalog.get_single_link(rel='next')
+            if link:
+                self.logger.info("FOUND NEXT LINK")
+                next_catalog = read_file(link.get_href())
+                next_items = self.get_all_catalog_items(next_catalog, True)
+                for item in next_items:
+                    yield item
+
     def _process_catalog_recursive(self, catalog):
         """
         Helper method to recursively process a catalog and all of its children, producing a new
@@ -156,6 +186,13 @@ class BaseHarmonyAdapter(ABC):
                     output_item.id = str(uuid.uuid4())
                 result.add_item(output_item)
         self.logger.info(f'Processed {item_count} granule(s)')
+
+        # process 'next' link if present
+        link = catalog.get_single_link(rel='next')
+        if link:
+            next_catalog = read_file(link.get_href())
+            result.add_child(self._process_catalog_recursive(next_catalog))
+
         return result
 
     def _process_with_callbacks(self):
