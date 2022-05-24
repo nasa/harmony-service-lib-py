@@ -19,6 +19,8 @@ import os
 import re
 
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 from harmony.earthdata import EarthdataAuth, EarthdataSession
 from harmony.exceptions import ForbiddenException
@@ -65,6 +67,16 @@ def localhost_url(url, local_hostname):
     str : The url, possibly converted to use a different local hostname
     """
     return url.replace('localhost', local_hostname)
+
+
+def retryAdapter(total_retries=10, backoff_factor=0.2, status_forcelist=(408, 502, 503, 504)):
+    retry = Retry(total=total_retries, 
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+        raise_on_redirect=False,
+        raise_on_status=False,
+        allowed_methods=False)
+    return HTTPAdapter(max_retries=retry)
 
 
 def _is_eula_error(body: str) -> bool:
@@ -174,6 +186,9 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **kwar
         headers['user-agent'] = user_agent
     auth = EarthdataAuth(config.oauth_uid, config.oauth_password, access_token)
     with _earthdata_session() as session:
+        adapter = retryAdapter()
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
         session.auth = auth
         if data is None:
             return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
@@ -220,10 +235,15 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwa
     if user_agent is not None:
         headers['user-agent'] = user_agent
     auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
-    if data is None:
-        return requests.get(url, headers=headers, timeout=TIMEOUT, auth=auth, **kwargs_download_agent)
-    else:
-        return requests.post(url, headers=headers, data=data, timeout=TIMEOUT, auth=auth)
+    with requests.Session() as session:
+        adapter = retryAdapter()
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        session.auth = auth
+        if data is None:
+            return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
+        else:
+            return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
 
 
 def _log_download_performance(logger, url, duration_ms, file_size):
