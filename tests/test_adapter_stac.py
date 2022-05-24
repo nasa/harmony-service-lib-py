@@ -118,6 +118,7 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
         catalog1 = Catalog('1', 'Catalog 1')
         catalog1.add_link(Link('harmony_source', 'http://example.com/C0002-EXAMPLE'))
         catalog0.add_link(Link('next', 'catalog1.json'))
+        catalog1.add_link(Link('prev', 'catalog0.json'))
         test_patch.return_value = catalog1
         message = Message(full_message)
         items_a = [
@@ -131,8 +132,12 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
         catalog0.add_items(items_a)
         catalog1.add_items(items_b)
         adapter = AdapterTester(message, catalog0, config=self.config)
+        default_items = list(adapter.get_all_catalog_items(catalog0))
+        self.assertEqual(default_items, [ *items_a, *items_b ])
         all_items = list(adapter.get_all_catalog_items(catalog0, True))
         self.assertEqual(all_items, [ *items_a, *items_b ])
+        no_link_items = list(adapter.get_all_catalog_items(catalog0, False))
+        self.assertEqual(no_link_items, items_a)
 
     @patch('harmony.adapter.read_file')
     def test_get_all_items_handles_children(self, test_patch):
@@ -160,6 +165,7 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
         adapter = AdapterTester(message, catalog, config=self.config)
         all_items = list(adapter.get_all_catalog_items(catalog, True))
         self.assertEqual(all_items, [ *items_a, *items_b ])
+        
 
     def test_unaltered_ids_are_assigned_new_uuids(self):
         catalog = Catalog('0', 'Catalog 0')

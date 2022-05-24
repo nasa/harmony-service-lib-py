@@ -142,7 +142,6 @@ class BaseHarmonyAdapter(ABC):
         if follow_page_links:
             link = catalog.get_single_link(rel='next')
             if link:
-                self.logger.info("FOUND NEXT LINK")
                 next_catalog = read_file(link.get_href())
                 next_items = self.get_all_catalog_items(next_catalog, True)
                 for item in next_items:
