@@ -3,7 +3,7 @@ import responses
 import os
 
 import harmony.http
-from harmony.http import (download, is_http, localhost_url)
+from harmony.http import (download, is_http, localhost_url, RETRY_ERROR_CODES, DEFAULT_TOTAL_RETRIES)
 from tests.util import config_fixture
 
 EDL_URL = 'https://uat.urs.earthdata.nasa.gov'
@@ -524,8 +524,75 @@ def test_user_agent_is_passed_to_request_headers_when_using_edl_auth_and_post_pa
     assert 'User-Agent' in responses.calls[0].request.headers
     assert user_agent in responses.calls[0].request.headers['User-Agent']
 
-@pytest.mark.skip(reason='Feature request from EDL team: HARMONY-733')
-def test_download_retries_correctly():
-    # TODO: Feature request from EDL team to handle EDL failures
-    #       https://bugs.earthdata.nasa.gov/browse/HARMONY-733
-    pass
+@responses.activate(registry=responses.registries.OrderedRegistry)
+@pytest.mark.parametrize('error_code', RETRY_ERROR_CODES)
+def test_retries_on_temporary_errors_edl_auth(
+        monkeypatch,
+        mocker,
+        access_token,
+        resource_server_granule_url,
+        getsize_patched,
+        error_code):
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    rsp1 = responses.get(resource_server_granule_url, body="Error", status=error_code)
+    rsp2 = responses.get(resource_server_granule_url, body="Error", status=error_code)
+    rsp3 = responses.get(resource_server_granule_url, body="OK", status=200)
+
+    destination_file = mocker.Mock()
+    cfg = config_fixture()
+
+    user_agent = 'test-agent/0.0.0'
+    response = download(cfg, resource_server_granule_url, access_token, None, destination_file, user_agent=user_agent)
+    
+    assert response.status_code == 200
+    assert rsp1.call_count == 1
+    assert rsp2.call_count == 1
+    assert rsp3.call_count == 1
+
+@responses.activate(registry=responses.registries.OrderedRegistry)
+@pytest.mark.parametrize('error_code', RETRY_ERROR_CODES)
+def test_retries_on_temporary_errors_basic_auth(
+        monkeypatch,
+        mocker,
+        faker,
+        access_token,
+        resource_server_granule_url,
+        getsize_patched,
+        error_code):
+    rsp1 = responses.get(resource_server_granule_url, body="Error", status=error_code)
+    rsp2 = responses.get(resource_server_granule_url, body="Error", status=error_code)
+    rsp3 = responses.get(resource_server_granule_url, body="OK", status=200)
+
+    destination_file = mocker.Mock()
+    client_id = faker.password(length=22, special_chars=False)
+    cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=True)
+
+    user_agent = 'test-agent/0.0.0'
+    response = download(cfg, resource_server_granule_url, access_token, None, destination_file, user_agent=user_agent)
+    
+    assert response.status_code == 200
+    assert rsp1.call_count == 1
+    assert rsp2.call_count == 1
+    assert rsp3.call_count == 1
+
+@responses.activate(registry=responses.registries.OrderedRegistry)
+@pytest.mark.parametrize('error_code', RETRY_ERROR_CODES)
+def test_retries_on_temporary_errors_until_limit(
+        monkeypatch,
+        mocker,
+        access_token,
+        resource_server_granule_url,
+        getsize_patched,
+        error_code):
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    for i in range(0, DEFAULT_TOTAL_RETRIES):
+        responses.get(resource_server_granule_url, body="Error", status=error_code)
+
+    destination_file = mocker.Mock()
+    cfg = config_fixture()
+
+    user_agent = 'test-agent/0.0.0'
+    with pytest.raises(Exception) as e:
+        download(cfg, resource_server_granule_url, access_token, None, destination_file, user_agent=user_agent)
+        assert e.type == Exception
+        assert f'Download failed with status {error_code} after multiple retry attempts' in e.value.message

@@ -34,6 +34,10 @@ from harmony.logging import build_logger
 # https://2.python-requests.org/en/master/user/quickstart/#timeouts
 TIMEOUT = 60
 
+RETRY_ERROR_CODES = (408, 502, 503, 504)
+
+DEFAULT_TOTAL_RETRIES=10
+
 
 def is_http(url: str) -> bool:
     """Predicate to determine if the url is an http endpoint.
@@ -69,10 +73,10 @@ def localhost_url(url, local_hostname):
     return url.replace('localhost', local_hostname)
 
 
-def retryAdapter(total_retries=10, backoff_factor=0.2, status_forcelist=(408, 502, 503, 504)):
+def retryAdapter(total_retries=DEFAULT_TOTAL_RETRIES, backoff_factor=0.2):
     retry = Retry(total=total_retries, 
         backoff_factor=backoff_factor,
-        status_forcelist=status_forcelist,
+        status_forcelist=RETRY_ERROR_CODES,
         raise_on_redirect=False,
         raise_on_status=False,
         allowed_methods=False)
@@ -380,6 +384,11 @@ def download(config, url: str, access_token: str, data, destination_file,
     if response.status_code == 500:
         logger.info(f'Unable to download (500) due to: {response.content}')
         raise Exception('Unable to download.')
+
+    if response.status_code in RETRY_ERROR_CODES:
+        msg = f'Download failed with status {response.status_code} after multiple retry attempts'
+        logger.info(f'{msg} due to: {response.content}')
+        raise Exception(msg)
 
     logger.info(f'Unable to download (unknown error) due to: {response.content}')
     raise Exception('Unable to download: unknown error.')
