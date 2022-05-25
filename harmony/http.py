@@ -34,9 +34,9 @@ from harmony.logging import build_logger
 # https://2.python-requests.org/en/master/user/quickstart/#timeouts
 TIMEOUT = 60
 
+# Error codes for which we should retry failed requests
 RETRY_ERROR_CODES = (408, 502, 503, 504)
-
-DEFAULT_TOTAL_RETRIES=10
+DEFAULT_TOTAL_RETRIES = 10
 
 
 def is_http(url: str) -> bool:
@@ -74,12 +74,29 @@ def localhost_url(url, local_hostname):
 
 
 def retryAdapter(total_retries=DEFAULT_TOTAL_RETRIES, backoff_factor=0.2):
-    retry = Retry(total=total_retries, 
-        backoff_factor=backoff_factor,
-        status_forcelist=RETRY_ERROR_CODES,
-        raise_on_redirect=False,
-        raise_on_status=False,
-        allowed_methods=False)
+    """
+    HTTP adapter for retrying failed requests that have returned a status code
+    indicating a temporary error.
+
+    Parameters
+    ----------
+    total_retries: int
+        Upper limit on the number of times to retry the request
+    backoff_factor: float
+        Factor used to determine backoff/sleep time between executions:
+        backoff = {backoff factor} * (2 ** ({number of total retries} - 1))
+
+    Returns
+    -------
+    The urllib3 retry adapter
+    """
+    retry = Retry(
+                total=total_retries,
+                backoff_factor=backoff_factor,
+                status_forcelist=RETRY_ERROR_CODES,
+                raise_on_redirect=False,
+                raise_on_status=False,
+                allowed_methods=False)
     return HTTPAdapter(max_retries=retry)
 
 
