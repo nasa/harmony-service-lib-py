@@ -73,7 +73,30 @@ def localhost_url(url, local_hostname):
     return url.replace('localhost', local_hostname)
 
 
-def retryAdapter(total_retries=DEFAULT_TOTAL_RETRIES, backoff_factor=0.2):
+def _mount_retry(session, total_retries=DEFAULT_TOTAL_RETRIES, backoff_factor=0.2):
+    """Mount a retry adapter to a requests session.
+
+    Parameters
+    ----------
+    session : requests.Session
+        The session that will have a retry adapter mounted to it.
+    total_retries: int
+        Upper limit on the number of times to retry the request
+    backoff_factor: float
+        Factor used to determine backoff/sleep time between executions:
+        backoff = {backoff factor} * (2 ** ({number of total retries} - 1))
+
+    Returns
+    -------
+    The requests.Session
+    """
+    adapter = _retry_adapter(total_retries, backoff_factor)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
+
+
+def _retry_adapter(total_retries=DEFAULT_TOTAL_RETRIES, backoff_factor=0.2):
     """
     HTTP adapter for retrying failed requests that have returned a status code
     indicating a temporary error.
@@ -154,12 +177,13 @@ def _valid(oauth_host: str, oauth_client_id: str, access_token: str) -> bool:
     Boolean indicating a valid or invalid user access token
     """
     url = f'{oauth_host}/oauth/tokens/user?token={access_token}&client_id={oauth_client_id}'
-    response = requests.post(url, timeout=TIMEOUT)
+    with _mount_retry(requests.Session()) as session:
+        response = session.post(url, timeout=TIMEOUT)
 
-    if response.ok:
-        return True
+        if response.ok:
+            return True
 
-    raise Exception(response.json())
+        raise Exception(response.json())
 
 
 @lru_cache(maxsize=128)
@@ -206,10 +230,7 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **kwar
     if user_agent is not None:
         headers['user-agent'] = user_agent
     auth = EarthdataAuth(config.oauth_uid, config.oauth_password, access_token)
-    with _earthdata_session() as session:
-        adapter = retryAdapter()
-        session.mount('http://', adapter)
-        session.mount('https://', adapter)
+    with _mount_retry(_earthdata_session()) as session:
         session.auth = auth
         if data is None:
             return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
@@ -256,10 +277,7 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwa
     if user_agent is not None:
         headers['user-agent'] = user_agent
     auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
-    with requests.Session() as session:
-        adapter = retryAdapter()
-        session.mount('http://', adapter)
-        session.mount('https://', adapter)
+    with _mount_retry(requests.Session()) as session:
         session.auth = auth
         if data is None:
             return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
