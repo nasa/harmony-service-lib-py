@@ -20,7 +20,7 @@ import re
 
 import requests
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+from urllib3.util.retry import Retry
 
 from harmony.earthdata import EarthdataAuth, EarthdataSession
 from harmony.exceptions import ForbiddenException
@@ -119,7 +119,7 @@ def _retry_adapter(total_retries=DEFAULT_TOTAL_RETRIES, backoff_factor=0.2):
                 status_forcelist=RETRY_ERROR_CODES,
                 raise_on_redirect=False,
                 raise_on_status=False,
-                allowed_methods=False)
+                method_whitelist=False)
     return HTTPAdapter(max_retries=retry)
 
 
