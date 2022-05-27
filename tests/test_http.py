@@ -541,8 +541,7 @@ def test_retries_on_temporary_errors_edl_auth(
     destination_file = mocker.Mock()
     cfg = config_fixture()
 
-    user_agent = 'test-agent/0.0.0'
-    response = download(cfg, resource_server_granule_url, access_token, None, destination_file, user_agent=user_agent)
+    response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
     
     assert response.status_code == 200
     assert rsp1.call_count == 1
@@ -567,8 +566,7 @@ def test_retries_on_temporary_errors_basic_auth(
     client_id = faker.password(length=22, special_chars=False)
     cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=True)
 
-    user_agent = 'test-agent/0.0.0'
-    response = download(cfg, resource_server_granule_url, access_token, None, destination_file, user_agent=user_agent)
+    response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
     
     assert response.status_code == 200
     assert rsp1.call_count == 1
@@ -591,8 +589,7 @@ def test_retries_on_temporary_errors_until_limit(
     destination_file = mocker.Mock()
     cfg = config_fixture()
 
-    user_agent = 'test-agent/0.0.0'
     with pytest.raises(Exception) as e:
-        download(cfg, resource_server_granule_url, access_token, None, destination_file, user_agent=user_agent)
+        download(cfg, resource_server_granule_url, access_token, None, destination_file)
         assert e.type == Exception
         assert f'Download failed with status {error_code} after multiple retry attempts' in e.value.message
