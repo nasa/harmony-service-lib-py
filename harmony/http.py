@@ -77,6 +77,9 @@ def localhost_url(url, local_hostname):
 def _mount_retry(session, total_retries=DEFAULT_TOTAL_RETRIES, backoff_factor=0.2):
     """Mount a retry adapter to a requests session.
 
+    With a backoff_factor of 5, the total sleep seconds between executions will be:
+    [0, 0+10, 0+10+20, 0+10+20+40, ...]
+
     Parameters
     ----------
     session : requests.Session
