@@ -34,9 +34,10 @@ from harmony.logging import build_logger
 # https://2.python-requests.org/en/master/user/quickstart/#timeouts
 TIMEOUT = 60
 
-# Error codes for which we should retry failed requests
+# Error codes for which the retry adapter will retry failed requests.
+# Only requests sessions with a mounted retry adapter will exhibit retry behavior.
 RETRY_ERROR_CODES = (408, 502, 503, 504)
-DEFAULT_TOTAL_RETRIES = 10
+DEFAULT_TOTAL_RETRIES = 10 # per requests session
 
 
 def is_http(url: str) -> bool:
