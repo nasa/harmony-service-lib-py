@@ -37,7 +37,7 @@ TIMEOUT = 60
 # Error codes for which the retry adapter will retry failed requests.
 # Only requests sessions with a mounted retry adapter will exhibit retry behavior.
 RETRY_ERROR_CODES = (408, 502, 503, 504)
-DEFAULT_TOTAL_RETRIES = 10  # per requests session
+DEFAULT_TOTAL_RETRIES = 10
 
 
 def is_http(url: str) -> bool:
