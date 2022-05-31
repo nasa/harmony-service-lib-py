@@ -74,7 +74,7 @@ def localhost_url(url, local_hostname):
     return url.replace('localhost', local_hostname)
 
 
-def _mount_retry(session, total_retries=DEFAULT_TOTAL_RETRIES, backoff_factor=0.2):
+def _mount_retry(session, total_retries, backoff_factor=0.2):
     """Mount a retry adapter to a requests session.
 
     With a backoff_factor of 5, the total sleep seconds between executions will be:
@@ -100,7 +100,7 @@ def _mount_retry(session, total_retries=DEFAULT_TOTAL_RETRIES, backoff_factor=0.
     return session
 
 
-def _retry_adapter(total_retries=DEFAULT_TOTAL_RETRIES, backoff_factor=0.2):
+def _retry_adapter(total_retries, backoff_factor=0.2):
     """
     HTTP adapter for retrying failed requests that have returned a status code
     indicating a temporary error.
@@ -166,7 +166,7 @@ def _eula_error_message(body: str) -> str:
 
 
 @lru_cache(maxsize=128)
-def _valid(oauth_host: str, oauth_client_id: str, access_token: str) -> bool:
+def _valid(oauth_host: str, oauth_client_id: str, access_token: str, max_download_retries: int) -> bool:
     """
     Validates the user access token with Earthdata Login.
 
@@ -175,13 +175,15 @@ def _valid(oauth_host: str, oauth_client_id: str, access_token: str) -> bool:
     oauth_host: The Earthdata Login hostname
     oauth_client_id: The EDL application's client id
     access_token: The user's access token to validate
+    total_retries: int
+        Upper limit on the number of times to retry the request
 
     Returns
     -------
     Boolean indicating a valid or invalid user access token
     """
     url = f'{oauth_host}/oauth/tokens/user?token={access_token}&client_id={oauth_client_id}'
-    with _mount_retry(requests.Session()) as session:
+    with _mount_retry(requests.Session(), max_download_retries) as session:
         response = session.post(url, timeout=TIMEOUT)
 
         if response.ok:
@@ -196,7 +198,7 @@ def _earthdata_session():
     return EarthdataSession()
 
 
-def _download(config, url: str, access_token: str, data, user_agent=None, **kwargs_download_agent):
+def _download(config, url: str, access_token: str, data, total_retries: int, user_agent=None, **kwargs_download_agent):
     """Implements the download functionality.
 
     Using the EarthdataSession and EarthdataAuth extensions to the
@@ -218,6 +220,8 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **kwar
         encoded to a query string containing a series of `key=value`
         pairs, separated by ampersands. If None (the default), the
         request will be sent with an HTTP GET request.
+    total_retries: int
+        Upper limit on the number of times to retry the request
     user_agent : str
         The user agent that is requesting the download.
         E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
@@ -234,7 +238,7 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **kwar
     if user_agent is not None:
         headers['user-agent'] = user_agent
     auth = EarthdataAuth(config.oauth_uid, config.oauth_password, access_token)
-    with _mount_retry(_earthdata_session()) as session:
+    with _mount_retry(_earthdata_session(), total_retries) as session:
         session.auth = auth
         if data is None:
             return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
@@ -245,7 +249,7 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **kwar
             return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
 
 
-def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwargs_download_agent):
+def _download_with_fallback_authn(config, url: str, data, total_retries: int, user_agent=None, **kwargs_download_agent):
     """Downloads the given url using Basic authentication as a fallback
     mechanism should the normal EDL Oauth handshake fail.
 
@@ -265,6 +269,8 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwa
         encoded to a query string containing a series of `key=value`
         pairs, separated by ampersands. If None (the default), the
         request will be sent with an HTTP GET request.
+    total_retries: int
+        Upper limit on the number of times to retry the request
     user_agent : str
         The user agent that is requesting the download.
         E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
@@ -281,7 +287,7 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwa
     if user_agent is not None:
         headers['user-agent'] = user_agent
     auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
-    with _mount_retry(requests.Session()) as session:
+    with _mount_retry(requests.Session(), total_retries) as session:
         session.auth = auth
         if data is None:
             return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
@@ -385,15 +391,15 @@ def download(config, url: str, access_token: str, data, destination_file,
     elif stream and not isinstance(buffer_size, int):
         raise Exception(f"In download parameters: buffer_size must be integer when stream={stream}.")
 
-    if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token):
-        response = _download(config, url, access_token, data, user_agent, stream=stream)
+    if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token, config.max_download_retries):
+        response = _download(config, url, access_token, data, config.max_download_retries, user_agent, stream=stream)
 
     if response is None or not response.ok:
         if config.fallback_authn_enabled:
             msg = ('No valid user access token in request or EDL OAuth authentication failed.'
                    'Fallback authentication enabled: retrying with Basic auth.')
             logger.warning(msg)
-            response = _download_with_fallback_authn(config, url, data, user_agent, stream=stream)
+            response = _download_with_fallback_authn(config, url, data, config.max_download_retries, user_agent, stream=stream)
 
     if response.ok:
         if not stream:

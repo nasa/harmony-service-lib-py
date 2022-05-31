@@ -86,7 +86,7 @@ def test_download_follows_redirect_to_edl_and_adds_auth_headers(
         edl_redirect_url,
         getsize_patched):
 
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c, d: True)
     responses.add(
         responses.GET,
         resource_server_granule_url,
@@ -133,7 +133,7 @@ def test_download_follows_redirect_to_resource_server_with_code(
         headers=[('Location', resource_server_redirect_url)]
     )
 
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c, d: True)
     responses.add(
         responses.GET,
         resource_server_redirect_url,
@@ -161,7 +161,7 @@ def test_resource_server_redirects_to_granule_url(
         resource_server_granule_url,
         getsize_patched):
 
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c, d: True)
     responses.add(
         responses.GET,
         resource_server_redirect_url,
@@ -273,7 +273,7 @@ def test_when_given_a_url_and_data_it_downloads_with_query_parameters(
         resource_server_granule_url,
         getsize_patched):
 
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c, d: True)
     responses.add(
         responses.POST,
         resource_server_granule_url,
@@ -299,7 +299,7 @@ def test_when_authn_succeeds_it_writes_to_provided_file(
         response_body_from_granule_url,
         getsize_patched):
 
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c, d: True)
     responses.add(
         responses.GET,
         resource_server_granule_url,
@@ -325,7 +325,7 @@ def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth
         response_body_from_granule_url,
         getsize_patched):
 
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c, d: True)
     client_id = faker.password(length=22, special_chars=False)
     access_token = faker.password(length=42, special_chars=False)
     cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=True)
@@ -359,7 +359,7 @@ def test_when_given_an_access_token_and_error_occurs_it_does_not_fall_back_to_ba
         faker,
         resource_server_granule_url):
 
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c, d: True)
     client_id = faker.password(length=22, special_chars=False)
     access_token = faker.password(length=42, special_chars=False)
     cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=False)
@@ -413,7 +413,7 @@ def test_download_unknown_error_exception_if_all_else_fails(
         faker,
         resource_server_granule_url):
 
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c, d: True)
     client_id = faker.password(length=22, special_chars=False)
     access_token = faker.password(length=42, special_chars=False)
     cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=False)
@@ -485,7 +485,7 @@ def test_user_agent_is_passed_to_request_headers_when_using_edl_auth(
         resource_server_granule_url,
         getsize_patched):
 
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c, d: True)
     responses.add(
         responses.GET,
         resource_server_granule_url,
@@ -508,7 +508,7 @@ def test_user_agent_is_passed_to_request_headers_when_using_edl_auth_and_post_pa
         resource_server_granule_url,
         getsize_patched):
 
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c, d: True)
     responses.add(
         responses.POST,
         resource_server_granule_url,
@@ -533,13 +533,13 @@ def test_retries_on_temporary_errors_edl_auth(
         resource_server_granule_url,
         getsize_patched,
         error_code):
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c, d: True)
     rsp1 = responses.get(resource_server_granule_url, body="Error", status=error_code)
     rsp2 = responses.get(resource_server_granule_url, body="Error", status=error_code)
     rsp3 = responses.get(resource_server_granule_url, body="OK", status=200)
 
     destination_file = mocker.Mock()
-    cfg = config_fixture()
+    cfg = config_fixture(max_download_retries=5)
 
     response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
     
@@ -564,7 +564,7 @@ def test_retries_on_temporary_errors_basic_auth(
 
     destination_file = mocker.Mock()
     client_id = faker.password(length=22, special_chars=False)
-    cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=True)
+    cfg = config_fixture(oauth_client_id=client_id, fallback_authn_enabled=True, max_download_retries=5)
 
     response = download(cfg, resource_server_granule_url, access_token, None, destination_file)
     
@@ -582,12 +582,12 @@ def test_retries_on_temporary_errors_until_limit(
         resource_server_granule_url,
         getsize_patched,
         error_code):
-    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c: True)
+    monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c, d: True)
     for i in range(0, DEFAULT_TOTAL_RETRIES):
         responses.get(resource_server_granule_url, body="Error", status=error_code)
 
     destination_file = mocker.Mock()
-    cfg = config_fixture()
+    cfg = config_fixture(max_download_retries=5)
 
     with pytest.raises(Exception) as e:
         download(cfg, resource_server_granule_url, access_token, None, destination_file)
