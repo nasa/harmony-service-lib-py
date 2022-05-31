@@ -88,7 +88,7 @@ def _mount_retry(session, total_retries, backoff_factor=2):
     backoff_factor: float
         Factor used to determine backoff/sleep time between executions:
         backoff = {backoff factor} * (2 ** ({retry number} - 1))
-        where {retry number} = 1, 2, 3...
+        where {retry number} = 1, 2, 3, ..., total_retries
 
     Returns
     -------
@@ -115,7 +115,7 @@ def _retry_adapter(total_retries, backoff_factor=2):
     backoff_factor: float
         Factor used to determine backoff/sleep time between executions:
         backoff = {backoff factor} * (2 ** ({retry number} - 1))
-        where {retry number} = 1, 2, 3...
+        where {retry number} = 1, 2, 3, ..., total_retries
 
     Returns
     -------
