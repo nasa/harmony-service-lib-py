@@ -164,7 +164,7 @@ def config(validate=True):
     def bool_envvar(name: str, default: bool) -> bool:
         value = environ.get(name)
         return str.lower(value) == 'true' if value is not None else default
-    
+
     def int_envvar(name: str, default: bool) -> int:
         value = environ.get(name)
         return int(value) if value is not None else default

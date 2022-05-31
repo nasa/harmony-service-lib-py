@@ -3,7 +3,7 @@ import responses
 import os
 
 import harmony.http
-from harmony.http import (download, is_http, localhost_url, RETRY_ERROR_CODES, DEFAULT_TOTAL_RETRIES)
+from harmony.http import (download, is_http, localhost_url, RETRY_ERROR_CODES)
 from tests.util import config_fixture
 
 EDL_URL = 'https://uat.urs.earthdata.nasa.gov'
@@ -583,7 +583,7 @@ def test_retries_on_temporary_errors_until_limit(
         getsize_patched,
         error_code):
     monkeypatch.setattr(harmony.http, '_valid', lambda a, b, c, d: True)
-    for i in range(0, DEFAULT_TOTAL_RETRIES):
+    for i in range(0, 5):
         responses.get(resource_server_granule_url, body="Error", status=error_code)
 
     destination_file = mocker.Mock()

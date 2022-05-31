@@ -37,7 +37,6 @@ TIMEOUT = 60
 # Error codes for which the retry adapter will retry failed requests.
 # Only requests sessions with a mounted retry adapter will exhibit retry behavior.
 RETRY_ERROR_CODES = (408, 502, 503, 504)
-DEFAULT_TOTAL_RETRIES = 10
 
 
 def is_http(url: str) -> bool:
@@ -391,7 +390,8 @@ def download(config, url: str, access_token: str, data, destination_file,
     elif stream and not isinstance(buffer_size, int):
         raise Exception(f"In download parameters: buffer_size must be integer when stream={stream}.")
 
-    if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token, config.max_download_retries):
+    if access_token is not None and _valid(
+            config.oauth_host, config.oauth_client_id, access_token, config.max_download_retries):
         response = _download(config, url, access_token, data, config.max_download_retries, user_agent, stream=stream)
 
     if response is None or not response.ok:
@@ -399,7 +399,8 @@ def download(config, url: str, access_token: str, data, destination_file,
             msg = ('No valid user access token in request or EDL OAuth authentication failed.'
                    'Fallback authentication enabled: retrying with Basic auth.')
             logger.warning(msg)
-            response = _download_with_fallback_authn(config, url, data, config.max_download_retries, user_agent, stream=stream)
+            response = _download_with_fallback_authn(
+                config, url, data, config.max_download_retries, user_agent, stream=stream)
 
     if response.ok:
         if not stream:
