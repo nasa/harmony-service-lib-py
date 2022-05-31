@@ -73,7 +73,7 @@ def localhost_url(url, local_hostname):
     return url.replace('localhost', local_hostname)
 
 
-def _mount_retry(session, total_retries, backoff_factor=0.2):
+def _mount_retry(session, total_retries, backoff_factor=2):
     """Mount a retry adapter to a requests session.
 
     With a backoff_factor of 5, the total sleep seconds between executions will be:
@@ -99,7 +99,7 @@ def _mount_retry(session, total_retries, backoff_factor=0.2):
     return session
 
 
-def _retry_adapter(total_retries, backoff_factor=0.2):
+def _retry_adapter(total_retries, backoff_factor=2):
     """
     HTTP adapter for retrying failed requests that have returned a status code
     indicating a temporary error.
