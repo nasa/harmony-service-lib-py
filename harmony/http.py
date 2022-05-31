@@ -74,7 +74,10 @@ def localhost_url(url, local_hostname):
 
 
 def _mount_retry(session, total_retries, backoff_factor=2):
-    """Mount a retry adapter to a requests session.
+    """Mount a retry adapter (with exponential backoff) to a requests session.
+
+    backoff = {backoff factor} * (2 ** ({retry number} - 1))
+    where {retry number} = 1, 2, 3, ..., total_retries
 
     With a backoff_factor of 5, the total sleep seconds between executions will be:
     [0, 0+10, 0+10+20, 0+10+20+40, ...]
@@ -86,9 +89,7 @@ def _mount_retry(session, total_retries, backoff_factor=2):
     total_retries: int
         Upper limit on the number of times to retry the request
     backoff_factor: float
-        Factor used to determine backoff/sleep time between executions:
-        backoff = {backoff factor} * (2 ** ({retry number} - 1))
-        where {retry number} = 1, 2, 3, ..., total_retries
+        Factor used to determine backoff/sleep time between executions
 
     Returns
     -------
@@ -102,8 +103,11 @@ def _mount_retry(session, total_retries, backoff_factor=2):
 
 def _retry_adapter(total_retries, backoff_factor=2):
     """
-    HTTP adapter for retrying failed requests that have returned a status code
+    HTTP adapter for retrying (with exponential backoff) failed requests that have returned a status code
     indicating a temporary error.
+
+    backoff = {backoff factor} * (2 ** ({retry number} - 1))
+    where {retry number} = 1, 2, 3, ..., total_retries
 
     With a backoff_factor of 5, the total sleep seconds between executions will be:
     [0, 0+10, 0+10+20, 0+10+20+40, ...]
@@ -113,9 +117,7 @@ def _retry_adapter(total_retries, backoff_factor=2):
     total_retries: int
         Upper limit on the number of times to retry the request
     backoff_factor: float
-        Factor used to determine backoff/sleep time between executions:
-        backoff = {backoff factor} * (2 ** ({retry number} - 1))
-        where {retry number} = 1, 2, 3, ..., total_retries
+        Factor used to determine backoff/sleep time between executions
 
     Returns
     -------
