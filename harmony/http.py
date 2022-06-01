@@ -23,7 +23,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from harmony.earthdata import EarthdataAuth, EarthdataSession
-from harmony.exceptions import ForbiddenException
+from harmony.exceptions import ServerException, ForbiddenException, TransientException
 from harmony.logging import build_logger
 
 # Timeout in seconds.  Per requests docs, this is not a time limit on
@@ -131,6 +131,23 @@ def _retry_adapter(total_retries, backoff_factor=2):
                 raise_on_status=False,
                 method_whitelist=False)
     return HTTPAdapter(max_retries=retry)
+
+
+def _log_retry_history(logger, response):
+    """
+    Tries to log the error responses received while retrying.
+
+    Parameters
+    ----------
+    logger : logging.Logger
+        The logger to use.
+    response: The requests response
+    """
+    try:
+        for history in response.raw.retries.history:
+            logger.info(f'Retry history: url={history.url}, error={history.error}, status={history.status}')
+    except Exception:
+        return
 
 
 def _is_eula_error(body: str) -> bool:
@@ -435,13 +452,15 @@ def download(config, url: str, access_token: str, data, destination_file,
         raise ForbiddenException(msg)
 
     if response.status_code == 500:
-        logger.info(f'Unable to download (500) due to: {response.content}')
-        raise Exception('Unable to download.')
+        msg = f'Unable to download {url}'
+        logger.info(f'{msg} (HTTP 500) due to: {response.content}')
+        raise ServerException(f'{msg} due to an unexpected data server error.')
 
     if response.status_code in RETRY_ERROR_CODES:
-        msg = f'Download failed with status {response.status_code} after multiple retry attempts'
-        logger.info(f'{msg} due to: {response.content}')
-        raise Exception(msg)
+        msg = f'Download failed due to a transient error (HTTP {response.status_code}) after multiple retry attempts'
+        _log_retry_history(logger, response)
+        logger.info(msg)
+        raise TransientException(msg)
 
     logger.info(f'Unable to download (unknown error) due to: {response.content}')
     raise Exception('Unable to download: unknown error.')

@@ -3,7 +3,7 @@ from unittest import mock
 import pytest
 import responses
 
-from harmony.exceptions import ForbiddenException
+from harmony.exceptions import ForbiddenException, ServerException
 from harmony import util
 from tests.util import config_fixture
 
@@ -178,5 +178,5 @@ def test_when_the_url_returns_a_500_it_does_not_raise_a_forbidden_exception_and_
     with mock.patch('builtins.open', mock.mock_open()):
         with pytest.raises(Exception) as e:
             util.download(url, '/tmp', access_token=access_token, cfg=config)
-        assert e.type != ForbiddenException and e.type == Exception
+        assert e.type != ForbiddenException and e.type == ServerException
         assert len(responses.calls) == 2
