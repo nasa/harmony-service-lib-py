@@ -592,4 +592,4 @@ def test_retries_on_temporary_errors_until_limit(
     with pytest.raises(Exception) as e:
         download(cfg, resource_server_granule_url, access_token, None, destination_file)
         assert e.type == Exception
-        assert f'Download failed with status {error_code} after multiple retry attempts' in e.value.message
+        assert f'failed due to a transient error (HTTP {error_code}) after multiple retry attempts' in e.value.message
