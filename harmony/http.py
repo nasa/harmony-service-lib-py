@@ -80,7 +80,7 @@ def _mount_retry(session, total_retries, backoff_factor=2):
     where {retry number} = 1, 2, 3, ..., total_retries
 
     With a backoff_factor of 5, the total sleep seconds between executions will be:
-    [0, 0+10, 0+10+20, 0+10+20+40, ...]
+    [0, 10, 20, 40, ...] (always 0 seconds before the first retry)
 
     Parameters
     ----------
@@ -110,7 +110,7 @@ def _retry_adapter(total_retries, backoff_factor=2):
     where {retry number} = 1, 2, 3, ..., total_retries
 
     With a backoff_factor of 5, the total sleep seconds between executions will be:
-    [0, 0+10, 0+10+20, 0+10+20+40, ...]
+    [0, 10, 20, 40, ...] (always 0 seconds before the first retry)
 
     Parameters
     ----------
@@ -172,7 +172,7 @@ def _eula_error_message(body: str) -> str:
 
 
 @lru_cache(maxsize=128)
-def _valid(oauth_host: str, oauth_client_id: str, access_token: str, max_download_retries: int) -> bool:
+def _valid(oauth_host: str, oauth_client_id: str, access_token: str, total_retries: int) -> bool:
     """
     Validates the user access token with Earthdata Login.
 
@@ -189,7 +189,7 @@ def _valid(oauth_host: str, oauth_client_id: str, access_token: str, max_downloa
     Boolean indicating a valid or invalid user access token
     """
     url = f'{oauth_host}/oauth/tokens/user?token={access_token}&client_id={oauth_client_id}'
-    with _mount_retry(requests.Session(), max_download_retries) as session:
+    with _mount_retry(requests.Session(), total_retries) as session:
         response = session.post(url, timeout=TIMEOUT)
 
         if response.ok:
