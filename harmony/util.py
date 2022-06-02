@@ -47,7 +47,7 @@ Optional:
     TEXT_LOGGER:          Whether to log in plaintext or JSON. Default: True (plaintext).
     HEALTH_CHECK_PATH:    The filesystem path that should be `touch`ed to indicate the service is
                           alive.
-    MAX_DOWNLOAD_RETRIES: Number of times to retry failed HTTP calls via the http module.
+    MAX_DOWNLOAD_RETRIES: Number of times to retry HTTP download calls that fail due to transient errors.
 """
 
 from base64 import b64decode
