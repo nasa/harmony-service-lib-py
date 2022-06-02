@@ -457,8 +457,8 @@ def download(config, url: str, access_token: str, data, destination_file,
         raise ServerException(f'{msg} due to an unexpected data server error.')
 
     if response.status_code in RETRY_ERROR_CODES:
-        msg = f'Download of {url} failed due to a transient error \
-         (HTTP {response.status_code}) after multiple retry attempts.'
+        msg = f'Download of {url} failed due to a transient error ' +\
+         f'(HTTP {response.status_code}) after multiple retry attempts.'
         _log_retry_history(logger, response)
         logger.info(msg)
         raise TransientException(msg)
