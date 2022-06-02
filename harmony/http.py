@@ -79,8 +79,9 @@ def _mount_retry(session, total_retries, backoff_factor=2):
     backoff = {backoff factor} * (2 ** ({retry number} - 1))
     where {retry number} = 1, 2, 3, ..., total_retries
 
-    With a backoff_factor of 5, the total sleep seconds between executions will be:
-    [0, 10, 20, 40, ...] (always 0 seconds before the first retry)
+    With a backoff_factor of 5, the total sleep seconds between executions will be
+    [0, 10, 20, 40, ...]. There is always 0 seconds before the first retry.
+    120 seconds is the maximum backoff.
 
     Parameters
     ----------
@@ -109,8 +110,9 @@ def _retry_adapter(total_retries, backoff_factor=2):
     backoff = {backoff factor} * (2 ** ({retry number} - 1))
     where {retry number} = 1, 2, 3, ..., total_retries
 
-    With a backoff_factor of 5, the total sleep seconds between executions will be:
-    [0, 10, 20, 40, ...] (always 0 seconds before the first retry)
+    With a backoff_factor of 5, the total sleep seconds between executions will be
+    [0, 10, 20, 40, ...]. There is always 0 seconds before the first retry.
+    120 seconds is the maximum backoff.
 
     Parameters
     ----------
