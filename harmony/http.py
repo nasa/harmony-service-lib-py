@@ -91,6 +91,8 @@ def _mount_retry(session, total_retries, backoff_factor=2):
     -------
     The requests.Session
     """
+    if total_retries < 1:
+        return session
     adapter = _retry_adapter(total_retries, backoff_factor)
     session.mount('http://', adapter)
     session.mount('https://', adapter)
@@ -126,7 +128,7 @@ def _retry_adapter(total_retries, backoff_factor=2):
                 status_forcelist=RETRY_ERROR_CODES,
                 raise_on_redirect=False,
                 raise_on_status=False,
-                method_whitelist=False)
+                allowed_methods=False)
     return HTTPAdapter(max_retries=retry)
 
 
