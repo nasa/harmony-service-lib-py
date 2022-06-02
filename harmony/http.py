@@ -74,14 +74,9 @@ def localhost_url(url, local_hostname):
 
 
 def _mount_retry(session, total_retries, backoff_factor=2):
-    """Instantiates a retry adapter (with exponential backoff) and mounts it to the requests session.
-
-    backoff = {backoff factor} * (2 ** ({retry number} - 1))
-    where {retry number} = 1, 2, 3, ..., total_retries
-
-    With a backoff_factor of 5, the total sleep seconds between executions will be
-    [0, 10, 20, 40, ...]. There is always 0 seconds before the first retry.
-    120 seconds is the maximum backoff.
+    """
+    Instantiates a retry adapter (with exponential backoff) and mounts it to the requests session.
+    See _retry_adapter function for backoff algo details.
 
     Parameters
     ----------
