@@ -74,7 +74,7 @@ def localhost_url(url, local_hostname):
 
 
 def _mount_retry(session, total_retries, backoff_factor=2):
-    """Mount a retry adapter (with exponential backoff) to a requests session.
+    """Instantiates a retry adapter (with exponential backoff) and mounts it to the requests session.
 
     backoff = {backoff factor} * (2 ** ({retry number} - 1))
     where {retry number} = 1, 2, 3, ..., total_retries
