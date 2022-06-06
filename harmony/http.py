@@ -19,9 +19,11 @@ import os
 import re
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from harmony.earthdata import EarthdataAuth, EarthdataSession
-from harmony.exceptions import ForbiddenException
+from harmony.exceptions import ServerException, ForbiddenException, TransientException
 from harmony.logging import build_logger
 
 # Timeout in seconds.  Per requests docs, this is not a time limit on
@@ -31,6 +33,10 @@ from harmony.logging import build_logger
 # for timeout seconds).  See:
 # https://2.python-requests.org/en/master/user/quickstart/#timeouts
 TIMEOUT = 60
+
+# Error codes for which the retry adapter will retry failed requests.
+# Only requests sessions with a mounted retry adapter will exhibit retry behavior.
+RETRY_ERROR_CODES = (408, 502, 503, 504)
 
 
 def is_http(url: str) -> bool:
@@ -65,6 +71,82 @@ def localhost_url(url, local_hostname):
     str : The url, possibly converted to use a different local hostname
     """
     return url.replace('localhost', local_hostname)
+
+
+def _mount_retry(session, total_retries, backoff_factor=2):
+    """
+    Instantiates a retry adapter (with exponential backoff) and mounts it to the requests session.
+    See _retry_adapter function for backoff algo details.
+
+    Parameters
+    ----------
+    session : requests.Session
+        The session that will have a retry adapter mounted to it.
+    total_retries: int
+        Upper limit on the number of times to retry the request
+    backoff_factor: float
+        Factor used to determine backoff/sleep time between executions
+
+    Returns
+    -------
+    The requests.Session
+    """
+    if total_retries < 1:
+        return session
+    adapter = _retry_adapter(total_retries, backoff_factor)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
+
+
+def _retry_adapter(total_retries, backoff_factor=2):
+    """
+    HTTP adapter for retrying (with exponential backoff) failed requests that have returned a status code
+    indicating a temporary error.
+
+    backoff = {backoff factor} * (2 ** ({retry number} - 1))
+    where {retry number} = 1, 2, 3, ..., total_retries
+
+    With a backoff_factor of 5, the total sleep seconds between executions will be
+    [0, 10, 20, 40, ...]. There is always 0 seconds before the first retry.
+    120 seconds is the maximum backoff.
+
+    Parameters
+    ----------
+    total_retries: int
+        Upper limit on the number of times to retry the request
+    backoff_factor: float
+        Factor used to determine backoff/sleep time between executions
+
+    Returns
+    -------
+    The urllib3 retry adapter
+    """
+    retry = Retry(
+                total=total_retries,
+                backoff_factor=backoff_factor,
+                status_forcelist=RETRY_ERROR_CODES,
+                raise_on_redirect=False,
+                raise_on_status=False,
+                allowed_methods=False)
+    return HTTPAdapter(max_retries=retry)
+
+
+def _log_retry_history(logger, response):
+    """
+    Tries to log the error responses received while retrying.
+
+    Parameters
+    ----------
+    logger : logging.Logger
+        The logger to use.
+    response: The requests response
+    """
+    try:
+        for history in response.raw.retries.history:
+            logger.info(f'Retry history: url={history.url}, error={history.error}, status={history.status}')
+    except Exception:
+        return
 
 
 def _is_eula_error(body: str) -> bool:
@@ -106,7 +188,7 @@ def _eula_error_message(body: str) -> str:
 
 
 @lru_cache(maxsize=128)
-def _valid(oauth_host: str, oauth_client_id: str, access_token: str) -> bool:
+def _valid(oauth_host: str, oauth_client_id: str, access_token: str, total_retries: int) -> bool:
     """
     Validates the user access token with Earthdata Login.
 
@@ -115,18 +197,21 @@ def _valid(oauth_host: str, oauth_client_id: str, access_token: str) -> bool:
     oauth_host: The Earthdata Login hostname
     oauth_client_id: The EDL application's client id
     access_token: The user's access token to validate
+    total_retries: int
+        Upper limit on the number of times to retry the request
 
     Returns
     -------
     Boolean indicating a valid or invalid user access token
     """
     url = f'{oauth_host}/oauth/tokens/user?token={access_token}&client_id={oauth_client_id}'
-    response = requests.post(url, timeout=TIMEOUT)
+    with _mount_retry(requests.Session(), total_retries) as session:
+        response = session.post(url, timeout=TIMEOUT)
 
-    if response.ok:
-        return True
+        if response.ok:
+            return True
 
-    raise Exception(response.json())
+        raise Exception(response.json())
 
 
 @lru_cache(maxsize=128)
@@ -135,7 +220,7 @@ def _earthdata_session():
     return EarthdataSession()
 
 
-def _download(config, url: str, access_token: str, data, user_agent=None, **kwargs_download_agent):
+def _download(config, url: str, access_token: str, data, total_retries: int, user_agent=None, **kwargs_download_agent):
     """Implements the download functionality.
 
     Using the EarthdataSession and EarthdataAuth extensions to the
@@ -157,6 +242,8 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **kwar
         encoded to a query string containing a series of `key=value`
         pairs, separated by ampersands. If None (the default), the
         request will be sent with an HTTP GET request.
+    total_retries: int
+        Upper limit on the number of times to retry the request
     user_agent : str
         The user agent that is requesting the download.
         E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
@@ -173,7 +260,7 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **kwar
     if user_agent is not None:
         headers['user-agent'] = user_agent
     auth = EarthdataAuth(config.oauth_uid, config.oauth_password, access_token)
-    with _earthdata_session() as session:
+    with _mount_retry(_earthdata_session(), total_retries) as session:
         session.auth = auth
         if data is None:
             return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
@@ -184,7 +271,7 @@ def _download(config, url: str, access_token: str, data, user_agent=None, **kwar
             return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
 
 
-def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwargs_download_agent):
+def _download_with_fallback_authn(config, url: str, data, total_retries: int, user_agent=None, **kwargs_download_agent):
     """Downloads the given url using Basic authentication as a fallback
     mechanism should the normal EDL Oauth handshake fail.
 
@@ -204,6 +291,8 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwa
         encoded to a query string containing a series of `key=value`
         pairs, separated by ampersands. If None (the default), the
         request will be sent with an HTTP GET request.
+    total_retries: int
+        Upper limit on the number of times to retry the request
     user_agent : str
         The user agent that is requesting the download.
         E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
@@ -220,10 +309,12 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwa
     if user_agent is not None:
         headers['user-agent'] = user_agent
     auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
-    if data is None:
-        return requests.get(url, headers=headers, timeout=TIMEOUT, auth=auth, **kwargs_download_agent)
-    else:
-        return requests.post(url, headers=headers, data=data, timeout=TIMEOUT, auth=auth)
+    with _mount_retry(requests.Session(), total_retries) as session:
+        session.auth = auth
+        if data is None:
+            return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
+        else:
+            return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
 
 
 def _log_download_performance(logger, url, duration_ms, file_size):
@@ -322,15 +413,17 @@ def download(config, url: str, access_token: str, data, destination_file,
     elif stream and not isinstance(buffer_size, int):
         raise Exception(f"In download parameters: buffer_size must be integer when stream={stream}.")
 
-    if access_token is not None and _valid(config.oauth_host, config.oauth_client_id, access_token):
-        response = _download(config, url, access_token, data, user_agent, stream=stream)
+    if access_token is not None and _valid(
+            config.oauth_host, config.oauth_client_id, access_token, config.max_download_retries):
+        response = _download(config, url, access_token, data, config.max_download_retries, user_agent, stream=stream)
 
     if response is None or not response.ok:
         if config.fallback_authn_enabled:
             msg = ('No valid user access token in request or EDL OAuth authentication failed.'
                    'Fallback authentication enabled: retrying with Basic auth.')
             logger.warning(msg)
-            response = _download_with_fallback_authn(config, url, data, user_agent, stream=stream)
+            response = _download_with_fallback_authn(
+                config, url, data, config.max_download_retries, user_agent, stream=stream)
 
     if response.ok:
         if not stream:
@@ -358,8 +451,16 @@ def download(config, url: str, access_token: str, data, destination_file,
         raise ForbiddenException(msg)
 
     if response.status_code == 500:
-        logger.info(f'Unable to download (500) due to: {response.content}')
-        raise Exception('Unable to download.')
+        msg = f'Unable to download {url}'
+        logger.info(f'{msg} (HTTP 500) due to: {response.content}')
+        raise ServerException(f'{msg} due to an unexpected data server error.')
+
+    if response.status_code in RETRY_ERROR_CODES:
+        msg = f'Download of {url} failed due to a transient error ' +\
+         f'(HTTP {response.status_code}) after multiple retry attempts.'
+        _log_retry_history(logger, response)
+        logger.info(msg)
+        raise TransientException(msg)
 
     logger.info(f'Unable to download (unknown error) due to: {response.content}')
     raise Exception('Unable to download: unknown error.')

@@ -93,6 +93,7 @@ OPTIONAL:
        health check command. The container is considered unhealthy if the mtime of the file is old -
        where 'old' is configurable in the service container. If this variable is not set the path
        defaults to '/tmp/health.txt'.
+* `MAX_DOWNLOAD_RETRIES`: Number of times to retry HTTP download calls that fail due to transient errors.
 
 OPTIONAL -- Use with CAUTION:
 

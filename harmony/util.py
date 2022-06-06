@@ -18,7 +18,7 @@ Required when staging to S3 and not using the Harmony-provided stagingLocation p
     STAGING_PATH: The base path under which staged files should be placed
 
 Required when using HTTPS, allowing Earthdata Login auth:
-    OAUTH_HOST:     The Earthdata Login (EDL) environment to connect to
+    OAUTH_HOST:         The Earthdata Login (EDL) environment to connect to
     OAUTH_CLIENT_ID:    The EDL application client id used to acquire an EDL shared access token
     OAUTH_UID:          The EDL application UID used to acquire an EDL shared access token
     OAUTH_PASSWORD:     The EDL application password used to acquire an EDL shared access token
@@ -42,11 +42,12 @@ Optional when reading from or staging to S3:
     BACKEND_HOST:    The hostname of the Harmony backend. Deprecated / unused by this package.
 
 Optional:
-    APP_NAME:          A name for the service that will appear in log entries.
-    ENV:               The application environment. One of: dev, test. Used for local development.
-    TEXT_LOGGER:       Whether to log in plaintext or JSON. Default: True (plaintext).
-    HEALTH_CHECK_PATH: The filesystem path that should be `touch`ed to indicate the service is
-                       alive.
+    APP_NAME:             A name for the service that will appear in log entries.
+    ENV:                  The application environment. One of: dev, test. Used for local development.
+    TEXT_LOGGER:          Whether to log in plaintext or JSON. Default: True (plaintext).
+    HEALTH_CHECK_PATH:    The filesystem path that should be `touch`ed to indicate the service is
+                          alive.
+    MAX_DOWNLOAD_RETRIES: Number of times to retry HTTP download calls that fail due to transient errors.
 """
 
 from base64 import b64decode
@@ -97,7 +98,8 @@ Config = namedtuple(
         'text_logger',
         'health_check_path',
         'shared_secret_key',
-        'user_agent'
+        'user_agent',
+        'max_download_retries'
     ])
 
 
@@ -112,7 +114,8 @@ def _validated_config(config):
         'oauth_password',
         'oauth_redirect_uri',
         'staging_path',
-        'staging_bucket'
+        'staging_bucket',
+        'max_download_retries'
     ]
 
     unset = [var.upper() for var in required if getattr(config, var) is None]
@@ -162,6 +165,10 @@ def config(validate=True):
         value = environ.get(name)
         return str.lower(value) == 'true' if value is not None else default
 
+    def int_envvar(name: str, default: int) -> int:
+        value = environ.get(name)
+        return int(value) if value is not None else default
+
     oauth_redirect_uri = str_envvar('OAUTH_REDIRECT_URI', None)
     if oauth_redirect_uri is not None:
         oauth_redirect_uri = parse.quote(oauth_redirect_uri)
@@ -188,7 +195,8 @@ def config(validate=True):
         text_logger=bool_envvar('TEXT_LOGGER', False),
         health_check_path=str_envvar('HEALTH_CHECK_PATH', '/tmp/health.txt'),
         shared_secret_key=str_envvar('SHARED_SECRET_KEY', DEFAULT_SHARED_SECRET_KEY),
-        user_agent=str_envvar('USER_AGENT', 'harmony (unknown version)')
+        user_agent=str_envvar('USER_AGENT', 'harmony (unknown version)'),
+        max_download_retries=int_envvar('MAX_DOWNLOAD_RETRIES', 0)
     )
 
     if validate:
