@@ -57,9 +57,10 @@ setup(
     },
     zip_safe=False,
     install_requires=DEPENDENCIES,
-    extras_require={
-        'dev': DEV_DEPENDENCIES
-    },
+    # HARMONY-1188 - uncomment this
+    # extras_require={
+    #     'dev': DEV_DEPENDENCIES
+    # },
     test_suite="tests",
     python_requires=">=3.7",
     # license and classifier list:
