@@ -19,8 +19,11 @@ publish: build
 clean:
 	rm -rf build dist *.egg-info || true
 
+# HARMONY-1188 - revert this command to:
+# pip install -e .[dev]
 install:
-	pip install -e .[dev]
+	pip install -r dev-requirements.txt
+	pip install -r requirements.txt
 
 lint:
 	flake8 harmony
