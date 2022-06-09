@@ -36,7 +36,7 @@ TIMEOUT = 60
 
 # Error codes for which the retry adapter will retry failed requests.
 # Only requests sessions with a mounted retry adapter will exhibit retry behavior.
-RETRY_ERROR_CODES = (408, 502, 503, 504)
+RETRY_ERROR_CODES = list(range(400, 600)) # Any http status code should be retried
 
 
 def is_http(url: str) -> bool:
@@ -346,7 +346,7 @@ def _log_download_performance(logger, url, duration_ms, file_size):
         "path": url_path,
         "size": file_size
     }
-    logger.info('timing.download.end', extra=extra_fields)
+    logger.info('CDD - your code - timing.download.end', extra=extra_fields)
 
 
 def download(config, url: str, access_token: str, data, destination_file,
@@ -404,7 +404,7 @@ def download(config, url: str, access_token: str, data, destination_file,
     response = None
     logger = build_logger(config)
     start_time = datetime.datetime.now()
-    logger.info(f'timing.download.start {url}')
+    logger.info(f'CDD updated code - timing.download.start {url}')
 
     if (not stream) and buffer_size:
         logger.warn(
@@ -462,5 +462,5 @@ def download(config, url: str, access_token: str, data, destination_file,
         logger.info(msg)
         raise TransientException(msg)
 
-    logger.info(f'Unable to download (unknown error) due to: {response.content}')
+    logger.info(f'Unable to download (unknown error) due to status code: {response.status_code} and content {response.content}')
     raise Exception('Unable to download: unknown error.')
