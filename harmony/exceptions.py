@@ -34,9 +34,3 @@ class ServerException(HarmonyException):
     def __init__(self, message=None):
         super().__init__(message, 'Server')
 
-
-class TransientException(HarmonyException):
-    """Class for throwing an exception indicating the download failed due to a transient HTTP error (e.g. 502) """
-
-    def __init__(self, message=None):
-        super().__init__(message, 'Transient')
