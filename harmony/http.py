@@ -20,7 +20,6 @@ import os
 import re
 
 import requests
-from requests.adapters import HTTPAdapter
 
 from harmony.earthdata import EarthdataAuth, EarthdataSession
 from harmony.exceptions import ServerException, ForbiddenException
@@ -36,22 +35,24 @@ TIMEOUT = 60
 
 MAX_RETRY_DELAY_SECS = 90
 
-def get_retry_delay(retry_num: int, max_delay: int = MAX_RETRY_DELAY_SECS) -> int:
-  """The number of seconds to sleep before retrying. Exponential backoff starting
-  from 5 seconds up the max_delay. So with a max delay of 60 the retry periods
-  would be 5, 10, 20, 40, 60, ..., 60.
 
-  Parameters
-    ----------
-    retry_num : int
-        The current number of times this request has been retried
-    max_delay: int
-        The maximum number of seconds to wait before retrying
-    Returns
-    -------
-    int : The number of seconds to wait before retrying
-  """
-  return min(max_delay, 2.5 * (2 ** retry_num))
+def get_retry_delay(retry_num: int, max_delay: int = MAX_RETRY_DELAY_SECS) -> int:
+    """The number of seconds to sleep before retrying. Exponential backoff starting
+    from 5 seconds up the max_delay. So with a max delay of 60 the retry periods
+    would be 5, 10, 20, 40, 60, ..., 60.
+
+    Parameters
+        ----------
+        retry_num : int
+            The current number of times this request has been retried
+        max_delay: int
+            The maximum number of seconds to wait before retrying
+        Returns
+        -------
+        int : The number of seconds to wait before retrying
+    """
+    return min(max_delay, 2.5 * (2 ** retry_num))
+
 
 def is_http(url: str) -> bool:
     """Predicate to determine if the url is an http endpoint.
@@ -85,6 +86,7 @@ def localhost_url(url, local_hostname):
     str : The url, possibly converted to use a different local hostname
     """
     return url.replace('localhost', local_hostname)
+
 
 def _is_eula_error(body: str) -> bool:
     """
@@ -123,13 +125,21 @@ def _eula_error_message(body: str) -> str:
     return (f"Request could not be completed because you need to agree to the EULA "
             f"at {json_object['resolution_url']}")
 
+
 @lru_cache(maxsize=128)
 def _earthdata_session():
     """Constructs an EarthdataSession for use to download one or more files."""
     return EarthdataSession()
 
 
-def _download(config, url: str, access_token: str, data, total_retries: int, logger, user_agent=None, **kwargs_download_agent):
+def _download(
+    config, url: str,
+    access_token: str,
+    data,
+    total_retries: int,
+    logger, user_agent=None,
+    **kwargs_download_agent
+):
     """Implements the download functionality.
 
     Using the EarthdataSession and EarthdataAuth extensions to the
@@ -183,7 +193,8 @@ def _download(config, url: str, access_token: str, data, total_retries: int, log
                 if response.ok:
                     return response
                 else:
-                    raise Exception(f'Unable to download due to status code: {response.status_code} and content {response.content}')
+                    raise Exception(f'Unable to download due to status code: {response.status_code} \
+                        and content {response.content}')
             else:
                 # Including this header since the stdlib does by default,
                 # but we've switched to `requests` which does not.
@@ -192,15 +203,16 @@ def _download(config, url: str, access_token: str, data, total_retries: int, log
                 if response.ok:
                     return response
                 else:
-                    raise Exception(f'Unable to download due to status code: {response.status_code} and content {response.content}')
+                    raise Exception(f'Unable to download due to status code: {response.status_code} \
+                        and content {response.content}')
 
-        except Exception as e:
-            if response != None and _is_eula_error(response.content):
+        except Exception:
+            if response is not None and _is_eula_error(response.content):
                 msg = _eula_error_message(response.content)
                 logger.info(f'{msg} due to: {response.content}')
                 return response
 
-            if response != None and response.status_code in (401, 403):
+            if response is not None and response.status_code in (401, 403):
                 msg = f'Forbidden: Unable to download {url}. Will not retry.'
                 logger.info(f'{msg} due to: {response.content}')
                 return response
@@ -358,7 +370,9 @@ def download(config, url: str, access_token: str, data, destination_file,
         raise Exception(f"In download parameters: buffer_size must be integer when stream={stream}.")
 
     if access_token is not None:
-        response = _download(config, url, access_token, data, config.max_download_retries, logger, user_agent, stream=stream)
+        response = _download(
+            config, url, access_token, data, config.max_download_retries, logger, user_agent, stream=stream
+        )
 
     if response is None or not response.ok:
         if config.fallback_authn_enabled:
@@ -393,6 +407,7 @@ def download(config, url: str, access_token: str, data, destination_file,
         logger.info(f'{msg} due to: {response.content}')
         raise ForbiddenException(msg)
 
-    msg = f'Unable to download due to status code: {response.status_code} and content {response.content} and all retries exhausted.'
+    msg = f'Unable to download due to status code: {response.status_code} and content \
+        {response.content} and all retries exhausted.'
     logger.error(msg)
     raise ServerException(msg)
