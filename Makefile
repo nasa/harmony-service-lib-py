@@ -31,5 +31,8 @@ lint:
 test:
 	pytest --cov=harmony tests
 
+test-no-warnings:
+	pytest --disable-warnings --cov=harmony tests
+
 cve-check:
 	safety check

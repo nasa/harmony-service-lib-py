@@ -21,10 +21,9 @@ import re
 
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 
 from harmony.earthdata import EarthdataAuth, EarthdataSession
-from harmony.exceptions import ServerException, ForbiddenException, TransientException
+from harmony.exceptions import ServerException, ForbiddenException
 from harmony.logging import build_logger
 
 # Timeout in seconds.  Per requests docs, this is not a time limit on
@@ -35,15 +34,24 @@ from harmony.logging import build_logger
 # https://2.python-requests.org/en/master/user/quickstart/#timeouts
 TIMEOUT = 60
 
-# Error codes for which the retry adapter will retry failed requests.
-# Only requests sessions with a mounted retry adapter will exhibit retry behavior.
-RETRY_ERROR_CODES = list(range(400, 600)) # Any http status code should be retried
+MAX_RETRY_DELAY_SECS = 90
 
-RETRY_DELAY_SECS = [5, 10, 20, 40, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60]
+def get_retry_delay(retry_num: int, max_delay: int = MAX_RETRY_DELAY_SECS) -> int:
+  """The number of seconds to sleep before retrying. Exponential backoff starting
+  from 5 seconds up the max_delay. So with a max delay of 60 the retry periods
+  would be 5, 10, 20, 40, 60, ..., 60.
 
-def get_retry_delay(retry_num: int) -> int:
-  """The number of seconds to sleep before retrying"""
-  return RETRY_DELAY_SECS[retry_num - 1]
+  Parameters
+    ----------
+    retry_num : int
+        The current number of times this request has been retried
+    max_delay: int
+        The maximum number of seconds to wait before retrying
+    Returns
+    -------
+    int : The number of seconds to wait before retrying
+  """
+  return min(max_delay, 2.5 * (2 ** retry_num))
 
 def is_http(url: str) -> bool:
     """Predicate to determine if the url is an http endpoint.
@@ -77,83 +85,6 @@ def localhost_url(url, local_hostname):
     str : The url, possibly converted to use a different local hostname
     """
     return url.replace('localhost', local_hostname)
-
-
-def _mount_retry(session, total_retries, backoff_factor=2):
-    """
-    Instantiates a retry adapter (with exponential backoff) and mounts it to the requests session.
-    See _retry_adapter function for backoff algo details.
-
-    Parameters
-    ----------
-    session : requests.Session
-        The session that will have a retry adapter mounted to it.
-    total_retries: int
-        Upper limit on the number of times to retry the request
-    backoff_factor: float
-        Factor used to determine backoff/sleep time between executions
-
-    Returns
-    -------
-    The requests.Session
-    """
-    # if total_retries < 1:
-    #     return session
-    # adapter = _retry_adapter(total_retries, backoff_factor)
-    # session.mount('http://', adapter)
-    # session.mount('https://', adapter)
-    return session
-
-
-def _retry_adapter(total_retries, backoff_factor=2):
-    """
-    HTTP adapter for retrying (with exponential backoff) failed requests that have returned a status code
-    indicating a temporary error.
-
-    backoff = {backoff factor} * (2 ** ({retry number} - 1))
-    where {retry number} = 1, 2, 3, ..., total_retries
-
-    With a backoff_factor of 5, the total sleep seconds between executions will be
-    [0, 10, 20, 40, ...]. There is always 0 seconds before the first retry.
-    120 seconds is the maximum backoff.
-
-    Parameters
-    ----------
-    total_retries: int
-        Upper limit on the number of times to retry the request
-    backoff_factor: float
-        Factor used to determine backoff/sleep time between executions
-
-    Returns
-    -------
-    The urllib3 retry adapter
-    """
-    retry = Retry(
-                total=total_retries,
-                backoff_factor=backoff_factor,
-                status_forcelist=RETRY_ERROR_CODES,
-                raise_on_redirect=False,
-                raise_on_status=False,
-                allowed_methods=False)
-    return HTTPAdapter(max_retries=retry)
-
-
-def _log_retry_history(logger, response):
-    """
-    Tries to log the error responses received while retrying.
-
-    Parameters
-    ----------
-    logger : logging.Logger
-        The logger to use.
-    response: The requests response
-    """
-    try:
-        for history in response.raw.retries.history:
-            logger.info(f'Retry history: url={history.url}, error={history.error}, status={history.status}')
-    except Exception:
-        return
-
 
 def _is_eula_error(body: str) -> bool:
     """
@@ -191,34 +122,6 @@ def _eula_error_message(body: str) -> str:
     json_object = json.loads(body)
     return (f"Request could not be completed because you need to agree to the EULA "
             f"at {json_object['resolution_url']}")
-
-
-@lru_cache(maxsize=128)
-def _valid(oauth_host: str, oauth_client_id: str, access_token: str, total_retries: int) -> bool:
-    """
-    Validates the user access token with Earthdata Login.
-
-    Parameters
-    ----------
-    oauth_host: The Earthdata Login hostname
-    oauth_client_id: The EDL application's client id
-    access_token: The user's access token to validate
-    total_retries: int
-        Upper limit on the number of times to retry the request
-
-    Returns
-    -------
-    Boolean indicating a valid or invalid user access token
-    """
-    url = f'{oauth_host}/oauth/tokens/user?token={access_token}&client_id={oauth_client_id}'
-    with _mount_retry(requests.Session(), total_retries) as session:
-        response = session.post(url, timeout=TIMEOUT)
-
-        if response.ok:
-            return True
-
-        raise Exception(response.json())
-
 
 @lru_cache(maxsize=128)
 def _earthdata_session():
@@ -268,42 +171,51 @@ def _download(config, url: str, access_token: str, data, total_retries: int, log
     auth = EarthdataAuth(config.oauth_uid, config.oauth_password, access_token)
     tries = 0
     retry = True
+    response = None
     while retry is True:
         retry = False
         tries += 1
         try:
-            with _mount_retry(_earthdata_session(), total_retries) as session:
-                session.auth = auth
-                if data is None:
-                    response = session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
-                    if response.ok:
-                        return response
-                    else:
-                        logger.debug(f'CDD - Unable to download due to status code: {response.status_code} and content {response.content}')
-                        raise Exception('Failed')
+            session = _earthdata_session()
+            session.auth = auth
+            if data is None:
+                response = session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
+                if response.ok:
+                    return response
                 else:
-                    # Including this header since the stdlib does by default,
-                    # but we've switched to `requests` which does not.
-                    headers['Content-Type'] = 'application/x-www-form-urlencoded'
-                    response = session.post(url, headers=headers, data=data, timeout=TIMEOUT)
-                    if response.ok:
-                        return response
-                    else:
-                        logger.debug(f'CDD - Unable to download due to status code: {response.status_code} and content {response.content}')
-                        raise Exception('Failed')
+                    raise Exception(f'Unable to download due to status code: {response.status_code} and content {response.content}')
+            else:
+                # Including this header since the stdlib does by default,
+                # but we've switched to `requests` which does not.
+                headers['Content-Type'] = 'application/x-www-form-urlencoded'
+                response = session.post(url, headers=headers, data=data, timeout=TIMEOUT, **kwargs_download_agent)
+                if response.ok:
+                    return response
+                else:
+                    raise Exception(f'Unable to download due to status code: {response.status_code} and content {response.content}')
 
         except Exception as e:
-            if tries < len(RETRY_DELAY_SECS):
+            if response != None and _is_eula_error(response.content):
+                msg = _eula_error_message(response.content)
+                logger.info(f'{msg} due to: {response.content}')
+                return response
+
+            if response != None and response.status_code in (401, 403):
+                msg = f'Forbidden: Unable to download {url}. Will not retry.'
+                logger.info(f'{msg} due to: {response.content}')
+                return response
+
+            if tries < total_retries:
                 retry = True
                 delay = get_retry_delay(tries)
-                logger.exception(f'CDD: Retrying failed download {url}')
+                logger.exception(f'Retrying failed download {url}')
                 sleep(delay)
             else:
                 logger.error(f'All retries exhaused for downloading {url}')
-                raise e
+                return response
 
 
-def _download_with_fallback_authn(config, url: str, data, total_retries: int, user_agent=None, **kwargs_download_agent):
+def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwargs_download_agent):
     """Downloads the given url using Basic authentication as a fallback
     mechanism should the normal EDL Oauth handshake fail.
 
@@ -341,12 +253,12 @@ def _download_with_fallback_authn(config, url: str, data, total_retries: int, us
     if user_agent is not None:
         headers['user-agent'] = user_agent
     auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
-    with _mount_retry(requests.Session(), total_retries) as session:
-        session.auth = auth
-        if data is None:
-            return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
-        else:
-            return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
+    session = requests.Session()
+    session.auth = auth
+    if data is None:
+        return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
+    else:
+        return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
 
 
 def _log_download_performance(logger, url, duration_ms, file_size):
@@ -378,7 +290,7 @@ def _log_download_performance(logger, url, duration_ms, file_size):
         "path": url_path,
         "size": file_size
     }
-    logger.info('CDD - your code - timing.download.end', extra=extra_fields)
+    logger.info('timing.download.end', extra=extra_fields)
 
 
 def download(config, url: str, access_token: str, data, destination_file,
@@ -436,7 +348,7 @@ def download(config, url: str, access_token: str, data, destination_file,
     response = None
     logger = build_logger(config)
     start_time = datetime.datetime.now()
-    logger.info(f'CDD updated code - timing.download.start {url}')
+    logger.info(f'timing.download.start {url}')
 
     if (not stream) and buffer_size:
         logger.warn(
@@ -445,8 +357,7 @@ def download(config, url: str, access_token: str, data, destination_file,
     elif stream and not isinstance(buffer_size, int):
         raise Exception(f"In download parameters: buffer_size must be integer when stream={stream}.")
 
-    if access_token is not None: #and _valid(
-            #config.oauth_host, config.oauth_client_id, access_token, config.max_download_retries):
+    if access_token is not None:
         response = _download(config, url, access_token, data, config.max_download_retries, logger, user_agent, stream=stream)
 
     if response is None or not response.ok:
@@ -455,7 +366,7 @@ def download(config, url: str, access_token: str, data, destination_file,
                    'Fallback authentication enabled: retrying with Basic auth.')
             logger.warning(msg)
             response = _download_with_fallback_authn(
-                config, url, data, config.max_download_retries, user_agent, stream=stream)
+                config, url, data, user_agent, stream=stream)
 
     if response.ok:
         if not stream:
@@ -482,17 +393,6 @@ def download(config, url: str, access_token: str, data, destination_file,
         logger.info(f'{msg} due to: {response.content}')
         raise ForbiddenException(msg)
 
-    if response.status_code == 500:
-        msg = f'Unable to download {url}'
-        logger.info(f'{msg} (HTTP 500) due to: {response.content}')
-        raise ServerException(f'{msg} due to an unexpected data server error.')
-
-    if response.status_code in RETRY_ERROR_CODES:
-        msg = f'Download of {url} failed due to a transient error ' +\
-         f'(HTTP {response.status_code}) after multiple retry attempts.'
-        _log_retry_history(logger, response)
-        logger.info(msg)
-        raise TransientException(msg)
-
-    logger.info(f'Unable to download (unknown error) due to status code: {response.status_code} and content {response.content}')
-    raise Exception('Unable to download: unknown error.')
+    msg = f'Unable to download due to status code: {response.status_code} and content {response.content} and all retries exhausted.'
+    logger.error(msg)
+    raise ServerException(msg)

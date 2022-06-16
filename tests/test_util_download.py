@@ -1,4 +1,5 @@
 from unittest import mock
+from unittest.mock import Mock, patch
 
 import pytest
 import responses
@@ -43,6 +44,7 @@ def test_when_given_an_http_url_it_downloads_the_url(monkeypatch, mocker, faker)
     http_download.assert_called()
 
 
+@patch('harmony.http.get_retry_delay', Mock(return_value = 0))
 def test_when_given_unknown_url_it_raises_exception(faker):
     access_token = faker.password(length=40, special_chars=False)
     config = config_fixture()
@@ -102,19 +104,14 @@ def test_when_the_url_returns_a_401_it_throws_a_forbidden_exception(faker):
     access_token = faker.password(length=40, special_chars=False)
     url = 'https://example.com/file.txt'
     config = config_fixture()
-    responses.add(
-        responses.POST,
-        'https://uat.urs.earthdata.nasa.gov/oauth/tokens/user',
-        status=200,
-        match_querystring=False
-    )
+
     responses.add(responses.GET, url, status=401)
 
     with mock.patch('builtins.open', mock.mock_open()):
         with pytest.raises(ForbiddenException) as e:
             util.download(url, '/tmp', access_token=access_token, cfg=config)
         assert e.value.message.startswith('Forbidden')
-        assert len(responses.calls) == 2
+        assert len(responses.calls) == 1
 
 
 @responses.activate
@@ -122,19 +119,13 @@ def test_when_the_url_returns_a_403_it_throws_a_forbidden_exception(faker):
     access_token = faker.password(length=41, special_chars=False)
     url = 'https://example.com/file.txt'
     config = config_fixture()
-    responses.add(
-        responses.POST,
-        'https://uat.urs.earthdata.nasa.gov/oauth/tokens/user',
-        status=200,
-        match_querystring=False
-    )
     responses.add(responses.GET, url, status=403)
 
     with mock.patch('builtins.open', mock.mock_open()):
         with pytest.raises(ForbiddenException) as e:
             util.download(url, '/tmp', access_token=access_token, cfg=config)
         assert e.value.message.startswith('Forbidden')
-        assert len(responses.calls) == 2
+        assert len(responses.calls) == 1
 
 
 @responses.activate
@@ -142,12 +133,6 @@ def test_when_the_url_returns_a_eula_error_it_returns_a_human_readable_message(f
     access_token = faker.password(length=42, special_chars=False)
     url = 'https://example.com/file.txt'
     config = config_fixture()
-    responses.add(
-        responses.POST,
-        'https://uat.urs.earthdata.nasa.gov/oauth/tokens/user',
-        status=200,
-        match_querystring=False
-    )
     responses.add(
         responses.GET, url, status=403,
         body=('{"status_code":403,"error_description":"EULA Acceptance Failure",'
@@ -159,10 +144,11 @@ def test_when_the_url_returns_a_eula_error_it_returns_a_human_readable_message(f
             util.download(url, '/tmp', access_token=access_token, cfg=config)
         assert e.value.message == (f'Request could not be completed because you need to agree to the EULA '
                                    f'at https://example.com/approve_app?client_id=foo')
-        assert len(responses.calls) == 2
+        assert len(responses.calls) == 1
 
 
 @responses.activate
+@patch('harmony.http.get_retry_delay', Mock(return_value = 0))
 def test_when_the_url_returns_a_500_it_does_not_raise_a_forbidden_exception_and_does_not_return_details_to_user(faker):
     access_token = faker.password(length=43, special_chars=False)
     url = 'https://example.com/file.txt'
@@ -179,4 +165,4 @@ def test_when_the_url_returns_a_500_it_does_not_raise_a_forbidden_exception_and_
         with pytest.raises(Exception) as e:
             util.download(url, '/tmp', access_token=access_token, cfg=config)
         assert e.type != ForbiddenException and e.type == ServerException
-        assert len(responses.calls) == 2
+        assert len(responses.calls) == 5
