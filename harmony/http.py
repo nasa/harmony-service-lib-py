@@ -12,6 +12,7 @@ set for correct operation. See that module and the project README for details.
 
 from functools import lru_cache
 import json
+from time import sleep
 from urllib.parse import urlparse
 import datetime
 import sys
@@ -38,6 +39,11 @@ TIMEOUT = 60
 # Only requests sessions with a mounted retry adapter will exhibit retry behavior.
 RETRY_ERROR_CODES = list(range(400, 600)) # Any http status code should be retried
 
+RETRY_DELAY_SECS = [5, 10, 20, 40, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60]
+
+def get_retry_delay(retry_num: int) -> int:
+  """The number of seconds to sleep before retrying"""
+  return RETRY_DELAY_SECS[retry_num - 1]
 
 def is_http(url: str) -> bool:
     """Predicate to determine if the url is an http endpoint.
@@ -91,11 +97,11 @@ def _mount_retry(session, total_retries, backoff_factor=2):
     -------
     The requests.Session
     """
-    if total_retries < 1:
-        return session
-    adapter = _retry_adapter(total_retries, backoff_factor)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
+    # if total_retries < 1:
+    #     return session
+    # adapter = _retry_adapter(total_retries, backoff_factor)
+    # session.mount('http://', adapter)
+    # session.mount('https://', adapter)
     return session
 
 
@@ -220,7 +226,7 @@ def _earthdata_session():
     return EarthdataSession()
 
 
-def _download(config, url: str, access_token: str, data, total_retries: int, user_agent=None, **kwargs_download_agent):
+def _download(config, url: str, access_token: str, data, total_retries: int, logger, user_agent=None, **kwargs_download_agent):
     """Implements the download functionality.
 
     Using the EarthdataSession and EarthdataAuth extensions to the
@@ -260,15 +266,41 @@ def _download(config, url: str, access_token: str, data, total_retries: int, use
     if user_agent is not None:
         headers['user-agent'] = user_agent
     auth = EarthdataAuth(config.oauth_uid, config.oauth_password, access_token)
-    with _mount_retry(_earthdata_session(), total_retries) as session:
-        session.auth = auth
-        if data is None:
-            return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
-        else:
-            # Including this header since the stdlib does by default,
-            # but we've switched to `requests` which does not.
-            headers['Content-Type'] = 'application/x-www-form-urlencoded'
-            return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
+    tries = 0
+    retry = True
+    while retry is True:
+        retry = False
+        tries += 1
+        try:
+            with _mount_retry(_earthdata_session(), total_retries) as session:
+                session.auth = auth
+                if data is None:
+                    response = session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
+                    if response.ok:
+                        return response
+                    else:
+                        logger.debug(f'CDD - Unable to download due to status code: {response.status_code} and content {response.content}')
+                        raise Exception('Failed')
+                else:
+                    # Including this header since the stdlib does by default,
+                    # but we've switched to `requests` which does not.
+                    headers['Content-Type'] = 'application/x-www-form-urlencoded'
+                    response = session.post(url, headers=headers, data=data, timeout=TIMEOUT)
+                    if response.ok:
+                        return response
+                    else:
+                        logger.debug(f'CDD - Unable to download due to status code: {response.status_code} and content {response.content}')
+                        raise Exception('Failed')
+
+        except Exception as e:
+            if tries < len(RETRY_DELAY_SECS):
+                retry = True
+                delay = get_retry_delay(tries)
+                logger.exception(f'CDD: Retrying failed download {url}')
+                sleep(delay)
+            else:
+                logger.error(f'All retries exhaused for downloading {url}')
+                raise e
 
 
 def _download_with_fallback_authn(config, url: str, data, total_retries: int, user_agent=None, **kwargs_download_agent):
@@ -413,9 +445,9 @@ def download(config, url: str, access_token: str, data, destination_file,
     elif stream and not isinstance(buffer_size, int):
         raise Exception(f"In download parameters: buffer_size must be integer when stream={stream}.")
 
-    if access_token is not None and _valid(
-            config.oauth_host, config.oauth_client_id, access_token, config.max_download_retries):
-        response = _download(config, url, access_token, data, config.max_download_retries, user_agent, stream=stream)
+    if access_token is not None: #and _valid(
+            #config.oauth_host, config.oauth_client_id, access_token, config.max_download_retries):
+        response = _download(config, url, access_token, data, config.max_download_retries, logger, user_agent, stream=stream)
 
     if response is None or not response.ok:
         if config.fallback_authn_enabled:
