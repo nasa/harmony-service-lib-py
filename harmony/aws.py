@@ -14,7 +14,7 @@ def is_s3(url: str) -> bool:
     return url is not None and url.lower().startswith('s3')
 
 
-def _aws_parameters(use_localstack, localstack_host, region):
+def aws_parameters(use_localstack, localstack_host, region):
     """Constructs a configuration dict that can be used to create an aws client.
 
     Parameters
@@ -65,7 +65,7 @@ def _get_aws_client(config, service, user_agent=None):
         A client appropriate for accessing the provided service
     """
     boto_cfg = Config(user_agent_extra=user_agent)
-    service_params = _aws_parameters(config.use_localstack, config.localstack_host, config.aws_default_region)
+    service_params = aws_parameters(config.use_localstack, config.localstack_host, config.aws_default_region)
 
     return boto3.client(service_name=service, config=boto_cfg, **service_params)
 
