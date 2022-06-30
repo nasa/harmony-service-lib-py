@@ -3,17 +3,30 @@ import boto3
 from pystac import STAC_IO
 from harmony import util
 from harmony import aws
+from os import environ
 
 """
 Read and write to s3 when STAC links start with s3://.
 https://pystac.readthedocs.io/en/0.5/concepts.html#using-stac-io
 """
 
-config = util.config()
-service_params = aws.aws_parameters(config.use_localstack, config.localstack_host, config.aws_default_region)
-
 
 def read(uri):
+    """
+    Reads STAC files from s3
+    (or via the default method if the protocol is not s3).
+
+    Parameters
+    ----------
+    uri: The STAC file uri.
+
+    Returns
+    -------
+    The file contents
+    """
+    config = util.config(validate=environ.get('ENV') != 'test')
+    service_params = aws.aws_parameters(
+        config.use_localstack, config.localstack_host, config.aws_default_region)
     parsed = urlparse(uri)
     if parsed.scheme == 's3':
         bucket = parsed.netloc
@@ -26,6 +39,17 @@ def read(uri):
 
 
 def write(uri, txt):
+    """
+    Writes a STAC file to the given uri.
+
+    Parameters
+    ----------
+    uri: The STAC file uri.
+    txt: The STAC contents.
+    """
+    config = util.config(validate=environ.get('ENV') != 'test')
+    service_params = aws.aws_parameters(
+        config.use_localstack, config.localstack_host, config.aws_default_region)
     parsed = urlparse(uri)
     if parsed.scheme == 's3':
         bucket = parsed.netloc

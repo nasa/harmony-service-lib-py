@@ -106,7 +106,7 @@ class TestS3Parameters(unittest.TestCase):
             'region_name': f'{region}'
         }
 
-        actual = aws._aws_parameters(use_localstack, localstack_host, region)
+        actual = aws.aws_parameters(use_localstack, localstack_host, region)
         self.assertDictEqual(expected, actual)
 
     def test_when_not_using_localstack_it_ignores_localstack_host(self):
@@ -118,7 +118,7 @@ class TestS3Parameters(unittest.TestCase):
             'region_name': f'{region}'
         }
 
-        actual = aws._aws_parameters(use_localstack, localstack_host, region)
+        actual = aws.aws_parameters(use_localstack, localstack_host, region)
 
         self.assertDictEqual(expected, actual)
 
