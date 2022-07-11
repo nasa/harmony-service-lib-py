@@ -18,6 +18,7 @@ from harmony.message import Message
 from harmony.logging import setup_stdout_log_formatting, build_logger
 from harmony.util import (receive_messages, delete_message, change_message_visibility,
                           config, create_decrypter)
+from harmony.version import get_version
 
 
 def setup_cli(parser):
@@ -201,6 +202,7 @@ def _invoke(adapter, metadata_dir):
     True if the operation completed successfully, False otherwise
     """
     try:
+        logging.info(f'Invoking adapter with harmony-service-lib-py version {get_version()}')
         makedirs(metadata_dir, exist_ok=True)
         (out_message, out_catalog) = adapter.invoke()
         out_catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
