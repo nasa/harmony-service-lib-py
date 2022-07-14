@@ -1,7 +1,7 @@
 minimal_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.16.0/data-operation-v0.16.0.json",
-        "version": "0.16.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.17.0/data-operation-v0.17.0.json",
+        "version": "0.17.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -19,8 +19,8 @@ minimal_message = """
 
 minimal_source_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.16.0/data-operation-v0.16.0.json",
-        "version": "0.16.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.17.0/data-operation-v0.17.0.json",
+        "version": "0.17.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -30,6 +30,8 @@ minimal_source_message = """
         "sources": [
             {
             "collection": "C0001-EXAMPLE",
+            "shortName": "example_1_data",
+            "versionId": "1",
             "variables": [],
             "coordinateVariables": [],
             "granules": []
@@ -44,8 +46,8 @@ minimal_source_message = """
 
 full_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.16.0/data-operation-v0.16.0.json",
-        "version": "0.16.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.17.0/data-operation-v0.17.0.json",
+        "version": "0.17.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -55,6 +57,8 @@ full_message = """
         "accessToken": "ABCD1234567890",
         "sources": [{
             "collection": "C0001-EXAMPLE",
+            "shortName": "example_1_data",
+            "versionId": "1",
             "variables": [{
                 "id": "V0001-EXAMPLE",
                 "name": "ExampleVar1",
@@ -101,6 +105,8 @@ full_message = """
                 }
             ]}, {
             "collection": "C0002-EXAMPLE",
+            "shortName": "example_2_data",
+            "versionId": "1",
             "variables": [
                 {
                 "id": "V0002-EXAMPLE",

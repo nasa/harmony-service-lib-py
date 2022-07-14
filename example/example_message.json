@@ -1,6 +1,6 @@
 {
-  "$schema": "../../harmony/app/schemas/data-operation/0.16.0/data-operation-v0.16.0.json",
-  "version": "0.16.0",
+  "$schema": "../../harmony/app/schemas/data-operation/0.17.0/data-operation-v0.17.0.json",
+  "version": "0.17.0",
   "callback": "http://localhost/some-path",
   "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
   "user": "jdoe",
@@ -10,6 +10,8 @@
   "accessToken": "ABCD1234567890",
   "sources": [{
       "collection": "C1233800302-EEDTEST",
+      "shortName": "harmony_example",
+      "versionId": "1",
       "variables": [{
           "id": "V0001-EXAMPLE",
           "name": "ExampleVar",
