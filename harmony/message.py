@@ -106,6 +106,10 @@ class Source(JsonObject):
     ----------
     collection : string
         The id of the collection the data source's variables and granules are in
+    shortName : string
+        The unique short name of the collection as returned by the CMR
+    versionId : string
+        The version id of the collection as returned by the CMR
     variables : list
         A list of Variable objects for the variables which should be transformed
     coordinateVariables: list
@@ -125,7 +129,7 @@ class Source(JsonObject):
             The Harmony message "sources" item to deserialize
         """
         super().__init__(message_data,
-                         properties=['collection'],
+                         properties=['collection', 'shortName', 'versionId'],
                          list_properties={
                              'variables': Variable,
                              'coordinateVariables': Variable,
