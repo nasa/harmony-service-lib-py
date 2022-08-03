@@ -147,7 +147,7 @@ def _write_error(metadata_dir, message, category='Unknown'):
     error_data = {'error': message, 'category': category}
     if is_s3(metadata_dir):
         json_str = json.dumps(error_data)
-        write_s3(json_str, f'{metadata_dir}error.json')
+        write_s3(f'{metadata_dir}error.json', json_str)
     else:
         with open(path.join(metadata_dir, 'error.json'), 'w') as file:
             json.dump(error_data, file)

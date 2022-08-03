@@ -49,6 +49,6 @@ def write(uri, txt):
     """
     parsed = urlparse(uri)
     if parsed.scheme == 's3':
-        aws.write_s3(txt, uri)
+        aws.write_s3(uri, txt)
     else:
         STAC_IO.default_write_text_method(uri, txt)

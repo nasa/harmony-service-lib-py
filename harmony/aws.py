@@ -46,7 +46,7 @@ def aws_parameters(use_localstack, localstack_host, region):
         }
 
 
-def write_s3(txt, url):
+def write_s3(url, txt):
     """
     Writes text to the given  s3 url.
 
