@@ -46,16 +46,16 @@ def aws_parameters(use_localstack, localstack_host, region):
         }
 
 
-def write_s3(txt, uri):
+def write_s3(txt, url):
     """
-    Writes text to the given  s3 uri.
+    Writes text to the given  s3 url.
 
     Parameters
     ----------
-    uri: The s3 file uri.
+    url: The s3 file url.
     txt: The file contents.
     """
-    parsed = urlparse(uri)
+    parsed = urlparse(url)
     config = util.config(validate=environ.get('ENV') != 'test')
     service_params = aws_parameters(
             config.use_localstack, config.localstack_host, config.aws_default_region)
