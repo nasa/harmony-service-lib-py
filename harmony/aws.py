@@ -5,8 +5,11 @@ messages in SQS queues.
 This module relies on the harmony.util.config and its environment variables to be
 set for correct operation. See that module and the project README for details.
 """
+from urllib.parse import urlparse
+from os import environ
 import boto3
 from botocore.config import Config
+from harmony import util
 
 
 def is_s3(url: str) -> bool:
@@ -41,6 +44,25 @@ def aws_parameters(use_localstack, localstack_host, region):
         return {
             'region_name': region
         }
+
+
+def write_s3(url, txt):
+    """
+    Writes text to the given  s3 url.
+
+    Parameters
+    ----------
+    url: The s3 file url.
+    txt: The file contents.
+    """
+    parsed = urlparse(url)
+    config = util.config(validate=environ.get('ENV') != 'test')
+    service_params = aws_parameters(
+            config.use_localstack, config.localstack_host, config.aws_default_region)
+    bucket = parsed.netloc
+    key = parsed.path[1:]
+    s3 = boto3.resource("s3", **service_params)
+    s3.Object(bucket, key).put(Body=txt)
 
 
 def _get_aws_client(config, service, user_agent=None):
