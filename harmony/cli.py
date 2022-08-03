@@ -19,6 +19,7 @@ from harmony.logging import setup_stdout_log_formatting, build_logger
 from harmony.util import (receive_messages, delete_message, change_message_visibility,
                           config, create_decrypter)
 from harmony.version import get_version
+from harmony.aws import is_s3, write_s3
 
 
 def setup_cli(parser):
@@ -143,8 +144,13 @@ def _write_error(metadata_dir, message, category='Unknown'):
     category : string
         The error category to write
     """
-    with open(path.join(metadata_dir, 'error.json'), 'w') as file:
-        json.dump({'error': message, 'category': category}, file)
+    error_data = {'error': message, 'category': category}
+    if is_s3(metadata_dir):
+        json_str = json.dumps(error_data)
+        write_s3(json_str, f'{metadata_dir}error.json')
+    else:
+        with open(path.join(metadata_dir, 'error.json'), 'w') as file:
+            json.dump(error_data, file)
 
 
 def _build_adapter(AdapterClass, message_string, sources_path, data_location, config):
@@ -203,12 +209,15 @@ def _invoke(adapter, metadata_dir):
     """
     try:
         logging.info(f'Invoking adapter with harmony-service-lib-py version {get_version()}')
-        makedirs(metadata_dir, exist_ok=True)
+        is_s3_metadata_dir = is_s3(metadata_dir)
+        if not is_s3_metadata_dir:
+            makedirs(metadata_dir, exist_ok=True)
         (out_message, out_catalog) = adapter.invoke()
         out_catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
 
-        with open(path.join(metadata_dir, 'message.json'), 'w') as file:
-            json.dump(out_message.output_data, file)
+        if not is_s3_metadata_dir:
+            with open(path.join(metadata_dir, 'message.json'), 'w') as file:
+                json.dump(out_message.output_data, file)
     except HarmonyException as err:
         logging.error(err, exc_info=1)
         _write_error(metadata_dir, err.message, err.category)

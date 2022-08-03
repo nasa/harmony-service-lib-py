@@ -47,14 +47,8 @@ def write(uri, txt):
     uri: The STAC file uri.
     txt: The STAC contents.
     """
-    config = util.config(validate=environ.get('ENV') != 'test')
-    service_params = aws.aws_parameters(
-        config.use_localstack, config.localstack_host, config.aws_default_region)
     parsed = urlparse(uri)
     if parsed.scheme == 's3':
-        bucket = parsed.netloc
-        key = parsed.path[1:]
-        s3 = boto3.resource("s3", **service_params)
-        s3.Object(bucket, key).put(Body=txt)
+        aws.write_s3(txt, uri)
     else:
         STAC_IO.default_write_text_method(uri, txt)
