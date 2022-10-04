@@ -1,6 +1,6 @@
 # necessary to pin this version to <5.0.0 for now
 # due to https://github.com/python/importlib_metadata/issues/406
-# which causes the GitHub action to fail running flake8 with pthon3.7
+# which causes the GitHub action to fail running flake8 with python3.7
 importlib-metadata==4.13.0
 autopep8 ~= 1.5
 debugpy ~= 1.2
