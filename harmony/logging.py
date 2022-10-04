@@ -61,7 +61,7 @@ class RedactorFormatter(object):
 
 
 @lru_cache(maxsize=128)
-def build_logger(config, name=None, stream=None):
+def build_logger(config, name='harmony-service', stream=None):
     """
     Builds a logger with appropriate defaults for Harmony
     Parameters
@@ -78,20 +78,17 @@ def build_logger(config, name=None, stream=None):
     logger : Logging
         A logger for service output
     """
-    logger = logging.getLogger()
+    logger = logging.getLogger(name)
     syslog = logging.StreamHandler(stream)
     if config.text_logger:
         formatter = logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s.%(funcName)s:%(lineno)d] %(message)s")
     else:
         formatter = HarmonyJsonFormatter()
         formatter.app_name = config.app_name
-    syslog.setFormatter(formatter)
+    syslog.setFormatter(RedactorFormatter(formatter))
     logger.addHandler(syslog)
     logger.setLevel(logging.INFO)
     logger.propagate = False
-    # wrap each handler in the redactor formatter
-    for handler in logging.root.handlers:
-        handler.setFormatter(RedactorFormatter(handler.formatter))
     return logger
 
 
