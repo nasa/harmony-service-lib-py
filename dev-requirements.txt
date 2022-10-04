@@ -1,3 +1,6 @@
+# necessary to pin this version to <5.0.0 for now
+# due to https://github.com/python/importlib_metadata/issues/406
+importlib-metadata==4.13.0
 autopep8 ~= 1.5
 debugpy ~= 1.2
 Faker ~= 8.1.3
