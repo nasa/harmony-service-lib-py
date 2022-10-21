@@ -12,4 +12,4 @@ python-language-server ~= 0.35
 # HARMONY-1188 - change this to an official release once the code in this commit is released (https://github.com/getsentry/responses/releases)
 responses @ git+https://github.com/getsentry/responses.git@bdc5eff7169a6fba730f2f8427d5ec5a817b1ad5
 safety ~= 1.8
-pycodestyle ~= 2.7.0
+pycodestyle ~= 2.9.1
