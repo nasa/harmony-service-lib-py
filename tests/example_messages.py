@@ -1,7 +1,7 @@
 minimal_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.17.0/data-operation-v0.17.0.json",
-        "version": "0.17.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.18.0/data-operation-v0.18.0.json",
+        "version": "0.18.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -19,8 +19,8 @@ minimal_message = """
 
 minimal_source_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.17.0/data-operation-v0.17.0.json",
-        "version": "0.17.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.18.0/data-operation-v0.18.0.json",
+        "version": "0.18.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -46,8 +46,8 @@ minimal_source_message = """
 
 full_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.17.0/data-operation-v0.17.0.json",
-        "version": "0.17.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.18.0/data-operation-v0.18.0.json",
+        "version": "0.18.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -179,6 +179,7 @@ full_message = """
                 "max": 10.0
             }]
         },
-        "concatenate": true
+        "concatenate": true,
+        "extendDimensions": ["lat", "lon"]
     }
 """
