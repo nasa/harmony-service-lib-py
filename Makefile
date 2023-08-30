@@ -22,7 +22,6 @@ clean:
 # HARMONY-1188 - revert this command to:
 # pip install -e .[dev]
 install:
-	pip install --upgrade pip
 	pip install -r dev-requirements.txt
 	pip install -r requirements.txt
 
