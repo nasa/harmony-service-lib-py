@@ -17,6 +17,12 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    - name: Create Python test-env
+      run: |
+        pip install --upgrade pip
+        python -m venv test-env
+        test-env env/bin/activate
+
     - name: Install dependencies
       run: make install
 
