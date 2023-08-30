@@ -21,7 +21,7 @@ jobs:
       run: |
         pip install --upgrade pip
         python -m venv test-env
-        test-env env/bin/activate
+        source test-env/bin/activate
 
     - name: Install dependencies
       run: make install
