@@ -17,12 +17,14 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: cve-check, lint, test
-      run: |
-        pip install --upgrade pip
-        python -m venv test-env
-        source test-env/bin/activate
-        make install
-        make cve-check
-        make lint
-        make test
+    - name: Install dependencies
+      run: make install
+
+    - name: CVE Checks
+      run: make cve-check
+
+    - name: Lint
+      run: make lint
+
+    - name: Test
+      run: make test
