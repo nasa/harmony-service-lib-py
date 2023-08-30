@@ -582,6 +582,8 @@ class Message(JsonObject):
     concatenate: bool
         True if the service should concatenate multiple input files into a single output
         file and false otherwise.
+    extendDimensions: list
+        A list of dimensions to extend.
     """
 
     def __init__(self, json_str_or_dict, decrypter=lambda x: x):
@@ -616,7 +618,8 @@ class Message(JsonObject):
                 'format',
                 'subset',
                 'temporal',
-                'concatenate'
+                'concatenate',
+                'extendDimensions'
             ],
             list_properties={'sources': Source}
         )
