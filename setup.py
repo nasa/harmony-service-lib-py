@@ -62,7 +62,7 @@ setup(
     #     'dev': DEV_DEPENDENCIES
     # },
     test_suite="tests",
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     # license and classifier list:
     # https://pypi.org/pypi?%3Aaction=list_classifiers
     license="License :: OSI Approved :: Apache Software License",
