@@ -38,7 +38,10 @@ needs different behavior, e.g. if it operates on data in situ and does not
 want to download the remote file.
 
 A full example of these two requirements with use of helpers can be found in
-[example/example_service.py](example/example_service.py)
+[example/example_service.py](example/example_service.py). Also see
+[adapting-new-services](https://github.com/nasa/harmony/blob/main/docs/guides/adapting-new-services.md) for in depth
+guidance on service development using this library, especially the
+[info on proper error handling](https://github.com/nasa/harmony/blob/main/docs/guides/adapting-new-services.md#5-error-handling).
 
 ## Environment
 
