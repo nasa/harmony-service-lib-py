@@ -48,6 +48,8 @@ def write(uri, txt):
     txt: The STAC contents.
     """
     parsed = urlparse(uri)
+    print('writing to ' + uri)
+    print(txt)
     if parsed.scheme == 's3':
         aws.write_s3(uri, txt)
     else:

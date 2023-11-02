@@ -119,6 +119,17 @@ class TestCliInvokeAction(unittest.TestCase):
             with open(os.path.join(self.workdir, 'error.json')) as file:
                 self.assertEqual(file.read(), '{"error": "Service request failed with an unknown error", "category": "Unknown"}')
 
+    def test_new(self):
+            with cli_parser(
+                    '--harmony-action', 'invoke',
+                    '--harmony-input', '{"test": "input"}',
+                    '--harmony-sources', 'example/source/catalog.json',
+                    '--harmony-metadata-dir', self.workdir) as parser:
+                args = parser.parse_args()
+                cli.run_cli(parser, args, MockMultiCatalogOutputAdapter, cfg=self.config)
+                output = Catalog.from_file(os.path.join(self.workdir, 'catalog1.json'))
+                print(output)
+                self.assertTrue(True)
 
 if __name__ == '__main__':
     unittest.main()
