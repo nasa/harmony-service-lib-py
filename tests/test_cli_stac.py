@@ -144,6 +144,12 @@ class TestCliInvokeAction(unittest.TestCase):
                     item_hrefs = [l.get_href() for l in cat.get_links('item')]
                     self.assertTrue(f'./item-1-from-catalog-{cat.id}/item-1-from-catalog-{cat.id}.json' in item_hrefs)
                     self.assertTrue(f'./item-2-from-catalog-{cat.id}/item-2-from-catalog-{cat.id}.json' in item_hrefs)
+                    item = Item.from_file(os.path.join(self.workdir, f'./item-1-from-catalog-{cat.id}/item-1-from-catalog-{cat.id}.json'))
+                    item_root_href = item.get_single_link('root').get_href()
+                    item_parent_href = item.get_single_link('parent').get_href()
+                    self.assertTrue(item_parent_href == item_root_href)
+                    self.assertEqual(item_root_href, f'../catalog{idx}.json')
+                    self.assertEqual(item_parent_href, f'../catalog{idx}.json')
                 with open(os.path.join(self.workdir, 'batch-count.txt')) as file:
                     self.assertEqual(file.read(), '3')
                 with open(os.path.join(self.workdir, 'batch-catalogs.json')) as file:
