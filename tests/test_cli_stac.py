@@ -18,14 +18,24 @@ class MockAdapter(BaseHarmonyAdapter):
     def invoke(self):
         MockAdapter.message = self.message
         return (self.message, self.catalog)
+    
+class MockMultiCatalogOutputAdapter(BaseHarmonyAdapter):
+    message = None
+    """
+    Dummy class to mock adapter calls, performing a no-op service
+    that returns multiple STAC catologs instead of one
+    """
+    def invoke(self):
+        MockAdapter.message = self.message
+        catalogs = [
+            Catalog('a', ''), Catalog('b', ''), Catalog('c', '')]
+        return (self.message, catalogs)
 
 
 class TestCliInvokeAction(unittest.TestCase):
     def setUp(self):
         self.workdir = mkdtemp()
         self.inputdir = mkdtemp()
-        # self.catalog = Catalog('test-id', 'test catalog')
-        # self.catalog.normalize_and_save(self.inputdir, CatalogType.SELF_CONTAINED)
         self.config = config_fixture()
         print(self.config)
 
