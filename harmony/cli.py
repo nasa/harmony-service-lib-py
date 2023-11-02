@@ -212,11 +212,19 @@ def _invoke(adapter, metadata_dir):
         is_s3_metadata_dir = is_s3(metadata_dir)
         if not is_s3_metadata_dir:
             makedirs(metadata_dir, exist_ok=True)
-        (out_message, out_catalog) = adapter.invoke()
-        if isinstance(out_catalog, list):
-            print('handle catalog list')
-        else:
-            out_catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
+        (out_message, stac_output) = adapter.invoke()
+        if isinstance(stac_output, list):
+            hrefs = []
+            for idx, catalog in enumerate(stac_output):
+                self_href = path.join(metadata_dir, f'catalog{idx}.json')
+                catalog.set_self_href(self_href)
+                catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
+                hrefs.append(self_href)
+            json_str = json.dumps(hrefs)
+            write_s3(path.join(metadata_dir, 'batch-catalogs.json'), json_str)
+            write_s3(path.join(metadata_dir, 'batch-count.txt'), f'{len(hrefs)}')
+        else: # assume stac_output is a single catalog
+            stac_output.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
 
         if not is_s3_metadata_dir:
             with open(path.join(metadata_dir, 'message.json'), 'w') as file:

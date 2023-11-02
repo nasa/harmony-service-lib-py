@@ -106,9 +106,10 @@ class BaseHarmonyAdapter(ABC):
 
         Returns
         -------
-        (harmony.Message, pystac.Catalog)
+        (harmony.Message, pystac.Catalog | list)
             A tuple of the Harmony message, with any processed fields marked as such and
-            a STAC catalog describing the output
+            in this implementation, a single STAC catalog describing the output.
+            (Services overriding this method may return a list of STAC catalogs if desired.)
         """
         # New-style processing using STAC
         if self.catalog:
