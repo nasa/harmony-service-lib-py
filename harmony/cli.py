@@ -213,7 +213,10 @@ def _invoke(adapter, metadata_dir):
         if not is_s3_metadata_dir:
             makedirs(metadata_dir, exist_ok=True)
         (out_message, out_catalog) = adapter.invoke()
-        out_catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
+        if isinstance(out_catalog, list):
+            print('handle catalog list')
+        else:
+            out_catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
 
         if not is_s3_metadata_dir:
             with open(path.join(metadata_dir, 'message.json'), 'w') as file:
