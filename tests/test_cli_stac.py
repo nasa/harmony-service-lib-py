@@ -1,9 +1,10 @@
 import os
 from tempfile import mkdtemp
+from datetime import datetime
 import shutil
 import unittest
 
-from pystac import Catalog, CatalogType
+from pystac import Catalog, CatalogType, Item
 
 from harmony import cli, BaseHarmonyAdapter
 from harmony.exceptions import ForbiddenException
@@ -29,6 +30,14 @@ class MockMultiCatalogOutputAdapter(BaseHarmonyAdapter):
         MockAdapter.message = self.message
         catalogs = [
             Catalog('a', ''), Catalog('b', ''), Catalog('c', '')]
+        for cat in catalogs:
+            items = [
+                Item(f'item-1-from-catalog-{cat.id}', None, [0, 0, 1, 1],
+                     datetime.strptime('09/19/22 13:55:26', '%m/%d/%y %H:%M:%S'), {}),
+                Item(f'item-2-from-catalog-{cat.id}', None, [0, 0, 1, 2],
+                     datetime.strptime('09/19/22 13:55:26', '%m/%d/%y %H:%M:%S'), {})
+            ]
+            cat.add_items(items)
         return (self.message, catalogs)
 
 
