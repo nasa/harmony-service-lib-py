@@ -30,9 +30,8 @@ from . import util
 class BaseHarmonyAdapter(ABC):
     """
     Abstract base class for Harmony service adapters.  Service implementations
-    should inherit from this class and implement the `#invoke(self)` method to
-    adapt the Harmony message (`self.message`) into a service call and the
-    output of the service call into a response to Harmony (`self.completed_with_*`)
+    should inherit from this class and implement the `#invoke(self)` or `#process_item(self, item, source)`
+    method to adapt the Harmony message (`self.message`) into a service call
 
     Services may choose to override methods that do data downloads and result
     staging as well, if they use a different mechanism
@@ -115,7 +114,7 @@ class BaseHarmonyAdapter(ABC):
         if self.catalog:
             return (self.message, self._process_catalog_recursive(self.catalog))
 
-        # Current processing using callbacks
+        # Deprecated, processing using callbacks
         self._process_with_callbacks()
 
     def get_all_catalog_items(self, catalog: Catalog, follow_page_links=True):
