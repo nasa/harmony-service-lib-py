@@ -240,10 +240,8 @@ def _invoke(adapter, metadata_dir):
             makedirs(metadata_dir, exist_ok=True)
         (out_message, stac_output) = adapter.invoke()
         if isinstance(stac_output, list):
-            print('is list!')
             hrefs = []
             for idx, catalog in enumerate(stac_output):
-                print(idx, catalog)
                 self_href = path.join(metadata_dir, f'catalog{idx}.json')
                 catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED, MultiCatalogLayoutStrategy(idx))
                 hrefs.append(self_href)
