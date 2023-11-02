@@ -20,6 +20,7 @@ from harmony.util import (receive_messages, delete_message, change_message_visib
                           config, create_decrypter)
 from harmony.version import get_version
 from harmony.aws import is_s3, write_s3
+from harmony.s3_stac_io import write
 
 
 def setup_cli(parser):
@@ -221,8 +222,8 @@ def _invoke(adapter, metadata_dir):
                 catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
                 hrefs.append(self_href)
             json_str = json.dumps(hrefs)
-            write_s3(path.join(metadata_dir, 'batch-catalogs.json'), json_str)
-            write_s3(path.join(metadata_dir, 'batch-count.txt'), f'{len(hrefs)}')
+            write(path.join(metadata_dir, 'batch-catalogs.json'), json_str)
+            write(path.join(metadata_dir, 'batch-count.txt'), f'{len(hrefs)}')
         else: # assume stac_output is a single catalog
             stac_output.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
 

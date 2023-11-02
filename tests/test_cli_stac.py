@@ -24,8 +24,8 @@ class TestCliInvokeAction(unittest.TestCase):
     def setUp(self):
         self.workdir = mkdtemp()
         self.inputdir = mkdtemp()
-        self.catalog = Catalog('test-id', 'test catalog')
-        self.catalog.normalize_and_save(self.inputdir, CatalogType.SELF_CONTAINED)
+        # self.catalog = Catalog('test-id', 'test catalog')
+        # self.catalog.normalize_and_save(self.inputdir, CatalogType.SELF_CONTAINED)
         self.config = config_fixture()
         print(self.config)
 
