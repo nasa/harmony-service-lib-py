@@ -3,6 +3,7 @@ from tempfile import mkdtemp
 from datetime import datetime
 import shutil
 import unittest
+import json
 
 from pystac import Catalog, CatalogType, Item
 
@@ -128,7 +129,7 @@ class TestCliInvokeAction(unittest.TestCase):
             with open(os.path.join(self.workdir, 'error.json')) as file:
                 self.assertEqual(file.read(), '{"error": "Service request failed with an unknown error", "category": "Unknown"}')
 
-    def test_new(self):
+    def test_when_multi_catalog_output_it_saves_with_particular_layout(self):
             with cli_parser(
                     '--harmony-action', 'invoke',
                     '--harmony-input', '{"test": "input"}',
@@ -136,9 +137,20 @@ class TestCliInvokeAction(unittest.TestCase):
                     '--harmony-metadata-dir', self.workdir) as parser:
                 args = parser.parse_args()
                 cli.run_cli(parser, args, MockMultiCatalogOutputAdapter, cfg=self.config)
-                output = Catalog.from_file(os.path.join(self.workdir, 'catalog1.json'))
-                print(output)
-                self.assertTrue(True)
+                for idx in range(3):
+                    cat = Catalog.from_file(os.path.join(self.workdir, f'catalog{idx}.json'))
+                    cat_root = cat.get_single_link('root')
+                    self.assertEqual(cat_root.get_href(), f'./catalog{idx}.json')
+                    item_hrefs = [l.get_href() for l in cat.get_links('item')]
+                    self.assertTrue(f'./item-1-from-catalog-{cat.id}/item-1-from-catalog-{cat.id}.json' in item_hrefs)
+                    self.assertTrue(f'./item-2-from-catalog-{cat.id}/item-2-from-catalog-{cat.id}.json' in item_hrefs)
+                with open(os.path.join(self.workdir, 'batch-count.txt')) as file:
+                    self.assertEqual(file.read(), '3')
+                with open(os.path.join(self.workdir, 'batch-catalogs.json')) as file:
+                    self.assertEqual(json.loads(file.read()),
+                        [os.path.join(self.workdir, "catalog0.json"),
+                         os.path.join(self.workdir, "catalog1.json"), 
+                         os.path.join(self.workdir, "catalog2.json")])
 
 if __name__ == '__main__':
     unittest.main()
