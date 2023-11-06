@@ -48,6 +48,7 @@ class MultiCatalogLayoutStrategy(BestPracticesLayoutStrategy):
         """
         return path.join(parent_dir, f'catalog{self.index}.json')
 
+
 def setup_cli(parser):
     """
     Adds Harmony arguments to the CLI being parsed by the provided parser
@@ -248,7 +249,7 @@ def _invoke(adapter, metadata_dir):
             json_str = json.dumps(hrefs)
             write(path.join(metadata_dir, 'batch-catalogs.json'), json_str)
             write(path.join(metadata_dir, 'batch-count.txt'), f'{len(hrefs)}')
-        else: # assume stac_output is a single catalog
+        else:  # assume stac_output is a single catalog
             stac_output.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
 
         if not is_s3_metadata_dir:
