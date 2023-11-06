@@ -241,14 +241,11 @@ def _invoke(adapter, metadata_dir):
             makedirs(metadata_dir, exist_ok=True)
         (out_message, stac_output) = adapter.invoke()
         if isinstance(stac_output, list):
-            hrefs = []
             for idx, catalog in enumerate(stac_output):
-                self_href = f'catalog{idx}.json'
                 catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED, MultiCatalogLayoutStrategy(idx))
-                hrefs.append(self_href)
-            json_str = json.dumps(hrefs)
+            json_str = json.dumps([f'catalog{i}.json' for i, c in enumerate(stac_output)])
             write(path.join(metadata_dir, 'batch-catalogs.json'), json_str)
-            write(path.join(metadata_dir, 'batch-count.txt'), f'{len(hrefs)}')
+            write(path.join(metadata_dir, 'batch-count.txt'), f'{len(stac_output)}')
         else:  # assume stac_output is a single catalog
             stac_output.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
 
