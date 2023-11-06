@@ -154,9 +154,9 @@ class TestCliInvokeAction(unittest.TestCase):
                     self.assertEqual(file.read(), '3')
                 with open(os.path.join(self.workdir, 'batch-catalogs.json')) as file:
                     self.assertEqual(json.loads(file.read()),
-                        [os.path.join(self.workdir, "catalog0.json"),
-                         os.path.join(self.workdir, "catalog1.json"), 
-                         os.path.join(self.workdir, "catalog2.json")])
+                        ["catalog0.json",
+                         "catalog1.json", 
+                         "catalog2.json"])
 
 if __name__ == '__main__':
     unittest.main()

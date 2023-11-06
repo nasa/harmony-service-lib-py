@@ -242,7 +242,7 @@ def _invoke(adapter, metadata_dir):
         if isinstance(stac_output, list):
             hrefs = []
             for idx, catalog in enumerate(stac_output):
-                self_href = path.join(metadata_dir, f'catalog{idx}.json')
+                self_href = f'catalog{idx}.json'
                 catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED, MultiCatalogLayoutStrategy(idx))
                 hrefs.append(self_href)
             json_str = json.dumps(hrefs)
