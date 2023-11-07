@@ -12,6 +12,7 @@ from os import path, makedirs
 import datetime
 
 from pystac import Catalog, CatalogType
+from pystac.layout import BestPracticesLayoutStrategy
 
 from harmony.exceptions import CanceledException, HarmonyException
 from harmony.message import Message
@@ -20,6 +21,32 @@ from harmony.util import (receive_messages, delete_message, change_message_visib
                           config, create_decrypter)
 from harmony.version import get_version
 from harmony.aws import is_s3, write_s3
+from harmony.s3_stac_io import write
+
+
+class MultiCatalogLayoutStrategy(BestPracticesLayoutStrategy):
+    """
+    Layout that adheres to what the Harmony server expects
+    when multiple catalogs are output by a service.
+    """
+
+    def __init__(self, index):
+        self.index = index
+
+    def get_catalog_href(self, cat, parent_dir, is_root):
+        """
+        Returns the catalog href, using its index number as
+        part of the file name, e.g. s3://outputs/catalog0.json.
+
+        Parameters
+        ----------
+        parent_dir : string
+            The parent directory of the catalog
+        Returns
+        -------
+        The catalog href, postfixed with catalog{idx}.json
+        """
+        return path.join(parent_dir, f'catalog{self.index}.json')
 
 
 def setup_cli(parser):
@@ -212,8 +239,15 @@ def _invoke(adapter, metadata_dir):
         is_s3_metadata_dir = is_s3(metadata_dir)
         if not is_s3_metadata_dir:
             makedirs(metadata_dir, exist_ok=True)
-        (out_message, out_catalog) = adapter.invoke()
-        out_catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
+        (out_message, stac_output) = adapter.invoke()
+        if isinstance(stac_output, list):
+            for idx, catalog in enumerate(stac_output):
+                catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED, MultiCatalogLayoutStrategy(idx))
+            json_str = json.dumps([f'catalog{i}.json' for i, c in enumerate(stac_output)])
+            write(path.join(metadata_dir, 'batch-catalogs.json'), json_str)
+            write(path.join(metadata_dir, 'batch-count.txt'), f'{len(stac_output)}')
+        else:  # assume stac_output is a single catalog
+            stac_output.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
 
         if not is_s3_metadata_dir:
             with open(path.join(metadata_dir, 'message.json'), 'w') as file:

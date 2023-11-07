@@ -1,9 +1,11 @@
 import os
 from tempfile import mkdtemp
+from datetime import datetime
 import shutil
 import unittest
+import json
 
-from pystac import Catalog, CatalogType
+from pystac import Catalog, CatalogType, Item
 
 from harmony import cli, BaseHarmonyAdapter
 from harmony.exceptions import ForbiddenException
@@ -18,14 +20,32 @@ class MockAdapter(BaseHarmonyAdapter):
     def invoke(self):
         MockAdapter.message = self.message
         return (self.message, self.catalog)
+    
+class MockMultiCatalogOutputAdapter(BaseHarmonyAdapter):
+    message = None
+    """
+    Dummy class to mock adapter calls, performing a no-op service
+    that returns multiple STAC catologs instead of one
+    """
+    def invoke(self):
+        MockAdapter.message = self.message
+        catalogs = [
+            Catalog('a', ''), Catalog('b', ''), Catalog('c', '')]
+        for cat in catalogs:
+            items = [
+                Item(f'item-1-from-catalog-{cat.id}', None, [0, 0, 1, 1],
+                     datetime.strptime('09/19/22 13:55:26', '%m/%d/%y %H:%M:%S'), {}),
+                Item(f'item-2-from-catalog-{cat.id}', None, [0, 0, 1, 2],
+                     datetime.strptime('09/19/22 13:55:26', '%m/%d/%y %H:%M:%S'), {})
+            ]
+            cat.add_items(items)
+        return (self.message, catalogs)
 
 
 class TestCliInvokeAction(unittest.TestCase):
     def setUp(self):
         self.workdir = mkdtemp()
         self.inputdir = mkdtemp()
-        self.catalog = Catalog('test-id', 'test catalog')
-        self.catalog.normalize_and_save(self.inputdir, CatalogType.SELF_CONTAINED)
         self.config = config_fixture()
         print(self.config)
 
@@ -109,6 +129,34 @@ class TestCliInvokeAction(unittest.TestCase):
             with open(os.path.join(self.workdir, 'error.json')) as file:
                 self.assertEqual(file.read(), '{"error": "Service request failed with an unknown error", "category": "Unknown"}')
 
+    def test_when_multi_catalog_output_it_saves_with_particular_layout(self):
+            with cli_parser(
+                    '--harmony-action', 'invoke',
+                    '--harmony-input', '{"test": "input"}',
+                    '--harmony-sources', 'example/source/catalog.json',
+                    '--harmony-metadata-dir', self.workdir) as parser:
+                args = parser.parse_args()
+                cli.run_cli(parser, args, MockMultiCatalogOutputAdapter, cfg=self.config)
+                for idx in range(3):
+                    cat = Catalog.from_file(os.path.join(self.workdir, f'catalog{idx}.json'))
+                    cat_root = cat.get_single_link('root')
+                    self.assertEqual(cat_root.get_href(), f'./catalog{idx}.json')
+                    item_hrefs = [l.get_href() for l in cat.get_links('item')]
+                    self.assertTrue(f'./item-1-from-catalog-{cat.id}/item-1-from-catalog-{cat.id}.json' in item_hrefs)
+                    self.assertTrue(f'./item-2-from-catalog-{cat.id}/item-2-from-catalog-{cat.id}.json' in item_hrefs)
+                    item = Item.from_file(os.path.join(self.workdir, f'./item-1-from-catalog-{cat.id}/item-1-from-catalog-{cat.id}.json'))
+                    item_root_href = item.get_single_link('root').get_href()
+                    item_parent_href = item.get_single_link('parent').get_href()
+                    self.assertTrue(item_parent_href == item_root_href)
+                    self.assertEqual(item_root_href, f'../catalog{idx}.json')
+                    self.assertEqual(item_parent_href, f'../catalog{idx}.json')
+                with open(os.path.join(self.workdir, 'batch-count.txt')) as file:
+                    self.assertEqual(file.read(), '3')
+                with open(os.path.join(self.workdir, 'batch-catalogs.json')) as file:
+                    self.assertEqual(json.loads(file.read()),
+                        ["catalog0.json",
+                         "catalog1.json", 
+                         "catalog2.json"])
 
 if __name__ == '__main__':
     unittest.main()
