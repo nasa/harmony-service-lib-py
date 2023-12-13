@@ -4,7 +4,7 @@
  Copied directly from harmony-regridding-service's utilities.py
 
 """
-from typing import Any
+from typing import Any, List
 
 from harmony.message import Message
 
@@ -105,7 +105,7 @@ def has_valid_scale_extents(message: Message) -> bool:
     return True
 
 
-def _has_all_attributes(message: Message, attributes: list[str]) -> bool:
+def _has_all_attributes(message: Message, attributes: List[str]) -> bool:
     """ Ensure that the supplied Harmony message has non-None attribute values
         for all the listed attributes.
 
