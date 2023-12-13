@@ -1,9 +1,9 @@
 """Utilities for acting on Harmony Messages.
 
-
- Copied directly from harmony-regridding-service's utilities.py
-
+These are a collection of useful routines for validation and interrogation of
+harmony Messages.
 """
+
 from typing import Any, List
 
 from harmony.message import Message

@@ -7,6 +7,7 @@ from harmony.message_utility import (
     _has_consistent_dimension,
     has_crs,
     has_dimensions,
+    has_self_consistent_grid,
     has_scale_extents,
     has_scale_sizes,
     has_valid_scale_extents,
@@ -17,12 +18,87 @@ from harmony.message_utility import (
 class TestMessageUtility(TestCase):
     """Test Harmony Message utilities."""
 
+    @classmethod
+    def setUpClass(cls):
+        """Self conistent grid params."""
+        cls.valid_scale_extents = {
+            'x': {'min': -180, 'max': 180},
+            'y': {'min': -90, 'max': 90},
+        }
+        cls.valid_scale_sizes = {'x': 0.5, 'y': 1.0}
+        cls.valid_height = 180
+        cls.valid_width = 720
+
+
+    def test_has_self_consistent_grid_extents_sizes_and_dims(self):
+        message = Message({
+                    'format': {
+                        'crs': 'EPSG:4326',
+                        'scaleExtent': self.valid_scale_extents,
+                        'scaleSize': self.valid_scale_sizes,
+                        'height': self.valid_height,
+                        'width': self.valid_width,
+                    }
+                })
+        self.assertTrue(has_self_consistent_grid(message))
+
+    def test_has_self_consistent_grid_extents_sizes_and_height(self):
+        message = Message({
+                    'format': {
+                        'crs': 'EPSG:4326',
+                        'scaleExtent': self.valid_scale_extents,
+                        'scaleSize': self.valid_scale_sizes,
+                        'height': self.valid_height,
+                    }
+                })
+        self.assertTrue(has_self_consistent_grid(message))
+
+    def test_has_self_consistent_grid_extents_sizes_and_width(self):
+        message = Message({
+                    'format': {
+                        'crs': 'EPSG:4326',
+                        'scaleExtent': self.valid_scale_extents,
+                        'scaleSize': self.valid_scale_sizes,
+                        'width': self.valid_width,
+                    }
+                })
+        self.assertTrue(has_self_consistent_grid(message))
+
+    def test_has_self_consistent_grid_extents_only(self):
+        message = Message({
+                    'format': {
+                        'crs': 'EPSG:4326',
+                        'scaleExtent': self.valid_scale_extents,
+                    }
+                })
+        self.assertFalse(has_self_consistent_grid(message))
+
+    def test_has_self_consistent_grid_size_only(self):
+        message = Message({
+                    'format': {
+                        'crs': 'EPSG:4326',
+                        'scaleSize': self.valid_scale_sizes
+                    }
+                })
+        self.assertFalse(has_self_consistent_grid(message))
+
+    def test_has_self_consistent_grid_extent_and_sizes(self):
+        message = Message({
+                    'format': {
+                        'crs': 'EPSG:4326',
+                        'scaleExtent': self.valid_scale_extents,
+                        'scaleSize': self.valid_scale_sizes,
+                    }
+                })
+        self.assertTrue(has_self_consistent_grid(message))
+
+
     def test_message_has_crs(self):
-        message = Message({"format": {"crs": "EPSG:4326"}})
+        message = Message({'format': {'crs': 'EPSG:4326'}})
         self.assertTrue(has_crs(message))
 
     def test_message_has_garbage_crs(self):
-        message = Message({"format": {"crs": "garbage"}})
+        message = Message({'format': {'crs': 'garbage'}})
         self.assertTrue(has_crs(message))
 
     def test_message_has_no_crs(self):
