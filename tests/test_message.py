@@ -13,7 +13,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_full_message_it_parses_it_into_objects(self):
         message = Message(full_message)
 
-        self.assertEqual(message.version, '0.18.0')
+        self.assertEqual(message.version, '0.19.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -79,12 +79,13 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.subset.dimensions[1].min, None)
         self.assertEqual(message.subset.dimensions[1].max, 10)
         self.assertEqual(message.extendDimensions, ["lat", "lon"])
+        self.assertEqual(message.extraArgs['cut'], False)
 
 
     def test_when_provided_a_minimal_message_it_parses_it_into_objects(self):
         message = Message(minimal_message)
 
-        self.assertEqual(message.version, '0.18.0')
+        self.assertEqual(message.version, '0.19.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -104,7 +105,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_message_with_minimal_source_it_parses_it_into_objects(self):
         message = Message(minimal_source_message)
 
-        self.assertEqual(message.version, '0.18.0')
+        self.assertEqual(message.version, '0.19.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.user, 'jdoe')
         self.assertEqual(message.accessToken, 'ABCD1234567890')
@@ -174,3 +175,14 @@ class TestMessage(unittest.TestCase):
 
         # Point property is generated
         self.assertEqual(message.subset.point, [-160.2, 80.2])
+
+    def test_extra_args(self):
+        message = Message(full_message)
+
+        self.assertEqual(message.extraArgs['cut'], False)
+        self.assertEqual(message.extraArgs['intParam'], 100)
+        self.assertEqual(message.extraArgs['floatParam'], 123.456)
+        self.assertEqual(message.extraArgs['stringParam'], 'value')
+        self.assertEqual(message.extraArgs['arrayParam'], [1, 2, 3])
+        self.assertEqual(message.extraArgs['objectParam'], {'name': 'obj1', 'attributes': ['x', 'y']})
+        self.assertIsNone(message.extraArgs['nonExistent'])
