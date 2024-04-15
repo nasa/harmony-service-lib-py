@@ -54,6 +54,22 @@ class JsonObject(object):
             value = [Class(item) for item in items]
             setattr(self, prop, value)
 
+    def __getitem__(self, key):
+        """
+        Retrieve the value corresponding to a key in data
+
+        Parameters
+        ----------
+        key : str
+            The key to retrieve the value for
+
+        Returns
+        -------
+        value : object or None
+            The value corresponding to the key if it exists, otherwise None
+        """
+        return self.data.get(key)
+
     def process(self, *prop):
         """
         Marks the given property as having been processed and returns its value.
@@ -532,6 +548,25 @@ class Temporal(JsonObject):
             self.end = end
 
 
+class ExtraArgs(JsonObject):
+    """
+    Extra Args parameters as found in a Harmony message's "extraArgs" object
+    The value of extra args parameter can be retrieved via ['<parameter>'],
+    e.g. message.extraArgs['cut'] will return the value of 'cut' parameter in extraArgs.
+    """
+
+    def __init__(self, message_data):
+        """
+        Constructor
+
+        Parameters
+        ----------
+        message_data : dictionary
+            The Harmony message "extraArgs" object to deserialize
+        """
+        super().__init__(message_data)
+
+
 class Message(JsonObject):
     """
     Top-level object corresponding to an incoming Harmony message.  Constructing
@@ -584,6 +619,9 @@ class Message(JsonObject):
         file and false otherwise.
     extendDimensions: list
         A list of dimensions to extend.
+    extraArgs: object
+        A map of key (string type) and value (any type) pairs indicating the extra arguments
+        that should be passed to the worker command
     """
 
     def __init__(self, json_str_or_dict, decrypter=lambda x: x):
@@ -619,7 +657,8 @@ class Message(JsonObject):
                 'subset',
                 'temporal',
                 'concatenate',
-                'extendDimensions'
+                'extendDimensions',
+                'extraArgs'
             ],
             list_properties={'sources': Source}
         )
@@ -634,6 +673,8 @@ class Message(JsonObject):
             self.temporal = Temporal(json_obj['temporal'])
         if self.accessToken is not None:
             self.accessToken = self.decrypter(self.accessToken)
+        if self.extraArgs is not None:
+            self.extraArgs = ExtraArgs(json_obj['extraArgs'])
 
     @property
     def json(self):
