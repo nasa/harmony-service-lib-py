@@ -1,10 +1,12 @@
 import pathlib
+from requests import Session
 import unittest
 from unittest.mock import patch, MagicMock, mock_open, ANY
 from urllib.error import HTTPError
 
 from harmony import aws
 from harmony import util
+from harmony.http import request_context
 from harmony.message import Variable
 from tests.test_cli import MockAdapter, cli_test
 from tests.util import mock_receive, config_fixture
@@ -19,7 +21,7 @@ class TestDownload(unittest.TestCase):
     @patch('harmony.aws.Config')
     def test_s3_download_sets_minimal_user_agent_on_boto_client(self, boto_cfg, client, get_version):
         fake_lib_version = '0.1.0'
-        get_version.return_value = fake_lib_version 
+        get_version.return_value = fake_lib_version
         cfg = config_fixture()
         boto_cfg_instance = MagicMock()
         boto_cfg.return_value = boto_cfg_instance
@@ -33,7 +35,7 @@ class TestDownload(unittest.TestCase):
     @patch('harmony.aws.Config')
     def test_s3_download_sets_harmony_user_agent_on_boto_client(self, boto_cfg, client, get_version):
         fake_lib_version = '0.1.0'
-        get_version.return_value = fake_lib_version 
+        get_version.return_value = fake_lib_version
         harmony_user_agt = 'harmony/3.3.3 (harmony-test)'
         cfg = config_fixture(user_agent=harmony_user_agt)
         boto_cfg_instance = MagicMock()
@@ -49,7 +51,7 @@ class TestDownload(unittest.TestCase):
     def test_s3_download_sets_app_name_on_boto_client(self, boto_cfg, client, get_version):
         app_name = 'gdal-subsetter'
         fake_lib_version = '0.1.0'
-        get_version.return_value = fake_lib_version 
+        get_version.return_value = fake_lib_version
         cfg = config_fixture(app_name=app_name)
         boto_cfg_instance = MagicMock()
         boto_cfg.return_value = boto_cfg_instance
@@ -57,6 +59,58 @@ class TestDownload(unittest.TestCase):
             util.download('s3://example/file.txt', 'tmp', access_token='', cfg=cfg)
         boto_cfg.assert_called_with(user_agent_extra=f'harmony (unknown version) harmony-service-lib/{fake_lib_version} ({app_name})')
         client.assert_called_with(service_name='s3', config=boto_cfg_instance, region_name=ANY)
+
+    @patch('harmony.util.get_version')
+    @patch.object(Session, 'get')
+    def test_http_download_sets_api_request_uuid(self, get, get_version):
+        request_context['request_id'] = 'abc123'
+        app_name = 'gdal-subsetter'
+        fake_lib_version = '0.1.0'
+        get_version.return_value = fake_lib_version
+        cfg = config_fixture(app_name=app_name)
+        with patch('builtins.open', mock_open()):
+            util.download('http://example/file.txt', 'tmp', access_token='', cfg=cfg)
+        get.assert_called_with('http://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)'}, timeout=60, stream=True)
+
+    @patch('harmony.util.get_version')
+    @patch.object(Session, 'get')
+    def test_https_download_sets_api_request_uuid(self, get, get_version):
+        request_context['request_id'] = 'abc123'
+        app_name = 'gdal-subsetter'
+        fake_lib_version = '0.1.0'
+        get_version.return_value = fake_lib_version
+        cfg = config_fixture(app_name=app_name)
+        with patch('builtins.open', mock_open()):
+            util.download('https://example/file.txt', 'tmp', access_token='', cfg=cfg)
+        get.assert_called_with('https://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)'}, timeout=60, stream=True)
+
+    @patch('harmony.util.get_version')
+    @patch.object(Session, 'post')
+    def test_http_download_with_post_sets_api_request_uuid(self, post, get_version):
+        request_context['request_id'] = 'abc123'
+        app_name = 'gdal-subsetter'
+        fake_lib_version = '0.1.0'
+        get_version.return_value = fake_lib_version
+        data = { 'foo': 'bar' }
+        cfg = config_fixture(app_name=app_name)
+        with patch('builtins.open', mock_open()):
+            util.download('http://example/file.txt', 'tmp', access_token='', data=data, cfg=cfg)
+        post.assert_called_with('http://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)', 'Content-Type': 'application/x-www-form-urlencoded'}, data = { 'foo': 'bar' }, timeout=60, stream=True)
+
+
+    @patch('harmony.util.get_version')
+    @patch.object(Session, 'post')
+    def test_https_download_with_post_sets_api_request_uuid(self, post, get_version):
+        request_context['request_id'] = 'abc123'
+        app_name = 'gdal-subsetter'
+        fake_lib_version = '0.1.0'
+        get_version.return_value = fake_lib_version
+        data = { 'foo': 'bar' }
+        cfg = config_fixture(app_name=app_name)
+        with patch('builtins.open', mock_open()):
+            util.download('https://example/file.txt', 'tmp', access_token='', data=data, cfg=cfg)
+        post.assert_called_with('https://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)', 'Content-Type': 'application/x-www-form-urlencoded'}, data = { 'foo': 'bar' }, timeout=60, stream=True)
+
 
 class TestStage(unittest.TestCase):
     def setUp(self):

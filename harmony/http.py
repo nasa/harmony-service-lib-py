@@ -13,7 +13,7 @@ set for correct operation. See that module and the project README for details.
 from functools import lru_cache
 import json
 from time import sleep
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 import datetime
 import sys
 import os
@@ -35,6 +35,9 @@ TIMEOUT = 60
 
 MAX_RETRY_DELAY_SECS = 90
 
+# `request_context` is used to provide information about the request to functions like `download`
+# without adding extra function arguments
+request_context = {}
 
 def get_retry_delay(retry_num: int, max_delay: int = MAX_RETRY_DELAY_SECS) -> int:
     """The number of seconds to sleep before retrying. Exponential backoff starting
@@ -131,6 +134,35 @@ def _earthdata_session():
     """Constructs an EarthdataSession for use to download one or more files."""
     return EarthdataSession()
 
+def _add_api_request_uuid(url):
+    request_id = request_context.get('request_id')
+
+    if request_id is None:
+        return url
+
+    # Parse the URL into components
+    parsed_url = urlparse(url)
+
+    # only add the request_id if this is an http/https url
+    if parsed_url.scheme != 'http' and parsed_url.scheme != 'https':
+        return url
+
+    # Extract the current query parameters from the URL
+    query_params = parse_qs(parsed_url.query)
+
+    # Add or update the 'request_id' parameter
+    query_params['A-api-request-uuid'] = request_id
+
+    # Convert the query parameters back to a string
+    query_string = urlencode(query_params, doseq=True)
+
+    # Rebuild the URL with the new query string
+    new_url = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path,
+         parsed_url.params, query_string, parsed_url.fragment)
+    )
+
+    return new_url
 
 def _download(
     config, url: str,
@@ -359,6 +391,8 @@ def download(config, url: str, access_token: str, data, destination_file,
 
     response = None
     logger = build_logger(config)
+    # Add the request ID to the download url so it can be used by Cloud Metrics
+    url = _add_api_request_uuid(url)
     start_time = datetime.datetime.now()
     logger.info(f'timing.download.start {url}')
 
