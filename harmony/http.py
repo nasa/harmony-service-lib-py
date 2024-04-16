@@ -39,6 +39,7 @@ MAX_RETRY_DELAY_SECS = 90
 # without adding extra function arguments
 request_context = {}
 
+
 def get_retry_delay(retry_num: int, max_delay: int = MAX_RETRY_DELAY_SECS) -> int:
     """The number of seconds to sleep before retrying. Exponential backoff starting
     from 5 seconds up the max_delay. So with a max delay of 60 the retry periods
@@ -134,6 +135,7 @@ def _earthdata_session():
     """Constructs an EarthdataSession for use to download one or more files."""
     return EarthdataSession()
 
+
 def _add_api_request_uuid(url):
     request_id = request_context.get('request_id')
 
@@ -163,6 +165,7 @@ def _add_api_request_uuid(url):
     )
 
     return new_url
+
 
 def _download(
     config, url: str,
