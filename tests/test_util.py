@@ -61,6 +61,21 @@ class TestDownload(unittest.TestCase):
         client.assert_called_with(service_name='s3', config=boto_cfg_instance, region_name=ANY)
 
     @patch('harmony.util.get_version')
+    @patch('harmony.aws.download')
+    @patch('harmony.aws.Config')
+    def test_s3_download_does_not_set_api_request_uuid(self, boto_cfg, aws_download, get_version):
+        request_context['request_id'] = 'abc123'
+        app_name = 'gdal-subsetter'
+        fake_lib_version = '0.1.0'
+        get_version.return_value = fake_lib_version
+        cfg = config_fixture(app_name=app_name)
+        boto_cfg_instance = MagicMock()
+        boto_cfg.return_value = boto_cfg_instance
+        with patch('builtins.open', mock_open()):
+            util.download('s3://example/file.txt', 'tmp', access_token='', cfg=cfg)
+        aws_download.assert_called_with(ANY, 's3://example/file.txt', ANY, ANY )
+
+    @patch('harmony.util.get_version')
     @patch.object(Session, 'get')
     def test_http_download_sets_api_request_uuid(self, get, get_version):
         request_context['request_id'] = 'abc123'
