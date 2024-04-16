@@ -21,6 +21,7 @@ from deprecation import deprecated
 from pystac import Catalog, Item, Asset, read_file
 
 from harmony.exceptions import CanceledException
+from harmony.http import request_context
 from harmony.logging import build_logger
 from harmony.message import Temporal
 from harmony.util import touch_health_check_file
@@ -69,6 +70,10 @@ class BaseHarmonyAdapter(ABC):
         if catalog is None:
             warn('Invoking adapter.BaseHarmonyAdapter without a STAC catalog is deprecated',
                  DeprecationWarning, stacklevel=2)
+
+        # set the request ID in the global context so we can use it in other places
+        request_id = message.requestId if hasattr(message, 'requestId') else None
+        request_context['request_id'] = request_id
 
         self.message = message
         self.catalog = catalog
