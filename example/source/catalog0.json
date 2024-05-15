@@ -1,6 +1,9 @@
 {
-  "stac_version": "1.0.0-beta.2",
-  "stac_extensions": [],
+  "stac_version": "1.0.0",
+  "stac_extensions": [
+    "https://harmony.earthdata.nasa.gov/schemas/stac-extension/0.1.0/schema.json"
+  ],
+  "type": "Catalog",
   "id": "1bd3924c-c0ee-49b7-b9ac-0d295f4bf909",
   "links": [
     {

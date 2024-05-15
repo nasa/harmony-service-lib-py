@@ -333,12 +333,13 @@ def run_cli(parser, args, AdapterClass, cfg=None):
             if not successful:
                 raise Exception('Service operation failed')
         else:
-            try:
-                adapter = _build_adapter(AdapterClass,
+            adapter = _build_adapter(AdapterClass,
                                          args.harmony_input,
                                          args.harmony_sources,
                                          args.harmony_data_location,
                                          cfg)
+            try:
+
                 adapter.logger.info(f'timing.{cfg.app_name}.start')
                 _invoke(adapter, args.harmony_metadata_dir)
             finally:

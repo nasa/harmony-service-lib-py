@@ -119,6 +119,8 @@ class BaseHarmonyAdapter(ABC):
         # New-style processing using STAC
         if self.catalog:
             return (self.message, self._process_catalog_recursive(self.catalog))
+        else:
+            warn('===========NO CATALOG ==============', DeprecationWarning, stacklevel=2)
 
         # Deprecated, processing using callbacks
         self._process_with_callbacks()
@@ -167,6 +169,7 @@ class BaseHarmonyAdapter(ABC):
         pystac.Catalog
             A new catalog containing all of the processed results
         """
+        warn('CLONING THE CATALOG', DeprecationWarning, stacklevel=2)
         result = catalog.clone()
         result.id = str(uuid.uuid4())
 

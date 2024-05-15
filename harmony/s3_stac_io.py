@@ -1,6 +1,6 @@
 from urllib.parse import urlparse
 import boto3
-from pystac import STAC_IO
+from pystac.stac_io import DefaultStacIO
 from harmony import util
 from harmony import aws
 from os import environ
@@ -35,7 +35,7 @@ def read(uri):
         obj = s3.Object(bucket, key)
         return obj.get()['Body'].read().decode('utf-8')
     else:
-        return STAC_IO.default_read_text_method(uri)
+        return DefaultStacIO().read_text(uri)
 
 
 def write(uri, txt):
@@ -51,4 +51,4 @@ def write(uri, txt):
     if parsed.scheme == 's3':
         aws.write_s3(uri, txt)
     else:
-        STAC_IO.default_write_text_method(uri, txt)
+        DefaultStacIO().write_text_to_href(uri, txt)

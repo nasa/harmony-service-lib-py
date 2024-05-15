@@ -165,7 +165,7 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
         adapter = AdapterTester(message, catalog, config=self.config)
         all_items = list(adapter.get_all_catalog_items(catalog, True))
         self.assertEqual(all_items, [ *items_a, *items_b ])
-        
+
 
     def test_unaltered_ids_are_assigned_new_uuids(self):
         catalog = Catalog('0', 'Catalog 0')
@@ -210,7 +210,8 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
         self.assertEqual(AdapterTester.process_args[2][1], message.sources[1])
         self.assertEqual(AdapterTester.process_args[0][0].to_dict(), {
             'type': 'Feature',
-            'stac_version': '1.0.0-beta.2',
+            'stac_version': '1.0.0',
+            'stac_extensions': [],
             'id': 'G0001-EXAMPLE',
             'properties': {
                 'start_datetime': '2001-01-01T01:01:01Z',
@@ -230,7 +231,8 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
         })
         self.assertEqual(AdapterTester.process_args[1][0].to_dict(), {
             'type': 'Feature',
-            'stac_version': '1.0.0-beta.2',
+            'stac_version': '1.0.0',
+            'stac_extensions': [],
             'id': 'G0002-EXAMPLE',
             'properties': {
                 'start_datetime': '2003-03-03T03:03:03Z',

@@ -30,7 +30,7 @@ lint:
 	flake8 harmony
 
 test:
-	pytest --cov=harmony tests
+	pytest --cov=harmony tests -W ignore::DeprecationWarning
 
 test-no-warnings:
 	pytest --disable-warnings --cov=harmony tests
