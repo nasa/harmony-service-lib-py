@@ -65,6 +65,8 @@ def setup_cli(parser):
     parser.add_argument('--harmony-input',
                         help=('the input data for the action provided by Harmony, required for '
                               '--harmony-action=invoke'))
+    parser.add_argument('--harmony-input-file',
+                        help=('the optional path to the input data for the action provided by Harmony, required for '))
     parser.add_argument('--harmony-sources',
                         help=('file path that contains a STAC catalog with items and metadata to '
                               'be processed by the service.  Required for non-deprecated '
