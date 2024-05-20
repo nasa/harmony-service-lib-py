@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch
 
@@ -50,8 +51,11 @@ class TestIsHarmonyCli(unittest.TestCase):
 class TestCliInvokeAction(unittest.TestCase):
     def setUp(self):
         self.config = harmony.util.config(validate=False)
+        with open('/tmp/operation.json', 'w') as f:
+            f.write('{"test": "input"}')
 
     def tearDown(self):
+        os.remove('/tmp/operation.json')
         MockAdapter.messages = []
         MockAdapter.errors = []
         MockAdapter.cleaned_up = []
@@ -62,11 +66,18 @@ class TestCliInvokeAction(unittest.TestCase):
             args = parser.parse_args()
             cli.run_cli(parser, args, MockAdapter, self.config)
             error_method.assert_called_once_with(
-                '--harmony-input must be provided for --harmony-action=invoke')
+                '--harmony-input or --harmony-input-file must be provided for --harmony-action=invoke')
 
     @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
     def test_when_harmony_input_is_provided_it_creates_and_invokes_an_adapter(self, parser):
         args = parser.parse_args()
+        cli.run_cli(parser, args, MockAdapter, self.config)
+        self.assertListEqual([{'test': 'input'}], MockAdapter.messages)
+
+    @cli_test('--harmony-action', 'invoke', '--harmony-input-file', '/tmp/operation.json')
+    def test_when_harmony_input_file_is_provided_it_creates_and_invokes_an_adapter(self, parser):
+        args = parser.parse_args()
+
         cli.run_cli(parser, args, MockAdapter, self.config)
         self.assertListEqual([{'test': 'input'}], MockAdapter.messages)
 

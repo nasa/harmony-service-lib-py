@@ -65,6 +65,8 @@ def setup_cli(parser):
     parser.add_argument('--harmony-input',
                         help=('the input data for the action provided by Harmony, required for '
                               '--harmony-action=invoke'))
+    parser.add_argument('--harmony-input-file',
+                        help=('the optional path to the input data for the action provided by Harmony'))
     parser.add_argument('--harmony-sources',
                         help=('file path that contains a STAC catalog with items and metadata to '
                               'be processed by the service.  Required for non-deprecated '
@@ -323,11 +325,16 @@ def run_cli(parser, args, AdapterClass, cfg=None):
     if args.harmony_wrap_stdout:
         setup_stdout_log_formatting(cfg)
 
+    # read in the operation file passed in with --harmony-input-file if any
+    if bool(args.harmony_input_file):
+        with open(args.harmony_input_file, 'r') as f:
+            args.harmony_input = f.read()
+
     if args.harmony_action == 'invoke':
         start_time = datetime.datetime.now()
         if not bool(args.harmony_input):
             parser.error(
-                '--harmony-input must be provided for --harmony-action=invoke')
+                '--harmony-input or --harmony-input-file must be provided for --harmony-action=invoke')
         elif not bool(args.harmony_sources):
             successful = _invoke_deprecated(AdapterClass, args.harmony_input, cfg)
             if not successful:
