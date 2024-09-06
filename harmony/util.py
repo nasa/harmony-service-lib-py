@@ -490,10 +490,17 @@ def nop_decrypter(ciphertext):
     return ciphertext
 
 
-def generate_output_filename(filename, ext=None, variable_subset=None, is_regridded=False, is_subsetted=False):
+def generate_output_filename(
+    filename: str,
+    ext: str = None,
+    variable_subset: list[str] = None,
+    is_regridded: bool = False,
+    is_subsetted: bool = False,
+    is_reformatted: bool = False
+) -> str:
     """
     Return an output filename for the given granules according to our naming conventions:
-    {original filename without suffix}(_{single var})?(_regridded)?(_subsetted)?.<ext>
+    {original filename without suffix}(_{single var})?(_regridded)?(_subsetted)?(_reformatted)?.<ext>
 
     Parameters
     ----------
@@ -507,6 +514,8 @@ def generate_output_filename(filename, ext=None, variable_subset=None, is_regrid
             True if a regridding operation has been performed (default: False)
         is_subsetted : bool, optional
             True if a subsetting operation has been performed (default: False)
+        is_reformatted : bool, optional
+            True if a reformatting operation has been performed (default: False)
 
     Returns
     -------
@@ -536,6 +545,9 @@ def generate_output_filename(filename, ext=None, variable_subset=None, is_regrid
         suffixes.append('_regridded')
     if is_subsetted:
         suffixes.append('_subsetted')
+    if is_reformatted:
+        suffixes.append('_reformatted')
+
     suffixes.append(ext)
 
     result = original_basename
