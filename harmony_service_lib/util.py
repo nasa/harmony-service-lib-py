@@ -63,15 +63,15 @@ from urllib import parse
 
 from nacl.secret import SecretBox
 
-from harmony import aws
-from harmony import http
+from harmony_service_lib import aws
+from harmony_service_lib import http
 # The following imports are for backwards-compatibility for services
-# which import them from `harmony.util`. Though they are not used in
+# which import them from `harmony_service_lib.util`. Though they are not used in
 # this module, importing them here allows applications to work without
 # modifications.
-from harmony.exceptions import (HarmonyException, CanceledException, ForbiddenException)  # noqa: F401
-from harmony.logging import build_logger
-from harmony.version import get_version
+from harmony_service_lib.exceptions import (HarmonyException, CanceledException, ForbiddenException)  # noqa: F401
+from harmony_service_lib.logging import build_logger
+from harmony_service_lib.version import get_version
 
 
 DEFAULT_SHARED_SECRET_KEY = '_THIS_IS_MY_32_CHARS_SECRET_KEY_'
@@ -368,7 +368,7 @@ def stage(local_filename, remote_filename, mime, logger=None, location=None, cfg
         An s3:// URL to the staged file
     """
     # The implementation of this function has been moved to the
-    # harmony.aws module.
+    # harmony_service_lib.aws module.
     if cfg is None:
         cfg = config()
     if logger is None:
@@ -399,7 +399,7 @@ def receive_messages(queue_url, visibility_timeout_s=600, logger=None, cfg=None)
         and the contents of the message
     """
     # The implementation of this function has been moved to the
-    # harmony.aws module.
+    # harmony_service_lib.aws module.
     if cfg is None:
         cfg = config()
     if logger is None:
@@ -424,7 +424,7 @@ def delete_message(queue_url, receipt_handle, cfg=None):
         The configuration values for this runtime environment.
     """
     # The implementation of this function has been moved to the
-    # harmony.aws module.
+    # harmony_service_lib.aws module.
     if cfg is None:
         cfg = config()
     return aws.delete_message(cfg, queue_url, receipt_handle)
@@ -447,7 +447,7 @@ def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s, c
         The configuration values for this runtime environment.
     """
     # The implementation of this function has been moved to the
-    # harmony.aws module.
+    # harmony_service_lib.aws module.
     if cfg is None:
         cfg = config()
     return aws.change_message_visibility(cfg, queue_url, receipt_handle, visibility_timeout_s)

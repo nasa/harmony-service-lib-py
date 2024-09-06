@@ -1,9 +1,9 @@
 from copy import deepcopy
 import unittest
 
-from harmony.message import Message
+from harmony_service_lib.message import Message
 from .example_messages import minimal_message, minimal_source_message, full_message
-from harmony import util
+from harmony_service_lib import util
 
 
 class TestMessage(unittest.TestCase):

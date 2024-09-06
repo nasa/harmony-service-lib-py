@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import pytest
 from requests import Session
 
-from harmony.earthdata import EarthdataAuth, EarthdataSession
+from harmony_service_lib.earthdata import EarthdataAuth, EarthdataSession
 
 
 @dataclass

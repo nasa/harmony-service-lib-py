@@ -3,7 +3,7 @@ import sys
 from unittest.mock import patch, MagicMock
 from contextlib import contextmanager
 
-from harmony import cli, util
+from harmony_service_lib import cli, util
 
 
 def mock_receive(cfg, client, parser, AdapterClass, *messages):

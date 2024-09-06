@@ -2,9 +2,9 @@ import unittest
 import copy
 from io import StringIO
 
-from harmony.logging import build_logger
+from harmony_service_lib.logging import build_logger
 from tests.util import config_fixture
-from harmony.message import Message
+from harmony_service_lib.message import Message
 from .example_messages import minimal_message
 
 

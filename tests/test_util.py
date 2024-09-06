@@ -4,10 +4,10 @@ import unittest
 from unittest.mock import patch, MagicMock, mock_open, ANY
 from urllib.error import HTTPError
 
-from harmony import aws
-from harmony import util
-from harmony.http import request_context
-from harmony.message import Variable
+from harmony_service_lib import aws
+from harmony_service_lib import util
+from harmony_service_lib.http import request_context
+from harmony_service_lib.message import Variable
 from tests.test_cli import MockAdapter, cli_test
 from tests.util import mock_receive, config_fixture
 
@@ -16,9 +16,9 @@ class TestDownload(unittest.TestCase):
     def setUp(self):
         self.config = util.config(validate=False)
 
-    @patch('harmony.util.get_version')
+    @patch('harmony_service_lib.util.get_version')
     @patch('boto3.client')
-    @patch('harmony.aws.Config')
+    @patch('harmony_service_lib.aws.Config')
     def test_s3_download_sets_minimal_user_agent_on_boto_client(self, boto_cfg, client, get_version):
         fake_lib_version = '0.1.0'
         get_version.return_value = fake_lib_version
@@ -30,9 +30,9 @@ class TestDownload(unittest.TestCase):
         boto_cfg.assert_called_with(user_agent_extra=f'harmony (unknown version) harmony-service-lib/{fake_lib_version}')
         client.assert_called_with(service_name='s3', config=boto_cfg_instance, region_name=ANY)
 
-    @patch('harmony.util.get_version')
+    @patch('harmony_service_lib.util.get_version')
     @patch('boto3.client')
-    @patch('harmony.aws.Config')
+    @patch('harmony_service_lib.aws.Config')
     def test_s3_download_sets_harmony_user_agent_on_boto_client(self, boto_cfg, client, get_version):
         fake_lib_version = '0.1.0'
         get_version.return_value = fake_lib_version
@@ -45,9 +45,9 @@ class TestDownload(unittest.TestCase):
         boto_cfg.assert_called_with(user_agent_extra=f'{harmony_user_agt} harmony-service-lib/{fake_lib_version}')
         client.assert_called_with(service_name='s3', config=boto_cfg_instance, region_name=ANY)
 
-    @patch('harmony.util.get_version')
+    @patch('harmony_service_lib.util.get_version')
     @patch('boto3.client')
-    @patch('harmony.aws.Config')
+    @patch('harmony_service_lib.aws.Config')
     def test_s3_download_sets_app_name_on_boto_client(self, boto_cfg, client, get_version):
         app_name = 'gdal-subsetter'
         fake_lib_version = '0.1.0'
@@ -60,9 +60,9 @@ class TestDownload(unittest.TestCase):
         boto_cfg.assert_called_with(user_agent_extra=f'harmony (unknown version) harmony-service-lib/{fake_lib_version} ({app_name})')
         client.assert_called_with(service_name='s3', config=boto_cfg_instance, region_name=ANY)
 
-    @patch('harmony.util.get_version')
-    @patch('harmony.aws.download')
-    @patch('harmony.aws.Config')
+    @patch('harmony_service_lib.util.get_version')
+    @patch('harmony_service_lib.aws.download')
+    @patch('harmony_service_lib.aws.Config')
     def test_s3_download_does_not_set_api_request_uuid(self, boto_cfg, aws_download, get_version):
         request_context['request_id'] = 'abc123'
         app_name = 'gdal-subsetter'
@@ -75,7 +75,7 @@ class TestDownload(unittest.TestCase):
             util.download('s3://example/file.txt', 'tmp', access_token='', cfg=cfg)
         aws_download.assert_called_with(ANY, 's3://example/file.txt', ANY, ANY )
 
-    @patch('harmony.util.get_version')
+    @patch('harmony_service_lib.util.get_version')
     @patch.object(Session, 'get')
     def test_http_download_sets_api_request_uuid(self, get, get_version):
         request_context['request_id'] = 'abc123'
@@ -87,7 +87,7 @@ class TestDownload(unittest.TestCase):
             util.download('http://example/file.txt', 'tmp', access_token='', cfg=cfg)
         get.assert_called_with('http://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)'}, timeout=60, stream=True)
 
-    @patch('harmony.util.get_version')
+    @patch('harmony_service_lib.util.get_version')
     @patch.object(Session, 'get')
     def test_https_download_sets_api_request_uuid(self, get, get_version):
         request_context['request_id'] = 'abc123'
@@ -99,7 +99,7 @@ class TestDownload(unittest.TestCase):
             util.download('https://example/file.txt', 'tmp', access_token='', cfg=cfg)
         get.assert_called_with('https://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)'}, timeout=60, stream=True)
 
-    @patch('harmony.util.get_version')
+    @patch('harmony_service_lib.util.get_version')
     @patch.object(Session, 'post')
     def test_http_download_with_post_sets_api_request_uuid(self, post, get_version):
         request_context['request_id'] = 'abc123'
@@ -113,7 +113,7 @@ class TestDownload(unittest.TestCase):
         post.assert_called_with('http://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)', 'Content-Type': 'application/x-www-form-urlencoded'}, data = { 'foo': 'bar' }, timeout=60, stream=True)
 
 
-    @patch('harmony.util.get_version')
+    @patch('harmony_service_lib.util.get_version')
     @patch.object(Session, 'post')
     def test_https_download_with_post_sets_api_request_uuid(self, post, get_version):
         request_context['request_id'] = 'abc123'

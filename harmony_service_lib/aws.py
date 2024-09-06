@@ -2,14 +2,14 @@
 This module includes various AWS-specific functions to stage data in S3 and deal with
 messages in SQS queues.
 
-This module relies on the harmony.util.config and its environment variables to be
+This module relies on the harmony_service_lib.util.config and its environment variables to be
 set for correct operation. See that module and the project README for details.
 """
 from urllib.parse import urlparse
 from os import environ
 import boto3
 from botocore.config import Config
-from harmony import util
+from harmony_service_lib import util
 
 
 def is_s3(url: str) -> bool:

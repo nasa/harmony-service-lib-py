@@ -1,8 +1,8 @@
 from unittest import TestCase
 
-from harmony.message import Message
+from harmony_service_lib.message import Message
 
-from harmony.message_utility import (
+from harmony_service_lib.message_utility import (
     _has_all_attributes,
     _has_consistent_dimension,
     has_crs,

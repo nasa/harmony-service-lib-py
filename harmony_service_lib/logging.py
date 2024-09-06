@@ -5,7 +5,7 @@ import sys
 import copy
 
 from pythonjsonlogger import jsonlogger
-from harmony import message
+from harmony_service_lib import message
 
 
 class HarmonyJsonFormatter(jsonlogger.JsonFormatter):

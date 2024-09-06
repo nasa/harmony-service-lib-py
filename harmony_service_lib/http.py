@@ -6,7 +6,7 @@ When downloading from an EDL-token aware data source, this module uses EDL share
 federated token authentication. It includes an optional fallback authentication that
 uses an EDL user to download data when the feature is enabled.
 
-This module relies on the harmony.util.config and its environment variables to be
+This module relies on the harmony_service_lib.util.config and its environment variables to be
 set for correct operation. See that module and the project README for details.
 """
 
@@ -21,9 +21,9 @@ import re
 
 import requests
 
-from harmony.earthdata import EarthdataAuth, EarthdataSession
-from harmony.exceptions import ServerException, ForbiddenException
-from harmony.logging import build_logger
+from harmony_service_lib.earthdata import EarthdataAuth, EarthdataSession
+from harmony_service_lib.exceptions import ServerException, ForbiddenException
+from harmony_service_lib.logging import build_logger
 
 # Timeout in seconds.  Per requests docs, this is not a time limit on
 # the entire response download; rather, an exception is raised if the

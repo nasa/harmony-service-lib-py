@@ -2,8 +2,8 @@ import os
 import unittest
 from unittest.mock import patch
 
-import harmony.util
-from harmony import cli, BaseHarmonyAdapter
+import harmony_service_lib.util
+from harmony_service_lib import cli, BaseHarmonyAdapter
 from tests.util import mock_receive, cli_test
 
 
@@ -50,7 +50,7 @@ class TestIsHarmonyCli(unittest.TestCase):
 
 class TestCliInvokeAction(unittest.TestCase):
     def setUp(self):
-        self.config = harmony.util.config(validate=False)
+        self.config = harmony_service_lib.util.config(validate=False)
         with open('/tmp/operation.json', 'w') as f:
             f.write('{"test": "input"}')
 
@@ -127,7 +127,7 @@ class TestCliInvokeAction(unittest.TestCase):
 
 class TestCliStartAction(unittest.TestCase):
     def setUp(self):
-        self.config = harmony.util.config(validate=False)
+        self.config = harmony_service_lib.util.config(validate=False)
 
     def tearDown(self):
         MockAdapter.messages = []

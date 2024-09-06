@@ -4,8 +4,8 @@ from unittest.mock import Mock, patch
 import pytest
 import responses
 
-from harmony.exceptions import ForbiddenException, ServerException
-from harmony import util
+from harmony_service_lib.exceptions import ForbiddenException, ServerException
+from harmony_service_lib import util
 from tests.util import config_fixture
 
 
@@ -44,7 +44,7 @@ def test_when_given_an_http_url_it_downloads_the_url(monkeypatch, mocker, faker)
     http_download.assert_called()
 
 
-@patch('harmony.http.get_retry_delay', Mock(return_value = 0))
+@patch('harmony_service_lib.http.get_retry_delay', Mock(return_value = 0))
 def test_when_given_unknown_url_it_raises_exception(faker):
     access_token = faker.password(length=40, special_chars=False)
     config = config_fixture()
@@ -148,7 +148,7 @@ def test_when_the_url_returns_a_eula_error_it_returns_a_human_readable_message(f
 
 
 @responses.activate
-@patch('harmony.http.get_retry_delay', Mock(return_value = 0))
+@patch('harmony_service_lib.http.get_retry_delay', Mock(return_value = 0))
 def test_when_the_url_returns_a_500_it_does_not_raise_a_forbidden_exception_and_does_not_return_details_to_user(faker):
     access_token = faker.password(length=43, special_chars=False)
     url = 'https://example.com/file.txt'

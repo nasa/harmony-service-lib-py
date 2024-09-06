@@ -1,12 +1,12 @@
 """Utilities for acting on Harmony Messages.
 
 These are a collection of useful routines for validation and interrogation of
-harmony Messages.
+harmony_service_lib Messages.
 """
 
 from typing import Any, List
 
-from harmony.message import Message
+from harmony_service_lib.message import Message
 
 
 def has_self_consistent_grid(message: Message) -> bool:
