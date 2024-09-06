@@ -12,4 +12,4 @@ python-language-server ~= 0.35
 responses ~=0.22.0
 safety ~= 2.3.5
 pycodestyle ~= 2.9.1
-setuptools ~= 68.1.2
+setuptools ~= 74.1.2
