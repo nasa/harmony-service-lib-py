@@ -6,7 +6,7 @@ REPO_USER ?= __token__
 REPO_PASS ?= unset
 
 version:
-	sed -i.bak "s/__version__ .*/__version__ = \"$(VERSION)\"/" harmony/__init__.py && rm harmony/__init__.py.bak
+	sed -i.bak "s/__version__ .*/__version__ = \"$(VERSION)\"/" harmony_service_lib/__init__.py && rm harmony_service_lib/__init__.py.bak
 
 build: clean version
 	python -m pip install --upgrade --quiet setuptools wheel twine
@@ -27,13 +27,13 @@ install:
 	pip install -r requirements.txt
 
 lint:
-	flake8 harmony
+	flake8 harmony_service_lib
 
 test:
-	pytest --cov=harmony tests
+	pytest --cov=harmony_service_lib tests
 
 test-no-warnings:
-	pytest --disable-warnings --cov=harmony tests
+	pytest --disable-warnings --cov=harmony_service_lib tests
 
 cve-check:
 	safety check
