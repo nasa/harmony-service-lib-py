@@ -132,3 +132,6 @@ config.json
  
 # Snyk / Deepcode AI
 .dccache
+
+# VS Code
+.vscode/settings.json
