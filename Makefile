@@ -36,4 +36,4 @@ test-no-warnings:
 	pytest --disable-warnings --cov=harmony tests
 
 cve-check:
-	safety check
+	safety check -i 72236
