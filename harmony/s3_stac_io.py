@@ -12,7 +12,8 @@ https://pystac.readthedocs.io/en/latest/concepts.html#using-stac-io
 
 defaultStacIO = DefaultStacIO()
 
-class S3StacIO(StacIO): 
+
+class S3StacIO(StacIO):
 
     def read_text(self, uri):
         """
@@ -39,7 +40,6 @@ class S3StacIO(StacIO):
             return obj.get()['Body'].read().decode('utf-8')
         else:
             return defaultStacIO.read_text(uri)
-
 
     def write_text(self, uri, txt):
         """
