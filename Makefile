@@ -9,8 +9,8 @@ version:
 	sed -i.bak "s/__version__ .*/__version__ = \"$(VERSION)\"/" harmony/__init__.py && rm harmony/__init__.py.bak
 
 build: clean version
-	python -m pip install --upgrade --quiet setuptools wheel twine
-	python setup.py --quiet sdist bdist_wheel
+	python -m pip install --upgrade --quiet setuptools wheel twine build
+	python -m build
 
 publish: build
 	python -m twine check dist/*
@@ -35,5 +35,6 @@ test:
 test-no-warnings:
 	pytest --disable-warnings --cov=harmony tests
 
+# HARMONY-1908 - Ignore jinja2 vulnerability (safety ID 70612)
 cve-check:
-	safety check
+	safety check -i 70612
