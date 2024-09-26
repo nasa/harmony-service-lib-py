@@ -220,32 +220,71 @@ class TestSQSReadHealthUpdate(unittest.TestCase):
 
 
 class TestGenerateOutputFilename(unittest.TestCase):
-    def test_includes_provided_regridded_subsetted_ext(self):
+    def test_includes_provided_suffixes_ext(self):
+        """Ensure the correct combinations of regridded, subsetted and
+        reformatted are included in the correct order, per the optional
+        arguments to the function."""
         url = 'https://example.com/fake-path/abc.123.nc/?query=true'
         ext = 'zarr'
 
         # Basic cases
         variables = []
-        self.assertEqual(
-            util.generate_output_filename(url, ext),
-            'abc.123.zarr'
-        )
-        self.assertEqual(
-            util.generate_output_filename(url, ext, is_subsetted=True),
-            'abc.123_subsetted.zarr'
-        )
-        self.assertEqual(
-            util.generate_output_filename(url, ext, is_regridded=True),
-            'abc.123_regridded.zarr'
-        )
-        self.assertEqual(
-            util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True),
-            'abc.123_regridded_subsetted.zarr'
-        )
-        self.assertEqual(
-            util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True),
-            'abc.123_regridded_subsetted.zarr'
-        )
+        with self.subTest('No suffix options'):
+            self.assertEqual(
+                util.generate_output_filename(url, ext),
+                'abc.123.zarr'
+            )
+        with self.subTest('Only is_subsetted'):
+            self.assertEqual(
+                util.generate_output_filename(url, ext, is_subsetted=True),
+                'abc.123_subsetted.zarr'
+            )
+
+        with self.subTest('Only is_regridded'):
+            self.assertEqual(
+                util.generate_output_filename(url, ext, is_regridded=True),
+                'abc.123_regridded.zarr'
+            )
+
+        with self.subTest('Only is_reformatted'):
+            self.assertEqual(
+                util.generate_output_filename(url, ext, is_reformatted=True),
+                'abc.123_reformatted.zarr'
+            )
+
+        with self.subTest('is_subsetted and is_regridded'):
+            self.assertEqual(
+                util.generate_output_filename(url, ext, is_subsetted=True, is_regridded=True),
+                'abc.123_regridded_subsetted.zarr'
+            )
+
+        with self.subTest('is_subsetted, is_regridded with empty variables list'):
+            self.assertEqual(
+                util.generate_output_filename(
+                    url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True
+                ),
+                'abc.123_regridded_subsetted.zarr'
+            )
+
+        with self.subTest('is_subsetted and is_reformatted'):
+            self.assertEqual(
+                util.generate_output_filename(url, ext, is_subsetted=True, is_reformatted=True),
+                'abc.123_subsetted_reformatted.zarr'
+            )
+
+        with self.subTest('is_regridded and is_reformatted'):
+            self.assertEqual(
+                util.generate_output_filename(url, ext, is_regridded=True, is_reformatted=True),
+                'abc.123_regridded_reformatted.zarr'
+            )
+
+        with self.subTest('is_subsetted, is_regridded and is_reformatted'):
+            self.assertEqual(
+                util.generate_output_filename(
+                    url, ext, is_subsetted=True, is_regridded=True, is_reformatted=True
+                ),
+                'abc.123_regridded_subsetted_reformatted.zarr'
+            )
 
     def test_includes_single_variable_name_replacing_slashes(self):
         url = 'https://example.com/fake-path/abc.123.nc/?query=true'
@@ -331,6 +370,12 @@ class TestGenerateOutputFilename(unittest.TestCase):
         self.assertEqual(
             util.generate_output_filename(url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True),
             'abc.123_VarA_regridded_subsetted.zarr'
+        )
+        self.assertEqual(
+            util.generate_output_filename(
+                url, ext, variable_subset=variables, is_subsetted=True, is_regridded=True, is_reformatted=True,
+            ),
+            'abc.123_VarA_regridded_subsetted_reformatted.zarr'
         )
 
     def test_excludes_multiple_variable(self):
