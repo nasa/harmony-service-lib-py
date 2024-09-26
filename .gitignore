@@ -134,4 +134,4 @@ config.json
 .dccache
 
 # VS Code
-.vscode/settings.json
+.vscode/
