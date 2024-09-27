@@ -1,6 +1,5 @@
 {
-  "stac_version": "1.0.0-beta.2",
-  "stac_extensions": [],
+  "stac_version": "1.0.0",
   "id": "3ca8ec5a-6d1e-4a82-8233-313d73769e7c",
   "type": "Feature",
   "links": [],

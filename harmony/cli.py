@@ -21,7 +21,7 @@ from harmony.util import (receive_messages, delete_message, change_message_visib
                           config, create_decrypter)
 from harmony.version import get_version
 from harmony.aws import is_s3, write_s3
-from harmony.s3_stac_io import write
+from harmony.s3_stac_io import S3StacIO
 
 
 class MultiCatalogLayoutStrategy(BestPracticesLayoutStrategy):
@@ -238,6 +238,7 @@ def _invoke(adapter, metadata_dir):
     """
     try:
         logging.info(f'Invoking adapter with harmony-service-lib-py version {get_version()}')
+        s3_io = S3StacIO()
         is_s3_metadata_dir = is_s3(metadata_dir)
         if not is_s3_metadata_dir:
             makedirs(metadata_dir, exist_ok=True)
@@ -246,8 +247,8 @@ def _invoke(adapter, metadata_dir):
             for idx, catalog in enumerate(stac_output):
                 catalog.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED, MultiCatalogLayoutStrategy(idx))
             json_str = json.dumps([f'catalog{i}.json' for i, c in enumerate(stac_output)])
-            write(path.join(metadata_dir, 'batch-catalogs.json'), json_str)
-            write(path.join(metadata_dir, 'batch-count.txt'), f'{len(stac_output)}')
+            s3_io.write_text(path.join(metadata_dir, 'batch-catalogs.json'), json_str)
+            s3_io.write_text(path.join(metadata_dir, 'batch-count.txt'), f'{len(stac_output)}')
         else:  # assume stac_output is a single catalog
             stac_output.normalize_and_save(metadata_dir, CatalogType.SELF_CONTAINED)
 
@@ -340,6 +341,7 @@ def run_cli(parser, args, AdapterClass, cfg=None):
             if not successful:
                 raise Exception('Service operation failed')
         else:
+            adapter = None
             try:
                 adapter = _build_adapter(AdapterClass,
                                          args.harmony_input,
@@ -353,8 +355,8 @@ def run_cli(parser, args, AdapterClass, cfg=None):
                 duration_ms = int(round(time_diff.total_seconds() * 1000))
                 duration_logger = build_logger(cfg)
                 extra_fields = {
-                    'user': adapter.message.user,
-                    'requestId': adapter.message.requestId,
+                    'user': adapter.message.user if adapter else '',
+                    'requestId': adapter.message.requestId if adapter else '',
                     'durationMs': duration_ms
                 }
                 duration_logger.info(f'timing.{cfg.app_name}.end', extra=extra_fields)
