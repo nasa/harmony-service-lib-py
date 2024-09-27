@@ -1,7 +1,7 @@
 {
-  "stac_version": "1.0.0-beta.2",
-  "stac_extensions": [],
+  "stac_version": "1.0.0",
   "id": "8bd3924c-c0ee-49b7-b9ac-0d296f4bf909",
+  "type": "Catalog",
   "links": [
     {
       "rel": "harmony_source",

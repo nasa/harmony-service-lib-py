@@ -7,13 +7,12 @@ Convenience exports for the Harmony library
 """
 
 # Automatically updated by `make build`
-__version__ = "1.0.27"
+__version__ = "1.1.0"
 
 from .adapter import BaseHarmonyAdapter
 from .cli import setup_cli, is_harmony_cli, run_cli
 from .message import Temporal
-from pystac.stac_io import STAC_IO
-from .s3_stac_io import read, write
+from pystac.stac_io import StacIO
+from .s3_stac_io import S3StacIO
 
-STAC_IO.read_text_method = read
-STAC_IO.write_text_method = write
+StacIO.set_default(S3StacIO)
