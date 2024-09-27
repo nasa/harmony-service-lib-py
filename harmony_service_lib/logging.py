@@ -66,7 +66,7 @@ def build_logger(config, name='harmony-service', stream=None):
     Builds a logger with appropriate defaults for Harmony
     Parameters
     ----------
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         The configuration values for this runtime environment.
     name : string
         The name of the logger

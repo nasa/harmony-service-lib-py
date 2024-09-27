@@ -183,7 +183,7 @@ def _download(
 
     Parameters
     ----------
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         The configuration for the current runtime environment.
     url : str
         The url for the resource to download
@@ -272,7 +272,7 @@ def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwa
 
     Parameters
     ----------
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         The configuration for the current runtime environment.
     url : str
         The url for the resource to download
@@ -358,7 +358,7 @@ def download(config, url: str, access_token: str, data, destination_file,
 
     Parameters
     ----------
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         The configuration for the current runtime environment.
     url : str
         The url for the resource to download

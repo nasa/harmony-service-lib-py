@@ -121,7 +121,7 @@ def _invoke_deprecated(AdapterClass, message_string, config):
         The BaseHarmonyAdapter subclass to use to handle service invocations
     message_string : string
         The Harmony input message
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         A configuration instance for this service
     Returns
     -------
@@ -196,7 +196,7 @@ def _build_adapter(AdapterClass, message_string, sources_path, data_location, co
         A file location containing a STAC catalog corresponding to the input message sources
     data_location : string
         The name of the directory where output should be written
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         A configuration instance for this service
     Returns
     -------
@@ -279,7 +279,7 @@ def _start(AdapterClass, queue_url, visibility_timeout_s, config):
     visibility_timeout_s : int
         The time interval during which the message can't be picked up by other
         listeners on the queue.
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         A configuration instance for this service
     """
     for receipt, message in receive_messages(queue_url, visibility_timeout_s, cfg=config):
@@ -318,7 +318,7 @@ def run_cli(parser, args, AdapterClass, cfg=None):
         Argument values parsed from the command line, presumably via ArgumentParser.parse_args
     AdapterClass : class
         The BaseHarmonyAdapter subclass to use to handle service invocations
-    cfg : harmony.util.Config
+    cfg : harmony_service_lib.util.Config
         A configuration instance for this service
     """
     if cfg is None:

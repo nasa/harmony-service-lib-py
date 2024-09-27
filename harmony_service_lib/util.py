@@ -156,7 +156,7 @@ def config(validate=True):
 
     Returns
     -------
-    harmony.util.Config
+    harmony_service_lib.util.Config
         The configuration values for this runtime environment.
     """
     def str_envvar(name: str, default: str) -> str:
@@ -216,7 +216,7 @@ def _build_full_user_agent(config) -> str:
 
     Parameters
     ----------
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         The configuration values for this runtime environment.
 
     Returns
@@ -302,7 +302,7 @@ def download(url, destination_dir, logger=None, access_token=None, data=None, cf
         containing a series of `key=value` pairs, separated by ampersands. If
         None (the default), urllib.get.urlopen will use the  GET
         method.
-    cfg : harmony.util.Config
+    cfg : harmony_service_lib.util.Config
         The configuration values for this runtime environment.
 
     Returns
@@ -361,7 +361,7 @@ def stage(local_filename, remote_filename, mime, logger=None, location=None, cfg
         STAGING_PATH must be set in the environment
     logger : logging
         The logger to use
-    cfg : harmony.util.Config
+    cfg : harmony_service_lib.util.Config
         The configuration values for this runtime environment.
 
     Returns
@@ -391,7 +391,7 @@ def receive_messages(queue_url, visibility_timeout_s=600, logger=None, cfg=None)
     visibility_timeout_s : int
         The number of seconds to wait for a received message to be deleted
         before it is returned to the queue
-    cfg : harmony.util.Config
+    cfg : harmony_service_lib.util.Config
         The configuration values for this runtime environment.
 
     Yields
@@ -422,7 +422,7 @@ def delete_message(queue_url, receipt_handle, cfg=None):
         The queue from which the message originated
     receipt_handle : string
         The receipt handle of the message, as yielded by `receive_messages`
-    cfg : harmony.util.Config
+    cfg : harmony_service_lib.util.Config
         The configuration values for this runtime environment.
     """
     # The implementation of this function has been moved to the
@@ -445,7 +445,7 @@ def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s, c
     visibility_timeout_s : int
         The number of additional seconds to wait for a received message to be deleted
         before it is returned to the queue
-    cfg : harmony.util.Config
+    cfg : harmony_service_lib.util.Config
         The configuration values for this runtime environment.
     """
     # The implementation of this function has been moved to the

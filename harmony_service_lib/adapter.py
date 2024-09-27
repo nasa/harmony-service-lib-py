@@ -64,7 +64,7 @@ class BaseHarmonyAdapter(ABC):
             The Harmony input which needs acting upon
         catalog : pystac.Catalog
             A STAC catalog containing the files on which to act
-        config : harmony.util.Config
+        config : harmony_service_lib.util.Config
             The configuration values for this runtime environment.
         """
         if catalog is None:
@@ -248,7 +248,7 @@ class BaseHarmonyAdapter(ABC):
         ----------
         item : pystac.Item
             the item that should be processed
-        source : harmony.message.Source
+        source : harmony_service_lib.message.Source
             the input source defining the variables, if any, to subset from the item
 
         Returns
@@ -279,7 +279,7 @@ class BaseHarmonyAdapter(ABC):
 
         Returns
         -------
-        harmony.message.Source
+        harmony_service_lib.message.Source
             The source of the input item
         """
         parent = item
