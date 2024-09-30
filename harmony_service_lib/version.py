@@ -1,4 +1,4 @@
-import harmony
+import harmony_service_lib
 
 
 def get_version():
@@ -10,4 +10,4 @@ def get_version():
     string
         A string representing the current version.
     """
-    return harmony.__version__
+    return harmony_service_lib.__version__

@@ -12,8 +12,8 @@ import os
 from tempfile import mkdtemp
 from pystac import Asset
 
-import harmony
-from harmony.util import generate_output_filename, stage, download
+import harmony_service_lib
+from harmony_service_lib.util import generate_output_filename, stage, download
 
 # IMPORTANT: The following line avoids making real calls to a non-existent
 # Harmony frontend.  Service authors should not set this variable to "dev"
@@ -21,7 +21,7 @@ from harmony.util import generate_output_filename, stage, download
 os.environ['ENV'] = 'dev'
 
 
-class ExampleAdapter(harmony.BaseHarmonyAdapter):
+class ExampleAdapter(harmony_service_lib.BaseHarmonyAdapter):
     """
     Shows an example of what a service adapter implementation looks like
     """
@@ -115,12 +115,12 @@ def main():
     """
     parser = argparse.ArgumentParser(prog='example', description='Run an example service')
 
-    harmony.setup_cli(parser)
+    harmony_service_lib.setup_cli(parser)
 
     args = parser.parse_args()
 
-    if (harmony.is_harmony_cli(args)):
-        harmony.run_cli(parser, args, ExampleAdapter)
+    if (harmony_service_lib.is_harmony_cli(args)):
+        harmony_service_lib.run_cli(parser, args, ExampleAdapter)
     else:
         run_cli(args)
 

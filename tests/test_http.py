@@ -2,7 +2,7 @@ import pytest
 import responses
 import os
 
-from harmony.http import (download, is_http, localhost_url)
+from harmony_service_lib.http import (download, is_http, localhost_url)
 from unittest.mock import Mock, patch
 from tests.util import config_fixture
 
@@ -173,7 +173,7 @@ def test_resource_server_redirects_to_granule_url(
     assert 'Authorization' not in rs_headers
 
 @responses.activate
-@patch('harmony.http.get_retry_delay', Mock(return_value = 0))
+@patch('harmony_service_lib.http.get_retry_delay', Mock(return_value = 0))
 def test_download_validates_token_and_raises_exception(
         mocker,
         faker,
@@ -243,7 +243,7 @@ def test_when_authn_succeeds_it_writes_to_provided_file(
     destination_file.write.assert_called()
 
 @responses.activate
-@patch('harmony.http.get_retry_delay', Mock(return_value = 0))
+@patch('harmony_service_lib.http.get_retry_delay', Mock(return_value = 0))
 def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth_if_enabled(
         mocker,
         faker,
@@ -277,7 +277,7 @@ def test_when_given_an_access_token_and_error_occurs_it_falls_back_to_basic_auth
 
 
 @responses.activate
-@patch('harmony.http.get_retry_delay', Mock(return_value = 0))
+@patch('harmony_service_lib.http.get_retry_delay', Mock(return_value = 0))
 def test_when_given_an_access_token_and_error_occurs_it_does_not_fall_back_to_basic_auth(
         mocker,
         faker,
@@ -329,7 +329,7 @@ def test_when_no_access_token_is_provided_it_uses_basic_auth_and_downloads_when_
 
 
 @responses.activate
-@patch('harmony.http.get_retry_delay', Mock(return_value = 0))
+@patch('harmony_service_lib.http.get_retry_delay', Mock(return_value = 0))
 def test_download_all_retries_failed(
         mocker,
         faker,
@@ -441,7 +441,7 @@ RETRY_ERROR_CODES = [400, 404, 500, 502, 503]
 
 @responses.activate(registry=responses.registries.OrderedRegistry)
 @pytest.mark.parametrize('error_code', [RETRY_ERROR_CODES])
-@patch('harmony.http.get_retry_delay', Mock(return_value = 0))
+@patch('harmony_service_lib.http.get_retry_delay', Mock(return_value = 0))
 def test_retries_on_temporary_errors_edl_auth(
         mocker,
         access_token,
@@ -463,7 +463,7 @@ def test_retries_on_temporary_errors_edl_auth(
 
 @responses.activate(registry=responses.registries.OrderedRegistry)
 @pytest.mark.parametrize('error_code', RETRY_ERROR_CODES)
-@patch('harmony.http.get_retry_delay', Mock(return_value = 0))
+@patch('harmony_service_lib.http.get_retry_delay', Mock(return_value = 0))
 def test_retries_on_temporary_errors_basic_auth(
         mocker,
         faker,

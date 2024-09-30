@@ -20,11 +20,11 @@ from warnings import warn
 from deprecation import deprecated
 from pystac import Catalog, Item, Asset, read_file
 
-from harmony.exceptions import CanceledException
-from harmony.http import request_context
-from harmony.logging import build_logger
-from harmony.message import Temporal
-from harmony.util import touch_health_check_file
+from harmony_service_lib.exceptions import CanceledException
+from harmony_service_lib.http import request_context
+from harmony_service_lib.logging import build_logger
+from harmony_service_lib.message import Temporal
+from harmony_service_lib.util import touch_health_check_file
 from . import util
 
 
@@ -39,7 +39,7 @@ class BaseHarmonyAdapter(ABC):
 
     Attributes
     ----------
-    message : harmony.Message
+    message : harmony_service_lib.Message
         The Harmony input which needs acting upon
     temp_paths : list
         A list of string paths that should be cleaned up on exit
@@ -60,11 +60,11 @@ class BaseHarmonyAdapter(ABC):
 
         Parameters
         ----------
-        message : harmony.Message
+        message : harmony_service_lib.Message
             The Harmony input which needs acting upon
         catalog : pystac.Catalog
             A STAC catalog containing the files on which to act
-        config : harmony.util.Config
+        config : harmony_service_lib.util.Config
             The configuration values for this runtime environment.
         """
         if catalog is None:
@@ -111,7 +111,7 @@ class BaseHarmonyAdapter(ABC):
 
         Returns
         -------
-        (harmony.Message, pystac.Catalog | list)
+        (harmony_service_lib.Message, pystac.Catalog | list)
             A tuple of the Harmony message, with any processed fields marked as such and
             in this implementation, a single STAC catalog describing the output.
             (Services overriding this method may return a list of STAC catalogs if desired.)
@@ -248,7 +248,7 @@ class BaseHarmonyAdapter(ABC):
         ----------
         item : pystac.Item
             the item that should be processed
-        source : harmony.message.Source
+        source : harmony_service_lib.message.Source
             the input source defining the variables, if any, to subset from the item
 
         Returns
@@ -279,7 +279,7 @@ class BaseHarmonyAdapter(ABC):
 
         Returns
         -------
-        harmony.message.Source
+        harmony_service_lib.message.Source
             The source of the input item
         """
         parent = item
@@ -319,7 +319,7 @@ class BaseHarmonyAdapter(ABC):
         Parameters
         ----------
         granules : list
-            A list of harmony.message.Granule objects corresponding to the granules to download.  Default:
+            A list of harmony_service_lib.message.Granule objects corresponding to the granules to download.  Default:
             all granules in the incoming message
         """
         temp_dir = mkdtemp()
@@ -420,7 +420,7 @@ class BaseHarmonyAdapter(ABC):
             The mime type of the file, by default the output mime type requested by Harmony
         title : string, optional
             Textual information to provide users along with the link
-        temporal : harmony.message.Temporal, optional
+        temporal : harmony_service_lib.message.Temporal, optional
             The temporal extent of the provided file.  If not provided, the source granule's
             temporal will be used when a source granule is provided
         bbox : list, optional
@@ -480,7 +480,7 @@ class BaseHarmonyAdapter(ABC):
             The mime type of the file, by default the output mime type requested by Harmony
         title : string, optional
             Textual information to provide users along with the link
-        temporal : harmony.message.Temporal, optional
+        temporal : harmony_service_lib.message.Temporal, optional
             The temporal extent of the provided file.  If not provided, the source granule's
             temporal will be used when a source granule is provided
         bbox : list, optional
@@ -538,7 +538,7 @@ class BaseHarmonyAdapter(ABC):
             The mime type of the file, by default the output mime type requested by Harmony
         progress : integer, optional
             Numeric progress of the total request, 0-100
-        temporal : harmony.message.Temporal, optional
+        temporal : harmony_service_lib.message.Temporal, optional
             The temporal extent of the provided file.  If not provided, the source granule's
             temporal will be used when a source granule is provided
         bbox : list, optional
@@ -576,7 +576,7 @@ class BaseHarmonyAdapter(ABC):
         source_granule : message.Granule, optional
             The granule from which the file was derived, if it was derived from a single granule.  This
             will be used to produce a canonical filename and assist when temporal and bbox are not specified
-        temporal : harmony.message.Temporal, optional
+        temporal : harmony_service_lib.message.Temporal, optional
             The temporal extent of the provided file.  If not provided, the source granule's
             temporal will be used when a source granule is provided
         bbox : list, optional
@@ -698,7 +698,7 @@ class BaseHarmonyAdapter(ABC):
         source_granule : message.Granule, optional
             The granule from which the file was derived, if it was derived from a single granule.  This
             will be used to produce a canonical filename and assist when temporal and bbox are not specified
-        temporal : harmony.message.Temporal, optional
+        temporal : harmony_service_lib.message.Temporal, optional
             The temporal extent of the provided file.  If not provided, the source granule's
             temporal will be used when a source granule is provided
         bbox : list, optional

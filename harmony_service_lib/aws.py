@@ -2,14 +2,14 @@
 This module includes various AWS-specific functions to stage data in S3 and deal with
 messages in SQS queues.
 
-This module relies on the harmony.util.config and its environment variables to be
+This module relies on the harmony_service_lib.util.config and its environment variables to be
 set for correct operation. See that module and the project README for details.
 """
 from urllib.parse import urlparse
 from os import environ
 import boto3
 from botocore.config import Config
-from harmony import util
+from harmony_service_lib import util
 
 
 def is_s3(url: str) -> bool:
@@ -73,7 +73,7 @@ def _get_aws_client(config, service, user_agent=None):
 
     Parameters
     ----------
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         The configuration for the current runtime environment.
     service : string
         The AWS service name for which to construct a client, e.g. "s3" or "sqs"
@@ -97,7 +97,7 @@ def download(config, url, destination_file, user_agent=None):
 
     Parameters
     ----------
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         The configuration for the current runtime environment.
     destination_file : file-like
         The destination file where the object will be written. Must be
@@ -122,7 +122,7 @@ def stage(config, local_filename, remote_filename, mime, logger, location=None):
 
     Parameters
     ----------
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         The configuration for the current runtime environment.
     local_filename : string
         A path and filename to the local file that should be staged
@@ -171,7 +171,7 @@ def receive_messages(config, queue_url, visibility_timeout_s, logger):
 
     Parameters
     ----------
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         The configuration for the current runtime environment.
     queue_url : string
         The URL of the queue to receive messages on
@@ -212,7 +212,7 @@ def delete_message(config, queue_url, receipt_handle):
 
     Parameters
     ----------
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         The configuration for the current runtime environment.
     queue_url : string
         The queue from which the message originated
@@ -229,7 +229,7 @@ def change_message_visibility(config, queue_url, receipt_handle, visibility_time
 
     Parameters
     ----------
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         The configuration for the current runtime environment.
     queue_url : string
         The queue from which the message originated

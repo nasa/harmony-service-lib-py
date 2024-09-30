@@ -4,7 +4,7 @@ import unittest
 from nacl.secret import SecretBox
 from nacl.utils import random
 
-from harmony import util
+from harmony_service_lib import util
 
 
 class TestDecrypter(unittest.TestCase):

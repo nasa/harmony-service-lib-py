@@ -11,10 +11,10 @@ import pathlib
 from shutil import rmtree
 from urllib.error import HTTPError
 
-from harmony.adapter import BaseHarmonyAdapter
-from harmony.message import Message, Granule, Variable, Temporal
-import harmony.util
-from harmony.exceptions import CanceledException
+from harmony_service_lib.adapter import BaseHarmonyAdapter
+from harmony_service_lib.message import Message, Granule, Variable, Temporal
+import harmony_service_lib.util
+from harmony_service_lib.exceptions import CanceledException
 from .example_messages import minimal_message, full_message
 
 
@@ -37,7 +37,7 @@ class MockHTTPError(HTTPError):
 
 class TestBaseHarmonyAdapter(unittest.TestCase):
     def setUp(self):
-        self.config = harmony.util.config(validate=False)
+        self.config = harmony_service_lib.util.config(validate=False)
 
     def test_cleanup_deletes_temporary_file_paths(self):
         adapter = AdapterTester(minimal_message, self.config)
@@ -129,7 +129,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         self.assertRaises(Exception, adapter.completed_with_error, 'https://example.com/2')
 
     @patch.object(BaseHarmonyAdapter, '_callback_post')
-    @patch.object(harmony.util, 'stage', return_value='https://example.com/out')
+    @patch.object(harmony_service_lib.util, 'stage', return_value='https://example.com/out')
     def test_completed_with_local_file_stages_the_local_file_and_redirects_to_it(self, stage, _callback_post):
         adapter = AdapterTester(full_message, self.config)
         adapter.completed_with_local_file('tmp/output.tif', remote_filename='out.tif')
@@ -145,7 +145,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
                                           '&status=successful')
 
     @patch.object(BaseHarmonyAdapter, '_callback_post')
-    @patch.object(harmony.util, 'stage', return_value='https://example.com/out')
+    @patch.object(harmony_service_lib.util, 'stage', return_value='https://example.com/out')
     def test_completed_with_local_file_uses_granule_file_naming(self, stage, _callback_post):
         adapter = AdapterTester(full_message, self.config)
         granule = adapter.message.sources[0].granules[0]
@@ -239,7 +239,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
         self.assertRaises(Exception, adapter.async_completed_successfully)
 
     @patch.object(BaseHarmonyAdapter, '_callback_post')
-    @patch.object(harmony.util, 'stage', return_value='https://example.com/out')
+    @patch.object(harmony_service_lib.util, 'stage', return_value='https://example.com/out')
     def test_async_add_local_file_partial_result_stages_the_local_file_and_updates_progress(self, stage, _callback_post):
         adapter = AdapterTester(full_message, self.config)
         adapter.message.isSynchronous = False
@@ -258,7 +258,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
                                           '&progress=50')
 
     @patch.object(BaseHarmonyAdapter, '_callback_post')
-    @patch.object(harmony.util, 'stage', return_value='https://example.com/out')
+    @patch.object(harmony_service_lib.util, 'stage', return_value='https://example.com/out')
     def test_async_add_local_file_partial_result_uses_granule_file_naming(self, stage, _callback_post):
         adapter = AdapterTester(full_message, self.config)
         adapter.message.isSynchronous = False
@@ -348,7 +348,7 @@ class TestBaseHarmonyAdapter(unittest.TestCase):
 
 class TestCallbackPostHealthUpdate(unittest.TestCase):
     def setUp(self):
-        self.config = harmony.util.config(validate=False)
+        self.config = harmony_service_lib.util.config(validate=False)
 
     @patch.object(pathlib.Path, '__new__')
     def test_callback_post_updates_health_check_file(self, mock_path):

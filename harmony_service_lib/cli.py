@@ -14,14 +14,14 @@ import datetime
 from pystac import Catalog, CatalogType
 from pystac.layout import BestPracticesLayoutStrategy
 
-from harmony.exceptions import CanceledException, HarmonyException
-from harmony.message import Message
-from harmony.logging import setup_stdout_log_formatting, build_logger
-from harmony.util import (receive_messages, delete_message, change_message_visibility,
-                          config, create_decrypter)
-from harmony.version import get_version
-from harmony.aws import is_s3, write_s3
-from harmony.s3_stac_io import S3StacIO
+from harmony_service_lib.exceptions import CanceledException, HarmonyException
+from harmony_service_lib.message import Message
+from harmony_service_lib.logging import setup_stdout_log_formatting, build_logger
+from harmony_service_lib.util import (receive_messages, delete_message, change_message_visibility,
+                                      config, create_decrypter)
+from harmony_service_lib.version import get_version
+from harmony_service_lib.aws import is_s3, write_s3
+from harmony_service_lib.s3_stac_io import S3StacIO
 
 
 class MultiCatalogLayoutStrategy(BestPracticesLayoutStrategy):
@@ -121,7 +121,7 @@ def _invoke_deprecated(AdapterClass, message_string, config):
         The BaseHarmonyAdapter subclass to use to handle service invocations
     message_string : string
         The Harmony input message
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         A configuration instance for this service
     Returns
     -------
@@ -184,7 +184,7 @@ def _write_error(metadata_dir, message, category='Unknown'):
 
 def _build_adapter(AdapterClass, message_string, sources_path, data_location, config):
     """
-    Creates the adapter to be invoked for the given harmony input
+    Creates the adapter to be invoked for the given harmony_service_lib input
 
     Parameters
     ----------
@@ -196,7 +196,7 @@ def _build_adapter(AdapterClass, message_string, sources_path, data_location, co
         A file location containing a STAC catalog corresponding to the input message sources
     data_location : string
         The name of the directory where output should be written
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         A configuration instance for this service
     Returns
     -------
@@ -279,7 +279,7 @@ def _start(AdapterClass, queue_url, visibility_timeout_s, config):
     visibility_timeout_s : int
         The time interval during which the message can't be picked up by other
         listeners on the queue.
-    config : harmony.util.Config
+    config : harmony_service_lib.util.Config
         A configuration instance for this service
     """
     for receipt, message in receive_messages(queue_url, visibility_timeout_s, cfg=config):
@@ -318,7 +318,7 @@ def run_cli(parser, args, AdapterClass, cfg=None):
         Argument values parsed from the command line, presumably via ArgumentParser.parse_args
     AdapterClass : class
         The BaseHarmonyAdapter subclass to use to handle service invocations
-    cfg : harmony.util.Config
+    cfg : harmony_service_lib.util.Config
         A configuration instance for this service
     """
     if cfg is None:

@@ -7,8 +7,8 @@ import json
 
 from pystac import Catalog, CatalogType, Item
 
-from harmony import cli, BaseHarmonyAdapter
-from harmony.exceptions import ForbiddenException
+from harmony_service_lib import cli, BaseHarmonyAdapter
+from harmony_service_lib.exceptions import ForbiddenException
 from tests.util import cli_parser, config_fixture
 
 

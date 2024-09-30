@@ -7,8 +7,8 @@ import unittest
 from unittest.mock import patch
 from pystac import Catalog, Item, Link
 
-from harmony.message import Message
-from harmony.adapter import BaseHarmonyAdapter
+from harmony_service_lib.message import Message
+from harmony_service_lib.adapter import BaseHarmonyAdapter
 from .example_messages import full_message
 from .util import config_fixture
 
@@ -52,7 +52,7 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
         self.assertEqual(AdapterTester.process_args[0][1], message.sources[0])
         self.assertEqual(AdapterTester.process_args[1][1], message.sources[0])
 
-    @patch('harmony.adapter.read_file')
+    @patch('harmony_service_lib.adapter.read_file')
     def test_invocation_follows_linked_catalogs(self, test_patch):
         catalog0 = Catalog('0', 'Catalog 0')
         catalog0.add_link(Link('harmony_source', 'http://example.com/C0001-EXAMPLE'))
@@ -111,7 +111,7 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
         self.assertEqual(AdapterTester.process_args[2][1], message.sources[1])
         self.assertEqual(AdapterTester.process_args[3][1], message.sources[1])
 
-    @patch('harmony.adapter.read_file')
+    @patch('harmony_service_lib.adapter.read_file')
     def test_get_all_items_follows_links(self, test_patch):
         catalog0 = Catalog('0', 'Catalog 0')
         catalog0.add_link(Link('harmony_source', 'http://example.com/C0001-EXAMPLE'))
@@ -139,7 +139,7 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
         no_link_items = list(adapter.get_all_catalog_items(catalog0, False))
         self.assertEqual(no_link_items, items_a)
 
-    @patch('harmony.adapter.read_file')
+    @patch('harmony_service_lib.adapter.read_file')
     def test_get_all_items_handles_children(self, test_patch):
         catalog = Catalog('0', 'Catalog 0')
         catalog.add_link(Link('harmony_source', 'http://example.com/C0001-EXAMPLE'))

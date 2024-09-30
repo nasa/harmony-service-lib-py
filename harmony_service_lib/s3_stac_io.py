@@ -1,8 +1,8 @@
 from urllib.parse import urlparse
 import boto3
 from pystac.stac_io import StacIO, DefaultStacIO
-from harmony import util
-from harmony import aws
+from harmony_service_lib import util
+from harmony_service_lib import aws
 from os import environ
 
 """
