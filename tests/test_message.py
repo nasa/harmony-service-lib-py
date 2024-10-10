@@ -22,6 +22,7 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.isSynchronous, True)
         self.assertEqual(message.accessToken, 'ABCD1234567890')
         self.assertEqual(message.concatenate, True)
+        self.assertEqual(message.average, 'time')
         self.assertEqual(message.sources[0].collection, 'C0001-EXAMPLE')
         self.assertEqual(message.sources[0].shortName, 'example_1_data')
         self.assertEqual(message.sources[0].versionId, '1')
