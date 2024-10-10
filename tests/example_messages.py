@@ -1,7 +1,7 @@
 minimal_message = """
     {
         "$schema": "../../harmony/app/schemas/data-operation/0.19.0/data-operation-v0.19.0.json",
-        "version": "0.19.0",
+        "version": "0.20.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -20,7 +20,7 @@ minimal_message = """
 minimal_source_message = """
     {
         "$schema": "../../harmony/app/schemas/data-operation/0.19.0/data-operation-v0.19.0.json",
-        "version": "0.19.0",
+        "version": "0.20.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -47,7 +47,7 @@ minimal_source_message = """
 full_message = """
     {
         "$schema": "../../harmony/app/schemas/data-operation/0.19.0/data-operation-v0.19.0.json",
-        "version": "0.19.0",
+        "version": "0.20.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -180,6 +180,7 @@ full_message = """
             }]
         },
         "concatenate": true,
+        "average": "time",
         "extendDimensions": ["lat", "lon"],
         "extraArgs": {
             "cut": false,

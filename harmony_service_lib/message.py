@@ -617,6 +617,8 @@ class Message(JsonObject):
     concatenate: bool
         True if the service should concatenate multiple input files into a single output
         file and false otherwise.
+    average: string
+        The averaging method to use
     extendDimensions: list
         A list of dimensions to extend.
     extraArgs: object
@@ -657,6 +659,7 @@ class Message(JsonObject):
                 'subset',
                 'temporal',
                 'concatenate',
+                'average',
                 'extendDimensions',
                 'extraArgs'
             ],
