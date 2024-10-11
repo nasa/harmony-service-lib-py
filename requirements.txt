@@ -1,7 +1,7 @@
 boto3 ~= 1.14
 deprecation ~= 2.1.0
 pynacl ~= 1.4
-pystac >= 1.0.0
+pystac>=1.0.0,<1.11.0 # Locked due to HARMONY-1922
 python-json-logger ~= 2.0.1
 requests ~= 2.24
 urllib3 ~= 1.26.9
