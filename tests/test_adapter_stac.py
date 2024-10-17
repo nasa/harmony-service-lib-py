@@ -165,7 +165,6 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
         adapter = AdapterTester(message, catalog, config=self.config)
         all_items = list(adapter.get_all_catalog_items(catalog, True))
         self.assertEqual(all_items, [ *items_a, *items_b ])
-        
 
     def test_unaltered_ids_are_assigned_new_uuids(self):
         catalog = Catalog('0', 'Catalog 0')
@@ -218,7 +217,10 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
                 'end_datetime': '2002-02-02T02:02:02Z',
                 'datetime': None
             },
-            'geometry': None,
+            'geometry': {
+                'coordinates': [[[-1, -2], [-1, 4], [3, 4], [3, -2], [-1, -2]]],
+                'type': 'Polygon'
+            },
             'links': [],
             'assets': {
                 'data': {
@@ -239,7 +241,10 @@ class TestBaseHarmonyAdapterDefaultInvoke(unittest.TestCase):
                 'end_datetime': '2004-04-04T04:04:04Z',
                 'datetime': None
             },
-            'geometry': None,
+            'geometry': {
+                'coordinates': [[[-5, -6], [-5, 8], [7, 8], [7, -6], [-5, -6]]],
+                'type': 'Polygon'
+            },
             'links': [],
             'assets': {
                 'data': {
