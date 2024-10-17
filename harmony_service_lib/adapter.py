@@ -181,9 +181,13 @@ class BaseHarmonyAdapter(ABC):
         result.clear_items()
         source = None
         for item in items:
+            cloned_item = item.clone()
+            # if there is a bbox, but no geometry, create a geometry from the bbox
+            if cloned_item.bbox and not cloned_item.geometry:
+                cloned_item.geometry = util.bbox_to_geometry(cloned_item.bbox)
             item_count = item_count + 1
-            source = source or self._get_item_source(item)
-            output_item = self.process_item(item.clone(), source)
+            source = source or self._get_item_source(cloned_item)
+            output_item = self.process_item(cloned_item, source)
             if output_item:
                 # Ensure the item gets a new ID
                 if output_item.id == item.id:
@@ -209,7 +213,7 @@ class BaseHarmonyAdapter(ABC):
         completed = 0
         for source in self.message.sources:
             for granule in source.granules:
-                item = Item(granule.id, None, granule.bbox, None, {
+                item = Item(granule.id, util.bbox_to_geometry(granule.bbox), granule.bbox, None, {
                     'start_datetime': granule.temporal.start,
                     'end_datetime': granule.temporal.end
                 })
