@@ -13,7 +13,7 @@ jobs:
         fetch-depth: '0'
     - uses: actions/setup-python@v4
       with:
-        python-version: '3.8'
+        python-version: '3.13'
     - shell: bash
       env:
         VERSION_TAG: ${{ github.event.release.tag_name }}
