@@ -19,7 +19,7 @@ dynamic = ["dependencies", "optional-dependencies", "version"]
 license = { text = "License :: OSI Approved :: Apache Software License" }
 name = "harmony-service-lib"
 readme = "README.md"
-requires-python = ">= 3.8"
+requires-python = ">= 3.9"
 
 [project.scripts]
 harmony-service-lib = "harmony_service_lib.cli.__main__:main"

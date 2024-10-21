@@ -49,8 +49,6 @@ Optional:
                           alive.
     MAX_DOWNLOAD_RETRIES: Number of times to retry HTTP download calls that fail due to transient errors.
 """
-# Remove this import when Python 3.8 is no longer supported
-from __future__ import annotations
 
 from base64 import b64decode
 from collections import namedtuple
