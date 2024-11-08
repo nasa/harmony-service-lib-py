@@ -12,5 +12,10 @@ pytest-mock ~=3.5
 python-language-server ~= 0.35
 responses ~=0.22.0
 pycodestyle >= 2.9.1
-safety ~= 3.2.7
 setuptools == 70.0.0
+
+# Pin safety down to work around the compatibility issue with Python 3.13
+# See: https://github.com/pyupio/safety/issues/620
+# Update safety version when the issue is resolved.
+safety-schemas == 0.0.5
+safety == 3.2.3
