@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import harmony_service_lib.util
 from harmony_service_lib import cli, BaseHarmonyAdapter
+from pystac import Catalog
 from tests.util import mock_receive, cli_test
 
 
@@ -14,14 +15,20 @@ class MockAdapter(BaseHarmonyAdapter):
     messages = []
     errors = []
     cleaned_up = []
+    result_catalog = Catalog(
+        id='example id',
+        description='An empty STAC catalog',
+        stac_extensions=[]
+    )
 
-    def __init__(self, message):
-        super().__init__(self, message)
+    def __init__(self, message, catalog=None):
+        super().__init__(message, catalog)
         MockAdapter.messages.append(message.data)
 
     def invoke(self):
         self.is_complete = True
         self.is_failed = False
+        return (self.message, self.result_catalog)
 
     def completed_with_error(self, error):
         MockAdapter.errors.append(error)
@@ -69,49 +76,28 @@ class TestCliInvokeAction(unittest.TestCase):
                 '--harmony-input or --harmony-input-file must be provided for --harmony-action=invoke')
 
     @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
+    def test_when_harmony_metadata_dir_is_not_provided_it_terminates_with_error(self, parser):
+        with patch.object(parser, 'error') as error_method:
+            args = parser.parse_args()
+            cli.run_cli(parser, args, MockAdapter, self.config)
+            error_method.assert_called_once_with(
+                '--harmony-metadata-dir must be provided for --harmony-action=invoke')
+
+    @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}', '--harmony-metadata-dir', '/tmp')
     def test_when_harmony_input_is_provided_it_creates_and_invokes_an_adapter(self, parser):
         args = parser.parse_args()
         cli.run_cli(parser, args, MockAdapter, self.config)
         self.assertListEqual([{'test': 'input'}], MockAdapter.messages)
 
-    @cli_test('--harmony-action', 'invoke', '--harmony-input-file', '/tmp/operation.json')
+    @cli_test('--harmony-action', 'invoke', '--harmony-input-file', '/tmp/operation.json', '--harmony-metadata-dir', '/tmp')
     def test_when_harmony_input_file_is_provided_it_creates_and_invokes_an_adapter(self, parser):
         args = parser.parse_args()
 
         cli.run_cli(parser, args, MockAdapter, self.config)
         self.assertListEqual([{'test': 'input'}], MockAdapter.messages)
 
-    @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
-    def test_when_the_backend_service_doesnt_respond_it_responds_with_an_error(self, parser):
-        class MockImpl(MockAdapter):
-            def invoke(self):
-                self.is_complete = False
-
-        args = parser.parse_args()
-        try:
-            cli.run_cli(parser, args, MockImpl, self.config)
-        except Exception:
-            pass
-        self.assertListEqual(
-            MockImpl.errors, ['The backend service did not respond'])
-
-    @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
-    def test_when_the_backend_service_throws_an_exception_before_response_it_responds_with_an_error(self, parser):
-        class MockImpl(MockAdapter):
-            def invoke(self):
-                self.is_complete = False
-                raise Exception('Something bad happened')
-
-        args = parser.parse_args()
-        with self.assertRaises(Exception) as context:
-            cli.run_cli(parser, args, MockImpl, self.config)
-
-        self.assertTrue('Something bad happened' in str(context.exception))
-        self.assertListEqual(
-            MockImpl.errors, ['Service request failed with an unknown error'])
-
-    @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}')
-    def test_when_the_backend_service_throws_an_exception_afterresponse_it_does_not_respond_again(self, parser):
+    @cli_test('--harmony-action', 'invoke', '--harmony-input', '{"test": "input"}', '--harmony-metadata-dir', '/tmp')
+    def test_when_the_backend_service_throws_an_exception_after_response_it_does_not_respond_again(self, parser):
         class MockImpl(MockAdapter):
             def invoke(self):
                 self.is_complete = True

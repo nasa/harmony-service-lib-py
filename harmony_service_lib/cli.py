@@ -14,7 +14,7 @@ import datetime
 from pystac import Catalog, CatalogType
 from pystac.layout import BestPracticesLayoutStrategy
 
-from harmony_service_lib.exceptions import CanceledException, HarmonyException
+from harmony_service_lib.exceptions import HarmonyException
 from harmony_service_lib.message import Message
 from harmony_service_lib.logging import setup_stdout_log_formatting, build_logger
 from harmony_service_lib.util import (receive_messages, delete_message, change_message_visibility,
@@ -111,55 +111,6 @@ def is_harmony_cli(args):
     return args.harmony_action is not None
 
 
-def _invoke_deprecated(AdapterClass, message_string, config):
-    """
-    Handles --harmony-action=invoke by invoking the adapter for the given input message
-
-    Parameters
-    ----------
-    AdapterClass : class
-        The BaseHarmonyAdapter subclass to use to handle service invocations
-    message_string : string
-        The Harmony input message
-    config : harmony_service_lib.util.Config
-        A configuration instance for this service
-    Returns
-    -------
-    True if the operation completed successfully, False otherwise
-    """
-
-    secret_key = config.shared_secret_key
-    decrypter = create_decrypter(bytes(secret_key, 'utf-8'))
-
-    message_data = json.loads(message_string)
-    adapter = AdapterClass(Message(message_data, decrypter))
-    adapter.set_config(config)
-
-    try:
-        adapter.invoke()
-        if not adapter.is_complete:
-            adapter.completed_with_error('The backend service did not respond')
-
-    except CanceledException:
-        # If we see the request has been canceled do not try calling back to harmony again
-        # Enable this logging after fixing HARMONY-410
-        # logging.error('Service request canceled by Harmony, exiting')
-        pass
-    except HarmonyException as e:
-        logging.error(e, exc_info=1)
-        if not adapter.is_complete:
-            adapter.completed_with_error(str(e))
-    except BaseException as e:
-        # Make sure we always call back if the error is in a Harmony invocation and we have
-        # successfully parsed enough that we know where to call back to
-        logging.error(e, exc_info=1)
-        if not adapter.is_complete:
-            msg = 'Service request failed with an unknown error'
-            adapter.completed_with_error(msg)
-        raise
-    return not adapter.is_failed
-
-
 def _write_error(metadata_dir, message, category='Unknown'):
     """
     Writes the given error message to error.json in the provided metadata dir
@@ -203,7 +154,8 @@ def _build_adapter(AdapterClass, message_string, sources_path, data_location, co
         BaseHarmonyAdapter subclass instance
             The adapter to be invoked
     """
-    catalog = Catalog.from_file(sources_path)
+    catalog = Catalog.from_file(sources_path) if bool(sources_path) else None
+
     secret_key = config.shared_secret_key
 
     if bool(secret_key):
@@ -336,10 +288,9 @@ def run_cli(parser, args, AdapterClass, cfg=None):
         if not bool(args.harmony_input):
             parser.error(
                 '--harmony-input or --harmony-input-file must be provided for --harmony-action=invoke')
-        elif not bool(args.harmony_sources):
-            successful = _invoke_deprecated(AdapterClass, args.harmony_input, cfg)
-            if not successful:
-                raise Exception('Service operation failed')
+        elif not bool(args.harmony_metadata_dir):
+            parser.error(
+                '--harmony-metadata-dir must be provided for --harmony-action=invoke')
         else:
             adapter = None
             try:
@@ -355,8 +306,16 @@ def run_cli(parser, args, AdapterClass, cfg=None):
                 duration_ms = int(round(time_diff.total_seconds() * 1000))
                 duration_logger = build_logger(cfg)
                 extra_fields = {
-                    'user': adapter.message.user if adapter else '',
-                    'requestId': adapter.message.requestId if adapter else '',
+                    'user': (
+                        adapter.message.user
+                        if adapter and adapter.message and hasattr(adapter.message, "user")
+                        else ''
+                    ),
+                    'requestId': (
+                        adapter.message.requestId
+                        if adapter and adapter.message and hasattr(adapter.message, "requestId")
+                        else ''
+                    ),
                     'durationMs': duration_ms
                 }
                 duration_logger.info(f'timing.{cfg.app_name}.end', extra=extra_fields)
