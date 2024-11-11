@@ -582,9 +582,7 @@ class Message(JsonObject):
     version : string
         The semantic version of the Harmony message contained in the provided JSON
     callback : string
-        The URL that services must POST to when their execution is complete.  Services
-        should use the `completed_with_*` methods of a Harmony Adapter to perform
-        callbacks to ensure compatibility, rather than directly using this URL
+        (Deprecated) The URL that services must POST to when their execution is complete.
     stagingLocation : string
         An object store (S3) URL prefix under which services may elect to put their output.
         Services must have write access to the Harmony staging bucket for the deployed

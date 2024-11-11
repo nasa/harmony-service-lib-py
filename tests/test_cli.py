@@ -28,9 +28,6 @@ class MockAdapter(BaseHarmonyAdapter):
     def invoke(self):
         return (self.message, self.result_catalog)
 
-    def completed_with_error(self, error):
-        MockAdapter.errors.append(error)
-
     def cleanup(self):
         MockAdapter.cleaned_up.append(True)
 

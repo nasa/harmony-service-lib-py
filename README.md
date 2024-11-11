@@ -29,13 +29,12 @@ interop and upgrades.  To work with Harmony, services must:
 supported way to receive messages, though HTTP is likely to follow.  `harmony.cli`
 provides helpers for setting up CLI parsing while being unobtrusive to non-Harmony
 CLIs that may also need to exist.
-2. Extend `harmony.BaseHarmonyAdapter` and implement the `#invoke` to
-adapt the incoming Harmony message to a service call and adapt the service
-result to call to one of the adapter's `#completed_with_*` methods. The adapter
-class provides helper methods for retrieving data, staging results, and cleaning
-up temporary files, though these can be overridden or ignored if a service
-needs different behavior, e.g. if it operates on data in situ and does not
-want to download the remote file.
+2. Extend `harmony.BaseHarmonyAdapter` and either override `#invoke` to process
+the message or override `#process_item` to process each individual STAC item
+provided in the input STAC catalog. The adapter class provides helper methods
+for retrieving data, staging results, and cleaning up temporary files, though
+these can be overridden or ignored if a service needs different behavior, e.g.
+if it operates on data in situ and does not want to download the remote file.
 
 A full example of these two requirements with use of helpers can be found in
 [example/example_service.py](example/example_service.py). Also see
