@@ -20,7 +20,7 @@ class MockAdapter(BaseHarmonyAdapter):
     def invoke(self):
         MockAdapter.message = self.message
         return (self.message, self.catalog)
-    
+
 class MockMultiCatalogOutputAdapter(BaseHarmonyAdapter):
     message = None
     """
@@ -98,7 +98,6 @@ class TestCliInvokeAction(unittest.TestCase):
 
             class MockImpl(MockAdapter):
                 def invoke(self):
-                    self.is_complete = False
                     raise ForbiddenException('Something bad happened')
 
             args = parser.parse_args()
@@ -118,7 +117,6 @@ class TestCliInvokeAction(unittest.TestCase):
 
             class MockImpl(MockAdapter):
                 def invoke(self):
-                    self.is_complete = False
                     raise Exception('Something bad happened')
 
             args = parser.parse_args()
@@ -155,7 +153,7 @@ class TestCliInvokeAction(unittest.TestCase):
                 with open(os.path.join(self.workdir, 'batch-catalogs.json')) as file:
                     self.assertEqual(json.loads(file.read()),
                         ["catalog0.json",
-                         "catalog1.json", 
+                         "catalog1.json",
                          "catalog2.json"])
 
 if __name__ == '__main__':

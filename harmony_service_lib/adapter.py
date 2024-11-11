@@ -31,17 +31,8 @@ class BaseHarmonyAdapter(ABC):
     ----------
     message : harmony_service_lib.Message
         The Harmony input which needs acting upon
-    temp_paths : list
-        A list of string paths that should be cleaned up on exit
-    is_complete : boolean
-        True if the service has provided a result to Harmony (and therefore must
-        not provide another)
-    is_canceled: boolean
-        True if the request has been canceled by a Harmony user or operator
     logger: Logger
         Logger specific to this request
-    is_failed: boolean
-        True if the request failed to execute successfully
     """
 
     def __init__(self, message, catalog=None, config=None):
@@ -69,12 +60,6 @@ class BaseHarmonyAdapter(ABC):
             self.init_logging()
         else:
             self.logger = logging.getLogger()
-
-        # Properties that will be deprecated
-        self.temp_paths = []
-        self.is_complete = False
-        self.is_canceled = False
-        self.is_failed = False
 
     def set_config(self, config):
         self.config = config

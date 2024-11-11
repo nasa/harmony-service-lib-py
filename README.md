@@ -86,16 +86,10 @@ OPTIONAL:
 * `USE_LOCALSTACK`: (Development) If 'true' will perform S3 calls against localstack rather
        than AWS
 * `LOCALSTACK_HOST`: (Development) If `USE_LOCALSTACK` `true` and this is set, will
-       establish `boto` client connections for S3 & SQS operations using this hostname.
+       establish `boto` client connections for S3 operations using this hostname.
 * `TEXT_LOGGER`: (Default: True) Setting this to true will cause all
        log messages to use a text string format. By default log
        messages will be formatted as JSON.
-* `HEALTH_CHECK_PATH`: Set this to the path where the health check file should be stored. This
-       file's mtime is set to the current time whenever a successful attempt is made to to read the
-       message queue (whether or not a message is retrieved). This file can be used by a container's
-       health check command. The container is considered unhealthy if the mtime of the file is old -
-       where 'old' is configurable in the service container. If this variable is not set the path
-       defaults to '/tmp/health.txt'.
 * `MAX_DOWNLOAD_RETRIES`: Number of times to retry HTTP download calls that fail due to transient errors.
 
 OPTIONAL -- Use with CAUTION:

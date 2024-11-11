@@ -1,15 +1,12 @@
-import pathlib
 from requests import Session
 import unittest
 from unittest.mock import patch, MagicMock, mock_open, ANY
-from urllib.error import HTTPError
 
 from harmony_service_lib import aws
 from harmony_service_lib import util
 from harmony_service_lib.http import request_context
 from harmony_service_lib.message import Variable
-from tests.test_cli import MockAdapter, cli_test
-from tests.util import mock_receive, config_fixture
+from tests.util import config_fixture
 
 
 class TestDownload(unittest.TestCase):
@@ -190,33 +187,6 @@ class TestS3Parameters(unittest.TestCase):
         actual = aws.aws_parameters(use_localstack, localstack_host, region)
 
         self.assertDictEqual(expected, actual)
-
-
-class TestSQSReadHealthUpdate(unittest.TestCase):
-    def setUp(self):
-        self.config = util.config(validate=False)
-
-    @cli_test('--harmony-action', 'start', '--harmony-queue-url', 'test-queue-url')
-    @patch('boto3.client')
-    @patch.object(pathlib.Path, '__new__')
-    def test_when_reading_from_queue_health_update_happens(self, parser, mock_path, client):
-        all_test_cases = [
-            # message received
-            ['{"test": "a"}'],
-
-            # no message received
-            [None],
-
-            # error receiving message
-            [Exception()]
-        ]
-        for messages in all_test_cases:
-            with self.subTest(messages=messages):
-                try:
-                    mock_receive(self.config, client, parser, MockAdapter, *messages)
-                except Exception:
-                    pass
-                mock_path.return_value.touch.assert_called()
 
 
 class TestGenerateOutputFilename(unittest.TestCase):
