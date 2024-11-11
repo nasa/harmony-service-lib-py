@@ -161,4 +161,3 @@ def stage(config, local_filename, remote_filename, mime, logger, location=None):
     s3.upload_file(local_filename, staging_bucket, key, ExtraArgs={'ContentType': mime})
 
     return 's3://%s/%s' % (staging_bucket, key)
-

@@ -273,4 +273,3 @@ def run_cli(parser, args, AdapterClass, cfg=None):
                     'durationMs': duration_ms
                 }
                 duration_logger.info(f'timing.{cfg.app_name}.end', extra=extra_fields)
-
