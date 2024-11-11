@@ -45,8 +45,6 @@ Optional:
     APP_NAME:             A name for the service that will appear in log entries.
     ENV:                  The application environment. One of: dev, test. Used for local development.
     TEXT_LOGGER:          Whether to log in plaintext or JSON. Default: True (plaintext).
-    HEALTH_CHECK_PATH:    The filesystem path that should be `touch`ed to indicate the service is
-                          alive.
     MAX_DOWNLOAD_RETRIES: Number of times to retry HTTP download calls that fail due to transient errors.
 """
 
@@ -96,7 +94,6 @@ Config = namedtuple(
         'staging_bucket',
         'env',
         'text_logger',
-        'health_check_path',
         'shared_secret_key',
         'user_agent',
         'max_download_retries'
@@ -193,7 +190,6 @@ def config(validate=True):
         staging_bucket=str_envvar('STAGING_BUCKET', None),
         env=str_envvar('ENV', ''),
         text_logger=bool_envvar('TEXT_LOGGER', False),
-        health_check_path=str_envvar('HEALTH_CHECK_PATH', '/tmp/health.txt'),
         shared_secret_key=str_envvar('SHARED_SECRET_KEY', DEFAULT_SHARED_SECRET_KEY),
         user_agent=str_envvar('USER_AGENT', 'harmony (unknown version)'),
         max_download_retries=int_envvar('MAX_DOWNLOAD_RETRIES', 0)
@@ -375,89 +371,6 @@ def stage(local_filename, remote_filename, mime, logger=None, location=None, cfg
         logger = build_logger(cfg)
 
     return aws.stage(cfg, local_filename, remote_filename, mime, logger, location)
-
-
-def receive_messages(queue_url, visibility_timeout_s=600, logger=None, cfg=None):
-    """
-    Generates successive messages from reading the queue.  The caller
-    is responsible for deleting or returning each message to the queue
-
-    Parameters
-    ----------
-    queue_url : string
-        The URL of the queue to receive messages on
-    visibility_timeout_s : int
-        The number of seconds to wait for a received message to be deleted
-        before it is returned to the queue
-    cfg : harmony_service_lib.util.Config
-        The configuration values for this runtime environment.
-
-    Yields
-    ------
-    receiptHandle, body : string, string
-        A tuple of the receipt handle, used to delete or update messages,
-        and the contents of the message
-    """
-    # The implementation of this function has been moved to the
-    # harmony_service_lib.aws module.
-    if cfg is None:
-        cfg = config()
-    if logger is None:
-        logger = build_logger(cfg)
-
-    touch_health_check_file(cfg.health_check_path)
-    return aws.receive_messages(cfg, queue_url, visibility_timeout_s, logger)
-
-
-def delete_message(queue_url, receipt_handle, cfg=None):
-    """
-    Deletes the message with the given receipt handle from the provided queue URL,
-    indicating successful processing
-
-    Parameters
-    ----------
-    queue_url : string
-        The queue from which the message originated
-    receipt_handle : string
-        The receipt handle of the message, as yielded by `receive_messages`
-    cfg : harmony_service_lib.util.Config
-        The configuration values for this runtime environment.
-    """
-    # The implementation of this function has been moved to the
-    # harmony_service_lib.aws module.
-    if cfg is None:
-        cfg = config()
-    return aws.delete_message(cfg, queue_url, receipt_handle)
-
-
-def change_message_visibility(queue_url, receipt_handle, visibility_timeout_s, cfg=None):
-    """
-    Updates the message visibility timeout of the message with the given receipt handle
-
-    Parameters
-    ----------
-    queue_url : string
-        The queue from which the message originated
-    receipt_handle : string
-        The receipt handle of the message, as yielded by `receive_messages`
-    visibility_timeout_s : int
-        The number of additional seconds to wait for a received message to be deleted
-        before it is returned to the queue
-    cfg : harmony_service_lib.util.Config
-        The configuration values for this runtime environment.
-    """
-    # The implementation of this function has been moved to the
-    # harmony_service_lib.aws module.
-    if cfg is None:
-        cfg = config()
-    return aws.change_message_visibility(cfg, queue_url, receipt_handle, visibility_timeout_s)
-
-
-def touch_health_check_file(health_check_path):
-    """
-    Updates the mtime of the health check file.
-    """
-    Path(health_check_path).touch()
 
 
 def create_decrypter(key=b'_THIS_IS_MY_32_CHARS_SECRET_KEY_'):

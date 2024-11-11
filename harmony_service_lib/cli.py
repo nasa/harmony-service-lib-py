@@ -17,8 +17,7 @@ from pystac.layout import BestPracticesLayoutStrategy
 from harmony_service_lib.exceptions import HarmonyException
 from harmony_service_lib.message import Message
 from harmony_service_lib.logging import setup_stdout_log_formatting, build_logger
-from harmony_service_lib.util import (receive_messages, delete_message, change_message_visibility,
-                                      config, create_decrypter)
+from harmony_service_lib.util import (config, create_decrypter)
 from harmony_service_lib.version import get_version
 from harmony_service_lib.aws import is_s3, write_s3
 from harmony_service_lib.s3_stac_io import S3StacIO
@@ -59,9 +58,8 @@ def setup_cli(parser):
         The parser being used to parse CLI arguments
     """
     parser.add_argument('--harmony-action',
-                        choices=['invoke', 'start'],
-                        help=('the action Harmony needs to perform, "invoke" to run once and quit, '
-                              '"start" to listen to a queue'))
+                        choices=['invoke'],
+                        help=('the action Harmony needs to perform, "invoke" to run once and quit'))
     parser.add_argument('--harmony-input',
                         help=('the input data for the action provided by Harmony, required for '
                               '--harmony-action=invoke'))
@@ -69,8 +67,7 @@ def setup_cli(parser):
                         help=('the optional path to the input data for the action provided by Harmony'))
     parser.add_argument('--harmony-sources',
                         help=('file path that contains a STAC catalog with items and metadata to '
-                              'be processed by the service.  Required for non-deprecated '
-                              'invocations '))
+                              'be processed by the service.  Required for --harmony-action=invoke'))
     parser.add_argument('--harmony-metadata-dir',
                         help=('file path where output metadata should be written. The resulting '
                               'STAC catalog will be written to catalog.json in the supplied dir '
@@ -81,8 +78,6 @@ def setup_cli(parser):
     parser.add_argument('--harmony-data-location',
                         help=('the location where output data should be written, either a directory '
                               'or S3 URI prefix.  If set, overrides any value set by the message'))
-    parser.add_argument('--harmony-queue-url',
-                        help='the queue URL to listen on, required for --harmony-action=start')
     parser.add_argument('--harmony-visibility-timeout',
                         type=int,
                         default=600,
@@ -217,47 +212,6 @@ def _invoke(adapter, metadata_dir):
         raise
 
 
-def _start(AdapterClass, queue_url, visibility_timeout_s, config):
-    """
-    Handles --harmony-action=start by listening to the given queue_url and invoking the
-    AdapterClass on any received messages
-
-    Parameters
-    ----------
-    AdapterClass : class
-        The BaseHarmonyAdapter subclass to use to handle service invocations
-    queue_url : string
-        The SQS queue to listen on
-    visibility_timeout_s : int
-        The time interval during which the message can't be picked up by other
-        listeners on the queue.
-    config : harmony_service_lib.util.Config
-        A configuration instance for this service
-    """
-    for receipt, message in receive_messages(queue_url, visibility_timeout_s, cfg=config):
-        # Behavior here is slightly different than _invoke.  Whereas _invoke ensures
-        # that the backend receives a callback whenever possible in the case of an
-        # exception, the message queue listener prefers to let the message become
-        # visibile again and let retry and dead letter queue policies determine visibility
-        adapter = AdapterClass(Message(message))
-        adapter.set_config(config)
-
-        try:
-            adapter.invoke()
-        except Exception:
-            logging.error('Adapter threw an exception', exc_info=True)
-        finally:
-            if adapter.is_complete:
-                delete_message(queue_url, receipt, cfg=config)
-            else:
-                change_message_visibility(queue_url, receipt, 0, cfg=config)
-            try:
-                adapter.cleanup()
-            except Exception:
-                logging.error(
-                    'Adapter threw an exception on cleanup', exc_info=True)
-
-
 def run_cli(parser, args, AdapterClass, cfg=None):
     """
     Runs the Harmony CLI invocation captured by the given args
@@ -320,9 +274,3 @@ def run_cli(parser, args, AdapterClass, cfg=None):
                 }
                 duration_logger.info(f'timing.{cfg.app_name}.end', extra=extra_fields)
 
-    if args.harmony_action == 'start':
-        if not bool(args.harmony_queue_url):
-            parser.error(
-                '--harmony-queue-url must be provided for --harmony-action=start')
-        else:
-            return _start(AdapterClass, args.harmony_queue_url, args.harmony_visibility_timeout, cfg)

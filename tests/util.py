@@ -1,43 +1,9 @@
 import argparse
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from contextlib import contextmanager
 
 from harmony_service_lib import cli, util
-
-
-def mock_receive(cfg, client, parser, AdapterClass, *messages):
-    """
-    Mocks an sqs receive call
-    """
-    sqs = MagicMock()
-    side_effects = []
-
-    for i, message in enumerate(messages):
-        contents = []
-        if message:
-            contents.append({'Body': message, 'ReceiptHandle': i})
-        # this allows us to test what happens when receiving a message from the queue fails
-        if isinstance(message, Exception):
-            side_effects = message
-            break
-        else:
-            side_effects.append({'Messages': contents})
-
-    print(side_effects)
-    sqs.receive_message.side_effect = side_effects
-    client.return_value = sqs
-    args = parser.parse_args()
-    try:
-        cli.run_cli(parser, args, AdapterClass, cfg=cfg)
-    except RuntimeError as e:
-        if str(e) == 'generator raised StopIteration':
-            # Expection.  Happens every call when messages are exhausted, allowing us to stop iterating.
-            pass
-        else:
-            raise
-    return sqs
-
 
 def cli_test(*cli_args):
     """
@@ -102,7 +68,6 @@ def config_fixture(fallback_authn_enabled=False,
         backend_host=c.backend_host,
         localstack_host=c.localstack_host,
         aws_default_region=c.aws_default_region,
-        health_check_path=c.health_check_path,
         shared_secret_key=c.shared_secret_key,
         # Override if provided, else default
         user_agent=c.user_agent if user_agent is None else user_agent

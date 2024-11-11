@@ -1,6 +1,5 @@
 """
-This module includes various AWS-specific functions to stage data in S3 and deal with
-messages in SQS queues.
+This module includes various AWS-specific functions to stage data in S3.
 
 This module relies on the harmony_service_lib.util.config and its environment variables to be
 set for correct operation. See that module and the project README for details.
@@ -76,7 +75,7 @@ def _get_aws_client(config, service, user_agent=None):
     config : harmony_service_lib.util.Config
         The configuration for the current runtime environment.
     service : string
-        The AWS service name for which to construct a client, e.g. "s3" or "sqs"
+        The AWS service name for which to construct a client, e.g. "s3"
     user_agent : string
         The user agent that is requesting the aws service.
         E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
@@ -163,84 +162,3 @@ def stage(config, local_filename, remote_filename, mime, logger, location=None):
 
     return 's3://%s/%s' % (staging_bucket, key)
 
-
-def receive_messages(config, queue_url, visibility_timeout_s, logger):
-    """
-    Generates successive messages from reading the queue.  The caller
-    is responsible for deleting or returning each message to the queue
-
-    Parameters
-    ----------
-    config : harmony_service_lib.util.Config
-        The configuration for the current runtime environment.
-    queue_url : string
-        The URL of the queue to receive messages on
-    visibility_timeout_s : int
-        The number of seconds to wait for a received message to be deleted
-        before it is returned to the queue
-
-    Yields
-    ------
-    receiptHandle, body : string, string
-        A tuple of the receipt handle, used to delete or update messages,
-        and the contents of the message
-    """
-    if visibility_timeout_s is None:
-        visibility_timeout_s = 600
-
-    sqs = _get_aws_client(config, 'sqs')
-    logger.info('Listening on %s' % (queue_url,))
-    while True:
-        receive_params = dict(
-            QueueUrl=queue_url,
-            VisibilityTimeout=visibility_timeout_s,
-            WaitTimeSeconds=20,
-            MaxNumberOfMessages=1
-        )
-        response = sqs.receive_message(**receive_params)
-        messages = response.get('Messages') or []
-        if len(messages) == 1:
-            yield (messages[0]['ReceiptHandle'], messages[0]['Body'])
-        else:
-            logger.info('No messages received.  Retrying.')
-
-
-def delete_message(config, queue_url, receipt_handle):
-    """
-    Deletes the message with the given receipt handle from the provided queue URL,
-    indicating successful processing
-
-    Parameters
-    ----------
-    config : harmony_service_lib.util.Config
-        The configuration for the current runtime environment.
-    queue_url : string
-        The queue from which the message originated
-    receipt_handle : string
-        The receipt handle of the message, as yielded by `receive_messages`
-    """
-    sqs = _get_aws_client(config, 'sqs')
-    sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
-
-
-def change_message_visibility(config, queue_url, receipt_handle, visibility_timeout_s):
-    """
-    Updates the message visibility timeout of the message with the given receipt handle
-
-    Parameters
-    ----------
-    config : harmony_service_lib.util.Config
-        The configuration for the current runtime environment.
-    queue_url : string
-        The queue from which the message originated
-    receipt_handle : string
-        The receipt handle of the message, as yielded by `receive_messages`
-    visibility_timeout_s : int
-        The number of additional seconds to wait for a received message to be deleted
-        before it is returned to the queue
-    """
-    sqs = _get_aws_client(config, 'sqs')
-    sqs.change_message_visibility(
-        QueueUrl=queue_url,
-        ReceiptHandle=receipt_handle,
-        VisibilityTimeout=visibility_timeout_s)
