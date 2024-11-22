@@ -124,6 +124,24 @@ class TestDownload(unittest.TestCase):
         post.assert_called_with('https://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)', 'Content-Type': 'application/x-www-form-urlencoded'}, data = { 'foo': 'bar' }, timeout=60, stream=True)
 
 
+    @patch('harmony_service_lib.util.get_version')
+    @patch.object(Session, 'post')
+    def test_http_download_with_long_url_get_becomes_post(self, post, get_version):
+        request_context['request_id'] = 'abc123'
+        app_name = 'gdal-subsetter'
+        fake_lib_version = '0.1.0'
+        get_version.return_value = fake_lib_version
+        # set post_url_length to 300 and download with url longer than 300, the download will be done with POST
+        cfg = config_fixture(app_name=app_name,post_url_length=300)
+        with patch('builtins.open', mock_open()):
+            util.download('https://opendap.uat.earthdata.nasa.gov/collections/C1245618475-EEDTEST/granules/GPM_3IMERGHH.06:3B-HHR.MS.MRG.3IMERG.20200118-S233000-E235959.1410.V06B.HDF5.dap.nc4?dap4.ce=%2FGrid%2Ftime%3B%2FGrid%2Flon%3B%2FGrid%2Flat_bnds%3B%2FGrid%2Ftime_bnds%3B%2FGrid%2Flon_bnds%3B%2FGrid%2Flat',
+            'tmp',
+            access_token='',
+            cfg=cfg)
+        post.assert_called_with('https://opendap.uat.earthdata.nasa.gov/collections/C1245618475-EEDTEST/granules/GPM_3IMERGHH.06:3B-HHR.MS.MRG.3IMERG.20200118-S233000-E235959.1410.V06B.HDF5.dap.nc4',
+        headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)', 'Content-Type': 'application/x-www-form-urlencoded'}, data = 'dap4.ce=%2FGrid%2Ftime%3B%2FGrid%2Flon%3B%2FGrid%2Flat_bnds%3B%2FGrid%2Ftime_bnds%3B%2FGrid%2Flon_bnds%3B%2FGrid%2Flat&A-api-request-uuid=abc123', timeout=60, stream=True)
+
+
 class TestStage(unittest.TestCase):
     def setUp(self):
         self.config = util.config(validate=False)
