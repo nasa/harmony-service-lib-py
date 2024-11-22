@@ -217,12 +217,18 @@ def _download(
     tries = 0
     retry = True
     response = None
+    download_url = None
     while retry is True:
         retry = False
         tries += 1
         try:
             session = _earthdata_session()
             session.auth = auth
+            if data is None and len(url) > config.post_url_length:
+                parsed_url = urlparse(url)
+                data = parsed_url.query
+                download_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
+
             if data is None:
                 response = session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
                 if response.ok:
@@ -234,7 +240,12 @@ def _download(
                 # Including this header since the stdlib does by default,
                 # but we've switched to `requests` which does not.
                 headers['Content-Type'] = 'application/x-www-form-urlencoded'
-                response = session.post(url, headers=headers, data=data, timeout=TIMEOUT, **kwargs_download_agent)
+                response = session.post(
+                    download_url if download_url is not None else url,
+                    headers=headers,
+                    data=data,
+                    timeout=TIMEOUT,
+                    **kwargs_download_agent)
                 if response.ok:
                     return response
                 else:

@@ -45,7 +45,8 @@ def config_fixture(fallback_authn_enabled=False,
                    user_agent=None,
                    app_name=None,
                    text_logger=False,
-                   max_download_retries=5):
+                   max_download_retries=5,
+                   post_url_length=2000):
     c = util.config(validate=False)
     return util.Config(
         # Override
@@ -59,6 +60,7 @@ def config_fixture(fallback_authn_enabled=False,
         app_name=app_name,
         text_logger=text_logger,
         max_download_retries=max_download_retries,
+        post_url_length=post_url_length,
         # Default
         env=c.env,
         oauth_host=c.oauth_host,
