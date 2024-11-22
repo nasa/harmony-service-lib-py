@@ -90,6 +90,7 @@ OPTIONAL:
        log messages to use a text string format. By default log
        messages will be formatted as JSON.
 * `MAX_DOWNLOAD_RETRIES`: Number of times to retry HTTP download calls that fail due to transient errors.
+* `POST_URL_LENGTH`: Minimum url length that will be submitted via POST request.
 
 OPTIONAL -- Use with CAUTION:
 

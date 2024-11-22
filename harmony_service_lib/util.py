@@ -46,6 +46,7 @@ Optional:
     ENV:                  The application environment. One of: dev, test. Used for local development.
     TEXT_LOGGER:          Whether to log in plaintext or JSON. Default: True (plaintext).
     MAX_DOWNLOAD_RETRIES: Number of times to retry HTTP download calls that fail due to transient errors.
+    POST_URL_LENGTH:      Minimum url length that will be submitted via POST request.
 """
 
 from base64 import b64decode
@@ -96,7 +97,8 @@ Config = namedtuple(
         'text_logger',
         'shared_secret_key',
         'user_agent',
-        'max_download_retries'
+        'max_download_retries',
+        'post_url_length'
     ])
 
 
@@ -192,7 +194,8 @@ def config(validate=True):
         text_logger=bool_envvar('TEXT_LOGGER', False),
         shared_secret_key=str_envvar('SHARED_SECRET_KEY', DEFAULT_SHARED_SECRET_KEY),
         user_agent=str_envvar('USER_AGENT', 'harmony (unknown version)'),
-        max_download_retries=int_envvar('MAX_DOWNLOAD_RETRIES', 0)
+        max_download_retries=int_envvar('MAX_DOWNLOAD_RETRIES', 0),
+        post_url_length=int_envvar('POST_URL_LENGTH', 2000)
     )
 
     if validate:
