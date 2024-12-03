@@ -17,23 +17,8 @@ Required when staging to S3 and not using the Harmony-provided stagingLocation p
     STAGING_BUCKET: The bucket where staged files should be placed
     STAGING_PATH: The base path under which staged files should be placed
 
-Required when using HTTPS, allowing Earthdata Login auth:
-    OAUTH_HOST:         The Earthdata Login (EDL) environment to connect to
-    OAUTH_CLIENT_ID:    The EDL application client id used to acquire an EDL shared access token
-    OAUTH_UID:          The EDL application UID used to acquire an EDL shared access token
-    OAUTH_PASSWORD:     The EDL application password used to acquire an EDL shared access token
-    OAUTH_REDIRECT_URI: A valid redirect URI for the EDL application (NOTE: the redirect URI is
-                        not followed or used; it does need to be in the app's redirect URI list)
-
 Always provided by newer versions of the Harmony frontend:
     USER_AGENT:     The Harmony user agent string. E.g. harmony/0.0.0 (harmony-sit)
-
-Optional, if support is needed for downloading data from an endpoint that is not
-EDL-share-token aware:
-
-    FALLBACK_AUTHN_ENABLED: Whether to try downloading with the EDL_* credentials.
-    EDL_USERNAME:           An valid EDL user entity username.
-    EDL_PASSWORD:           The password belonging to EDL_USERNAME.
 
 Optional when reading from or staging to S3:
     USE_LOCALSTACK:  'true' if the S3 client should connect to a LocalStack instance instead of
@@ -79,14 +64,6 @@ DEFAULT_SHARED_SECRET_KEY = '_THIS_IS_MY_32_CHARS_SECRET_KEY_'
 Config = namedtuple(
     'Config', [
         'app_name',
-        'oauth_host',
-        'oauth_client_id',
-        'oauth_uid',
-        'oauth_password',
-        'oauth_redirect_uri',
-        'fallback_authn_enabled',
-        'edl_username',
-        'edl_password',
         'use_localstack',
         'backend_host',
         'localstack_host',
@@ -108,22 +85,12 @@ def _validated_config(config):
     """
     required = [
         'shared_secret_key',
-        'oauth_client_id',
-        'oauth_uid',
-        'oauth_password',
-        'oauth_redirect_uri',
         'staging_path',
         'staging_bucket',
         'max_download_retries'
     ]
 
     unset = [var.upper() for var in required if getattr(config, var) is None]
-
-    # Conditionally required
-    if config.fallback_authn_enabled and getattr(config, 'edl_username') is None:
-        unset.append("EDL_USERNAME")
-    if config.fallback_authn_enabled and getattr(config, 'edl_password') is None:
-        unset.append("EDL_PASSWORD")
 
     if len(unset) > 0:
         msg = f"Required environment variables are not set: {', '.join(unset)}"
@@ -168,22 +135,11 @@ def config(validate=True):
         value = environ.get(name)
         return int(value) if value is not None else default
 
-    oauth_redirect_uri = str_envvar('OAUTH_REDIRECT_URI', None)
-    if oauth_redirect_uri is not None:
-        oauth_redirect_uri = parse.quote(oauth_redirect_uri)
     backend_host = str_envvar('BACKEND_HOST', 'localhost')
     localstack_host = str_envvar('LOCALSTACK_HOST', backend_host)
 
     config = Config(
         app_name=str_envvar('APP_NAME', sys.argv[0]),
-        oauth_host=str_envvar('OAUTH_HOST', 'https://uat.urs.earthdata.nasa.gov'),
-        oauth_client_id=str_envvar('OAUTH_CLIENT_ID', None),
-        oauth_uid=str_envvar('OAUTH_UID', None),
-        oauth_password=str_envvar('OAUTH_PASSWORD', None),
-        oauth_redirect_uri=oauth_redirect_uri,
-        fallback_authn_enabled=bool_envvar('FALLBACK_AUTHN_ENABLED', False),
-        edl_username=str_envvar('EDL_USERNAME', None),
-        edl_password=str_envvar('EDL_PASSWORD', None),
         use_localstack=bool_envvar('USE_LOCALSTACK', False),
         backend_host=backend_host,
         localstack_host=localstack_host,
