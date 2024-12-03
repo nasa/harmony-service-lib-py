@@ -55,21 +55,6 @@ REQUIRED:
        `STAGING_BUCKET` under which data will be staged
 * `ENV`: The name of the environment.  If 'dev' or 'test', callbacks to Harmony are
        not made and data is not staged unless also using localstack
-* `OAUTH_UID`, `OAUTH_PASSWORD`: Used to acquire a shared EDL token
-       needed for downloading granules from EDL token-aware data
-       sources. Services using data in S3 do not need to set this.
-
-       NOTE: If `FALLBACK_AUTHN_ENABLED` is set to True (CAUTION!)
-       these credentials will be used to download data *as* the EDL
-       application user. This may cause problems with metrics and can
-       result in users getting data for which they've not approved a
-       EULA.
-* `OAUTH_CLIENT_ID`: The Earthdata application client ID.
-* `OAUTH_HOST`: Set to the correct Earthdata Login URL, depending on
-       where the service is being deployed. This should be the same
-       environment where the `OAUTH_*` credentials are valid. Defaults
-       to UAT.
-* `OAUTH_REDIRECT_URI`: A valid redirect URI for the EDL application.
 * `SHARED_SECRET_KEY`: The 32-byte encryption key shared between Harmony and backend services.
        This is used to encrypt & decrypt the `accessToken` in the Harmony operation message.
        In a production environment, this should be injected into the container running the service
@@ -91,13 +76,6 @@ OPTIONAL:
        messages will be formatted as JSON.
 * `MAX_DOWNLOAD_RETRIES`: Number of times to retry HTTP download calls that fail due to transient errors.
 * `POST_URL_LENGTH`: Minimum url length that will be submitted via POST request.
-
-OPTIONAL -- Use with CAUTION:
-
-* `FALLBACK_AUTHN_ENABLED`: Default: False. Enable the fallback authentication that
-  uses the EDL application credentials. See CAUTION note above.
-* `EDL_USERNAME`: The Earthdata Login username used for fallback authn.
-* `EDL_PASSWORD`: The Earthdata Login password used for fallback authn.
 
 ## Development Setup
 
