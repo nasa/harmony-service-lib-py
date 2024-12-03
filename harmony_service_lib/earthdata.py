@@ -1,5 +1,7 @@
 from requests.auth import AuthBase
 from requests import Session
+
+
 class EarthdataSession(Session):
     """Session which ensures the Authorization header is sent to correct
     servers.

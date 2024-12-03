@@ -17,9 +17,6 @@ import datetime
 import sys
 import os
 import re
-
-import requests
-
 from harmony_service_lib.earthdata import EarthdataAuth, EarthdataSession
 from harmony_service_lib.exceptions import ServerException, ForbiddenException
 from harmony_service_lib.logging import build_logger
@@ -269,7 +266,6 @@ def _download(
             else:
                 logger.error(f'All retries exhaused for downloading {url}')
                 return response
-
 
 
 def _log_download_performance(logger, url, duration_ms, file_size):
