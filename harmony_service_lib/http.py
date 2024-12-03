@@ -3,8 +3,7 @@ Utility functions to download data from backend data sources so it can be operat
 locally.
 
 When downloading from an EDL-token aware data source, this module uses EDL shared /
-federated token authentication. It includes an optional fallback authentication that
-uses an EDL user to download data when the feature is enabled.
+federated token authentication.
 
 This module relies on the harmony_service_lib.util.config and its environment variables to be
 set for correct operation. See that module and the project README for details.
@@ -178,8 +177,7 @@ def _download(
     """Implements the download functionality.
 
     Using the EarthdataSession and EarthdataAuth extensions to the
-    `requests` module, this function will download the given url and
-    perform any necessary Earthdata Login OAuth handshakes.
+    `requests` module, this function will download the given url.
 
     Parameters
     ----------
@@ -213,7 +211,7 @@ def _download(
     headers = {}
     if user_agent is not None:
         headers['user-agent'] = user_agent
-    auth = EarthdataAuth(config.oauth_uid, config.oauth_password, access_token)
+    auth = EarthdataAuth(access_token)
     tries = 0
     retry = True
     response = None
@@ -273,51 +271,6 @@ def _download(
                 return response
 
 
-def _download_with_fallback_authn(config, url: str, data, user_agent=None, **kwargs_download_agent):
-    """Downloads the given url using Basic authentication as a fallback
-    mechanism should the normal EDL Oauth handshake fail.
-
-    This function requires the `edl_username` and `edl_password`
-    attributes in the config object to be populated with valid
-    credentials.
-
-    Parameters
-    ----------
-    config : harmony_service_lib.util.Config
-        The configuration for the current runtime environment.
-    url : str
-        The url for the resource to download
-    data : dict or Tuple[str, str]
-        Optional parameter for additional data to send to the server
-        when making an HTTP POST request. These data will be URL
-        encoded to a query string containing a series of `key=value`
-        pairs, separated by ampersands. If None (the default), the
-        request will be sent with an HTTP GET request.
-    total_retries: int
-        Upper limit on the number of times to retry the request
-    user_agent : str
-        The user agent that is requesting the download.
-        E.g. harmony/0.0.0 (harmony-sit) harmony-service-lib/4.0 (gdal-subsetter)
-    kwargs_download_agent: dict
-        kwargs to be passed to the download agent
-        E.g. stream=True
-
-    Returns
-    -------
-    requests.Response with the download result
-
-    """
-    headers = {}
-    if user_agent is not None:
-        headers['user-agent'] = user_agent
-    auth = requests.auth.HTTPBasicAuth(config.edl_username, config.edl_password)
-    session = requests.Session()
-    session.auth = auth
-    if data is None:
-        return session.get(url, headers=headers, timeout=TIMEOUT, **kwargs_download_agent)
-    else:
-        return session.post(url, headers=headers, data=data, timeout=TIMEOUT)
-
 
 def _log_download_performance(logger, url, duration_ms, file_size):
     """Logs a message tracking performance information related to a file download.
@@ -364,8 +317,6 @@ def download(config, url: str, access_token: str, data, destination_file,
        b. Application credentials
     4. Error response when downloading
     5. Data requires EULA acceptance by user
-    6. If fallback authentication enabled, the application credentials are
-       invalid, or do not have permission to download the data.
 
     Parameters
     ----------
@@ -421,14 +372,6 @@ def download(config, url: str, access_token: str, data, destination_file,
         response = _download(
             config, url, access_token, data, config.max_download_retries, logger, user_agent, stream=stream
         )
-
-    if response is None or not response.ok:
-        if config.fallback_authn_enabled:
-            msg = ('No valid user access token in request or EDL OAuth authentication failed.'
-                   'Fallback authentication enabled: retrying with Basic auth.')
-            logger.warning(msg)
-            response = _download_with_fallback_authn(
-                config, url, data, user_agent, stream=stream)
 
     if response.ok:
         if not stream:
