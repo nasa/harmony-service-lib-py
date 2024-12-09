@@ -1,5 +1,13 @@
+from urllib.parse import urlparse, parse_qs
 from requests.auth import AuthBase
 from requests import Session
+
+
+def _is_presigned_url(url: str) -> bool:
+    """Check if the URL is an AWS presigned URL. For AWS presigned URLs we do not
+    want to pass in an authorization header."""
+    query_params = parse_qs(urlparse(url).query)
+    return "X-Amz-Algorithm" in query_params or "Signature" in query_params
 
 
 class EarthdataSession(Session):
@@ -15,8 +23,7 @@ class EarthdataSession(Session):
     redirect requests.
     """
     def rebuild_auth(self, prepared_request, response):
-        # If not configured with an EarthdataAuth instance, defer to
-        # default behavior
+        # If not configured with an EarthdataAuth instance, defer to default behavior
         if not self.auth:
             return super().rebuild_auth(prepared_request, response)
 
@@ -24,30 +31,16 @@ class EarthdataSession(Session):
 
 
 class EarthdataAuth(AuthBase):
-    """Custom Earthdata Auth provider to add EDL Authorization headers to
-    requests when required for token sharing and federated
-    authentication.
+    """Custom Earthdata Auth provider to add EDL Authorization headers."""
 
-    When instantiated with an EDL application's credentials and a
-    user's access token, the resulting HTTP Authorization header will
-    include the properly-encoded app credentials as a Basic auth
-    header, and the user's access token as a Bearer auth header.
-
-    """
     def __init__(self, user_access_token: str):
-        """Instantiate the Earthdata Auth provider.
-
-        Parameters
-        ----------
-        user_access_token:
-            The EDL-issued token for the user making the request.
-        """
-        self.authorization_header = f'Bearer {user_access_token}'
+        self.authorization_header = f"Bearer {user_access_token}"
 
     def __call__(self, r):
-        """The EarthdataAuth is a callable which adds Authorization headers
-        when handling a request for sites backed by Earthdata Login.
+        """Add Authorization headers unless the request is to an AWS presigned URL."""
+        if _is_presigned_url(r.url):
+            r.headers.pop('Authorization', None)
+        else:
+            r.headers["Authorization"] = self.authorization_header
 
-        """
-        r.headers['Authorization'] = self.authorization_header
         return r
