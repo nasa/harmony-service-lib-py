@@ -31,12 +31,26 @@ def test_authdata_auth_creates_correct_header(faker):
     assert token in request.headers['Authorization']
 
 
-def test_earthdata_auth_given_edl_url_adds_auth_header(earthdata_auth):
+def test_earthdata_auth_adds_auth_header_(earthdata_auth):
     request = FakeRequest()
 
     earthdata_auth(request)
 
     assert 'Authorization' in request.headers
+
+def test_earthdata_auth_removes_auth_header_when_X_Amz_Algorithm_is_set(earthdata_auth):
+    request = FakeRequest(url='https://presigned.s3.url.com?X-Amz-Algorithm=foo')
+
+    earthdata_auth(request)
+
+    assert 'Authorization' not in request.headers
+
+def test_earthdata_auth_removes_auth_header_when_signature_is_set(earthdata_auth):
+    request = FakeRequest(url='https://presigned.s3.url.com?Signature=bar')
+
+    earthdata_auth(request)
+
+    assert 'Authorization' not in request.headers
 
 def test_earthdata_session_given_no_auth_delegates_to_super(monkeypatch):
     called = False
