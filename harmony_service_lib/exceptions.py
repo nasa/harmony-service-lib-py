@@ -7,11 +7,14 @@ class HarmonyException(Exception):
         Explanation of the error
     category : string
         Classification of the type of harmony error
+    level : string
+        The level of the error, can be 'Error' or 'Warning'.
     """
 
-    def __init__(self, message, category='Service'):
+    def __init__(self, message, category='Service', level='Error'):
         self.message = message
         self.category = category
+        self.level = level
 
 
 class CanceledException(HarmonyException):
@@ -33,3 +36,9 @@ class ServerException(HarmonyException):
 
     def __init__(self, message=None):
         super().__init__(message, 'Server')
+
+class NoDataException(HarmonyException):
+    """Class for throwing an exception indicating service found no data to process """
+
+    def __init__(self, message=None):
+        super().__init__(message, 'NoData', 'Warning')

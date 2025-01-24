@@ -106,7 +106,7 @@ def is_harmony_cli(args):
     return args.harmony_action is not None
 
 
-def _write_error(metadata_dir, message, category='Unknown'):
+def _write_error(metadata_dir, message, category='Unknown', level='Error'):
     """
     Writes the given error message to error.json in the provided metadata dir
 
@@ -118,8 +118,10 @@ def _write_error(metadata_dir, message, category='Unknown'):
         The error message to write
     category : string
         The error category to write
+    level : string
+        The error level to write, can be 'Error' or 'Warning'. Default to 'Error'
     """
-    error_data = {'error': message, 'category': category}
+    error_data = {'error': message, 'category': category, 'level': level}
     if is_s3(metadata_dir):
         json_str = json.dumps(error_data)
         write_s3(f'{metadata_dir}error.json', json_str)
@@ -204,7 +206,7 @@ def _invoke(adapter, metadata_dir):
                 json.dump(out_message.output_data, file)
     except HarmonyException as err:
         logging.error(err, exc_info=1)
-        _write_error(metadata_dir, err.message, err.category)
+        _write_error(metadata_dir, err.message, err.category, err.level)
         raise
     except BaseException as err:
         logging.error(err, exc_info=1)
