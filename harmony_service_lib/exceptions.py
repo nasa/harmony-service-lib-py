@@ -41,5 +41,5 @@ class ServerException(HarmonyException):
 class NoDataException(HarmonyException):
     """Class for throwing an exception indicating service found no data to process """
 
-    def __init__(self, message=None):
+    def __init__(self, message='No data found to process'):
         super().__init__(message, 'NoData', 'Warning')
