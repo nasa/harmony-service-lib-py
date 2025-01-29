@@ -369,7 +369,7 @@ def download(config, url: str, access_token: str, data, destination_file,
             config, url, access_token, data, config.max_download_retries, logger, user_agent, stream=stream
         )
 
-    if response.ok:
+    if response is not None and response.ok:
         if not stream:
             destination_file.write(response.content)
             file_size = sys.getsizeof(response.content)
