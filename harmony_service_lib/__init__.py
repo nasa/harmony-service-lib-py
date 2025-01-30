@@ -7,7 +7,7 @@ Convenience exports for the Harmony library
 """
 
 # Automatically updated by `make build`
-__version__ = "2.4.0"
+__version__ = "2.5.0"
 
 from .adapter import BaseHarmonyAdapter
 from .cli import setup_cli, is_harmony_cli, run_cli
