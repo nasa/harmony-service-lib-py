@@ -38,8 +38,6 @@ The adapter also provides utilities for retrieving remote data, staging output, 
 
 ## Examples and Guidance
 
-For a complete guide on service development, including Harmony configuration and library integration, see [Adapting New Services](https://github.com/nasa/harmony/blob/main/docs/guides/adapting-new-services.md).
-
 ### Simple Service Example
 See the [example service](example/example_service.py) for a demonstration of how to:
 - Receive Harmony CLI command-line calls.
