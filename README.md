@@ -1,6 +1,140 @@
 # harmony-service-lib
 
-A library for Python-based Harmony services to parse incoming messages, fetch data, stage data, and call back to Harmony
+The `harmony-service-lib` project is a Python library designed to simplify the development of Harmony services. It provides essential tools for parsing incoming messages, fetching and staging data, and interacting seamlessly with Harmony's backend APIs. By using this library, developers can streamline their integration with Harmony while ensuring compatibility with future upgrades.
+
+This library is particularly beneficial for developers building or maintaining Python-based Harmony services, enabling efficient interoperability and reducing the complexity of common tasks.
+
+## Where It Fits In
+
+Each Harmony service runs as a Docker container within a Kubernetes pod. Harmony processes user requests and, based on service configurations, determines which service to invoke via the Harmony Service CLI. The Harmony Service CLI defines both the input and output as STAC catalogs. Harmony executes the service in Kubernetes through a command-line call to the service pod entrypoint with the following parameters:
+
+```sh
+--harmony-action <action> \
+--harmony-input <input> \
+--harmony-sources <sources-file> \
+--harmony-metadata-dir <output-dir>
+```
+
+- `<action>`: Specifies the action Harmony wants the service to perform. Currently, the only supported action is `invoke`, which runs the service and exits.
+- `<input>`: A JSON string containing the details of the service operation. Refer to the latest [Harmony data-operation schema](https://github.com/nasa/harmony/tree/main/services/harmony/app/schemas/data-operation) for format details.
+- `<sources-file>`: A file path pointing to a STAC catalog with items and metadata for processing. This allows Harmony to manage large input lists without exceeding command-line limits.
+- `<output-dir>`: The directory where the service should write its output metadata. The resulting STAC catalog will be saved as `catalog.json` in this directory.
+
+This library provides essential functions for parsing command-line parameters, processing source STAC catalogs, generating result STAC catalogs, managing logs, and more.
+
+## Key Features
+
+### Message Handling
+- Supports receiving and processing Harmony messages via CLI (future HTTP support planned).
+- Includes helper functions in `harmony_service_lib.cli` for seamless CLI parsing alongside non-Harmony CLI implementations.
+
+### Adapter-Based Service Development
+Developers can create Harmony-compatible services by extending the `harmony_service_lib.BaseHarmonyAdapter` class. There are two primary ways to do this:
+
+- **Override `invoke`**: Process complete messages and generate results.
+- **Override `process_item`**: Handle individual STAC items from input catalogs.
+
+The adapter also provides utilities for retrieving remote data, staging output, STAC catalog manipulation, and managing temporary files, which can be customized as needed.
+
+## Examples and Guidance
+
+For a complete guide on service development, including Harmony configuration and library integration, see [Adapting New Services](https://github.com/nasa/harmony/blob/main/docs/guides/adapting-new-services.md).
+
+### Simple Service Example
+See the [example service](example/example_service.py) for a demonstration of how to:
+- Receive Harmony CLI command-line calls.
+- Process input STAC items.
+- Generate an output STAC catalog.
+- Utilize library functions for message parsing, data handling, STAC manipulation, logging, and error handling.
+
+This approach requires only a minimal override of `process_item` in `BaseHarmonyAdapter`, allowing developers to focus on business logic while leveraging built-in functionalities.
+
+### Aggregation Example
+For services that aggregate multiple inputs into a single output, see [Concise Service](https://github.com/podaac/concise). This example overrides `invoke` to:
+- Download granules specified in the source STAC catalog.
+- Merge them into a single output.
+- Customize error handling.
+
+### Multi-Output Example
+For services that generate multiple outputs from a single input, see [Batchee Service](https://github.com/nasa/batchee). Like Concise Service, this example overrides `invoke`, but instead of merging granules, it:
+- Downloads granules specified in the source STAC catalog.
+- Processes and Returns the result as a list of STAC catalogs.
+
+## Error handling
+
+The best way to trigger a service failure when an unrecoverable condition is encountered is to extend HarmonyException (a class provided by the service library) and throw an exception of that type. The service library may also throw a HarmonyException when common errors are encountered.
+
+Exceptions of this type (HarmonyException or a subclass) which are meant to be bubbled up to users should _not_ be suppressed by the service. The exception will automatically be caught/handled by the service library. The exception message will be passed on to Harmony and bubbled up to the end user (accessible via the errors field in the job status Harmony endpoint (`/jobs/<job-id>`) and in many cases via the final job message).
+
+Services can fail for other unforeseen reasons, like running out of memory, in which case Harmony will make an effort to provide a standardized error message. Just because a service invocation results in failure does not mean that the entire job itself will fail. Other factors that come into play are retries and cases where a job completes with errors (partial success). Retries happen automatically (up to a Harmony-wide configured limit) on failed data downloads and service failures.
+
+### HarmonyException Levels
+HarmonyExceptions are categorized into two levels: `Error` and `Warning`. The default level is `Error`.
+
+- `Error` exceptions appear in the job status under `errors`.
+- `Warning` exceptions appear in the job status under `warnings`.
+
+### Built-in Harmony Exceptions
+harmony_service_lib provides the following custom exceptions:
+
+- **CanceledException**: Raised when a Harmony request is canceled.
+- **ForbiddenException**: Raised when access to the requested data is denied (e.g., download failure due to permission issues).
+- **ServerException**: Raised for generic 500 internal server errors (e.g., a download failure due to a server issue).
+- **NoDataException**: Raised when the service finds no data to process (e.g., no data found by the service in the subset region). This is classified as a `Warning` exception.
+
+### Customized Service Exceptions
+When possible, services should strive to give informative error messages that give the end user some sense of why the service failed, without revealing any internal details about the service that could be exploited.
+
+Here is a good example:
+```python
+"""This module contains custom exceptions specific to the Harmony GDAL Adapter
+    service. These exceptions are intended to allow for clearer messages to the
+    end-user and easier debugging of expected errors that arise during an
+    invocation of the service.
+"""
+
+from harmony.exceptions import HarmonyException
+
+class HGAException(HarmonyException):
+    """Base class for exceptions in the Harmony GDAL Adapter."""
+
+    def __init__(self, message):
+        super().__init__(message, 'nasa/harmony-gdal-adapter')
+
+
+class DownloadError(HGAException):
+    """ This exception is raised when the Harmony GDAL Adapter cannot retrieve
+        input data.
+    """
+    def __init__(self, url, message):
+        super().__init__(f'Could not download resource: {url}, {message}')
+
+
+class UnknownFileFormatError(HGAException):
+    """ This is raised when the input file format is one that cannot by
+        processed by the Harmony GDAL Adapter.
+    """
+    def __init__(self, file_format):
+        super().__init__('Cannot process unrecognised file format: '
+                         f'"{file_format}"')
+
+
+class IncompatibleVariablesError(HGAException):
+    """ This exception is raised when the dataset variables requested are not
+    compatible, i.e. they have different projections, geotransforms, sizes or
+    data types.
+    """
+    def __init__(self, message):
+        super().__init__(f'Incompatible variables: {message}')
+
+
+class MultipleZippedNetCDF4FilesError(HGAException):
+    """ This exception is raised when the input file supplied to HGA is a zip
+        file containing multiple NetCDF-4 files, as these cannot be aggregated.
+    """
+    def __init__(self, zip_file):
+        super().__init__(f'Multiple NetCDF-4 files within input: {zip_file}.')
+```
 
 ## Installing
 
@@ -19,28 +153,6 @@ The package is installable from source via
 If using a local source tree, run the following in the source root directory instead:
 
     $ pip install -e .
-
-## Usage
-
-Services that want to work with Harmony can make use of this library to ease
-interop and upgrades.  To work with Harmony, services must:
-
-1. Receive incoming messages from Harmony.  Currently the CLI is the only
-supported way to receive messages, though HTTP is likely to follow.  `harmony.cli`
-provides helpers for setting up CLI parsing while being unobtrusive to non-Harmony
-CLIs that may also need to exist.
-2. Extend `harmony.BaseHarmonyAdapter` and either override `#invoke` to process
-the message or override `#process_item` to process each individual STAC item
-provided in the input STAC catalog. The adapter class provides helper methods
-for retrieving data, staging results, and cleaning up temporary files, though
-these can be overridden or ignored if a service needs different behavior, e.g.
-if it operates on data in situ and does not want to download the remote file.
-
-A full example of these two requirements with use of helpers can be found in
-[example/example_service.py](example/example_service.py). Also see
-[adapting-new-services](https://github.com/nasa/harmony/blob/main/docs/guides/adapting-new-services.md) for in depth
-guidance on service development using this library, especially the
-[info on proper error handling](https://github.com/nasa/harmony/blob/main/docs/guides/adapting-new-services.md#5-error-handling).
 
 ## Environment
 
