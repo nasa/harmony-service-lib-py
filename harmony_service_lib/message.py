@@ -619,6 +619,8 @@ class Message(JsonObject):
         The averaging method to use
     extendDimensions: list
         A list of dimensions to extend.
+    pixelSubset : bool
+        True if pixel subset should be performed by the service.
     extraArgs: object
         A map of key (string type) and value (any type) pairs indicating the extra arguments
         that should be passed to the worker command
@@ -659,6 +661,7 @@ class Message(JsonObject):
                 'concatenate',
                 'average',
                 'extendDimensions',
+                'pixelSubset',
                 'extraArgs'
             ],
             list_properties={'sources': Source}

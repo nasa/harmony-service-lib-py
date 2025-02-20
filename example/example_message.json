@@ -1,6 +1,6 @@
 {
-  "$schema": "../../harmony/app/schemas/data-operation/0.20.0/data-operation-v0.20.0.json",
-  "version": "0.20.0",
+  "$schema": "../../harmony/app/schemas/data-operation/0.21.0/data-operation-v0.21.0.json",
+  "version": "0.21.0",
   "callback": "http://localhost/some-path",
   "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
   "user": "jdoe",
@@ -70,6 +70,7 @@
     "lat",
     "lon"
   ],
+  "pixelSubset": false,
   "extraArgs": {
     "cut": false
   }
