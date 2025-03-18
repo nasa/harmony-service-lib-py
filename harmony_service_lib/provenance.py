@@ -1,6 +1,14 @@
 """Utility functionality for generating provenance metadata."""
+from __future__ import annotations
 
-from datetime import datetime, UTC
+from datetime import datetime
+
+try:
+    # datetime.UTC added in Python 3.11
+    from datetime import UTC
+except ImportError:
+    from datetime import timezone
+    UTC = timezone.utc
 
 
 def get_updated_history_metadata(
