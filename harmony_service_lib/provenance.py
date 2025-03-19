@@ -21,6 +21,23 @@ def get_updated_history_metadata(
     This function primarily ensures the correct formatting of the history
     string, and is agnostic to the format of the input file.
 
+    Parameters
+    ----------
+        service_name : str
+            The name of the service processing a file.
+        service_version : str
+            The semantic version number of the service processing a file.
+        existing_history : str, optional
+            Any existing content from a "history" or "History" metadata
+            attribute, to which new information should be appended.
+
+    Returns
+    -------
+        str
+            Updated value for history metadata attribute. If an existing
+            history value was supplied, the new information is appended to that
+            value, and delimited by a newline.
+
     """
     new_history_line = ' '.join(
         [
