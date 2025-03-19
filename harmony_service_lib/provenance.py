@@ -16,7 +16,7 @@ def get_updated_history_metadata(
     service_version: str,
     existing_history: str | None = None,
 ) -> str:
-    """Create updated the history global attribute.
+    """Create updated history global attribute.
 
     This function primarily ensures the correct formatting of the history
     string, and is agnostic to the format of the input file.
