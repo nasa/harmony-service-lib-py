@@ -9,23 +9,43 @@ from typing import Any, List
 from harmony_service_lib.message import Message
 
 
-def has_self_consistent_grid(message: Message) -> bool:
-    """ Check the input Harmony message provides enough information to fully
-        define the target grid. At minimum the message should contain the scale
-        extents (minimum and maximum values) in the horizontal spatial
-        dimensions and one of the following two pieces of information:
+def has_self_consistent_grid(message: Message, valid_if_no_grid: bool = False) -> bool:
+    """Check the input Harmony message defines a self-consistent grid.
+
+    At minimum a self-consistent grid should define the scale extents
+    (minimum and maximum values) in the horizontal spatial dimensions and
+    one of the following two pieces of information:
 
         * Message.format.scaleSize - defining the x and y pixel size.
         * Message.format.height and Message.format.width - the number of pixels
           in the x and y dimension.
 
-        If all three pieces of information are supplied, they will be checked
-        to ensure they are consistent with one another.
+    If all three pieces of information are supplied, they will be checked to
+    ensure they are consistent with one another.
 
-        If scaleExtent and scaleSize are defined, along with only one of
-        height or width, the grid will be considered consistent if the three
-        values for scaleExtent, scaleSize and specified dimension length,
-        height or width, are consistent.
+    If scaleExtent and scaleSize are defined, along with only one of height or
+    width, the grid will be considered consistent if the three values for
+    scaleExtent, scaleSize and specified dimension length, height or width, are
+    consistent.
+
+    Parameters
+    ----------
+        message : harmony_service_lib.message.Message
+            The Harmony message object provided to a service for a request.
+        valid_if_no_grid : bool, optional
+            Optional parameter stating whether the validation check should pass
+            if the message does not contain any grid parameters. Applicable to
+            instances when only a target projection is specified in a request,
+            with the expectation that the target grid will cover the horizontal
+            spatial area of the input granule. Default value is `False`.
+
+    Returns
+    -------
+        bool
+            Value indicating if the Harmony message parameters met the criteria
+            for grid self-consistency. If there are no grid parameters, then
+            the return value is determined by `valid_if_no_grid`, which
+            defaults to `False`.
 
     """
     if (
@@ -50,7 +70,7 @@ def has_self_consistent_grid(message: Message) -> bool:
     ):
         consistent_grid = True
     else:
-        consistent_grid = False
+        consistent_grid = valid_if_no_grid
 
     return consistent_grid
 
