@@ -41,6 +41,10 @@ class TestMessageUtility(TestCase):
             test_message = Message({})
             self.assertFalse(has_self_consistent_grid(test_message))
 
+        with self.subTest('No grid params, valid_if_no_grid = True returns True'):
+            test_message = Message({})
+            self.assertTrue(has_self_consistent_grid(test_message, True))
+
         with self.subTest('All grid parameters = None returns False'):
             test_message = Message({'format': {}})
             self.assertFalse(has_self_consistent_grid(test_message))
@@ -104,6 +108,16 @@ class TestMessageUtility(TestCase):
                            'width': valid_width - 150}
             })
             self.assertFalse(has_self_consistent_grid(test_message))
+
+        with self.subTest('Inconsistent grid, valid_if_no_grid=True, returns False'):
+            test_message = Message({
+                'format': {'height': valid_height + 150,
+                           'scaleExtent': valid_scale_extents,
+                           'scaleSize': valid_scale_sizes,
+                           'width': valid_width - 150}
+            })
+            self.assertFalse(has_self_consistent_grid(test_message, True))
+
 
     def test_self_has_self_consistent_grid_missing_height_or_width(self):
         """ Ensure that the function correctly determines if the supplied
