@@ -9,7 +9,7 @@ from typing import Any, List
 from harmony_service_lib.message import Message
 
 
-def has_self_consistent_grid(message: Message, valid_if_no_grid: bool = False) -> bool:
+def has_self_consistent_grid(message: Message, allow_incomplete_grid: bool = False) -> bool:
     """Check the input Harmony message defines a self-consistent grid.
 
     At minimum a self-consistent grid should define the scale extents
@@ -29,14 +29,14 @@ def has_self_consistent_grid(message: Message, valid_if_no_grid: bool = False) -
     consistent.
 
     If no grid parameters are provided, or only one of the three are defined,
-    then the function will return the value of `valid_if_no_grid`, as there is
+    then the function will return the value of `allow_incomplete_grid`, as there is
     insufficient information to determine if the grid is self-consistent.
 
     Parameters
     ----------
         message : harmony_service_lib.message.Message
             The Harmony message object provided to a service for a request.
-        valid_if_no_grid : bool, optional
+        allow_incomplete_grid : bool, optional
             Optional parameter stating whether the validation check should pass
             if the message does not contain any grid parameters. Applicable to
             instances when only a target projection is specified in a request,
@@ -49,7 +49,7 @@ def has_self_consistent_grid(message: Message, valid_if_no_grid: bool = False) -
             Value indicating if the Harmony message parameters met the criteria
             for grid self-consistency. If there are no grid parameters, or only
             one of scaleExtents, scaleSize or height/width are provided, then
-            the return value is determined by `valid_if_no_grid`, which
+            the return value is determined by `allow_incomplete_grid`, which
             defaults to `False`.
 
     """
@@ -75,7 +75,7 @@ def has_self_consistent_grid(message: Message, valid_if_no_grid: bool = False) -
     ):
         consistent_grid = True
     else:
-        consistent_grid = valid_if_no_grid
+        consistent_grid = allow_incomplete_grid
 
     return consistent_grid
 
