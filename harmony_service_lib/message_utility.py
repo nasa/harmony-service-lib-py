@@ -28,6 +28,10 @@ def has_self_consistent_grid(message: Message, valid_if_no_grid: bool = False) -
     scaleExtent, scaleSize and specified dimension length, height or width, are
     consistent.
 
+    If no grid parameters are provided, or only one of the three are defined,
+    then the function will return the value of `valid_if_no_grid`, as there is
+    insufficient information to determine if the grid is self-consistent.
+
     Parameters
     ----------
         message : harmony_service_lib.message.Message
@@ -43,7 +47,8 @@ def has_self_consistent_grid(message: Message, valid_if_no_grid: bool = False) -
     -------
         bool
             Value indicating if the Harmony message parameters met the criteria
-            for grid self-consistency. If there are no grid parameters, then
+            for grid self-consistency. If there are no grid parameters, or only
+            one of scaleExtents, scaleSize or height/width are provided, then
             the return value is determined by `valid_if_no_grid`, which
             defaults to `False`.
 
