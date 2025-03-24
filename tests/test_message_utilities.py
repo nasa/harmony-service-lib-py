@@ -118,7 +118,6 @@ class TestMessageUtility(TestCase):
             })
             self.assertFalse(has_self_consistent_grid(test_message, True))
 
-
     def test_self_has_self_consistent_grid_missing_height_or_width(self):
         """ Ensure that the function correctly determines if the supplied
             Harmony message defines a valid target grid. These test cases check
@@ -127,6 +126,10 @@ class TestMessageUtility(TestCase):
             If there is sufficient other grid information, and the one listed
             dimension with all three pieces of information is self consistent,
             then the message passes validation.
+
+            If there are grids with insufficient information, but
+            `valid_if_no_grid=True`, then the validation should pass for
+            under-defined grids.
 
         """
         valid_scale_extents = {'x': {'min': -180, 'max': 180},
@@ -196,6 +199,41 @@ class TestMessageUtility(TestCase):
             })
             self.assertTrue(has_self_consistent_grid(test_message))
 
+        with self.subTest('Only height and scaleExtent, uses valid_if_no_grid=True'):
+            test_message = Message({
+                'format': {'height': valid_height,
+                           'scaleExtent': valid_scale_extents}
+            })
+            self.assertTrue(
+                has_self_consistent_grid(test_message, valid_if_no_grid=True)
+            )
+
+        with self.subTest('Only width and scaleExtent, uses valid_if_no_grid=True'):
+            test_message = Message({
+                'format': {'scaleExtent': valid_scale_extents,
+                           'width': valid_width}
+            })
+            self.assertTrue(
+                has_self_consistent_grid(test_message, valid_if_no_grid=True)
+            )
+
+        with self.subTest('Only height and scaleSize, uses valid_if_no_grid=True'):
+            test_message = Message({
+                'format': {'height': valid_height,
+                           'scaleSize': valid_scale_sizes}
+            })
+            self.assertTrue(
+                has_self_consistent_grid(test_message, valid_if_no_grid=True)
+            )
+
+        with self.subTest('Only width and scaleSize, usses valid_if_no_grid=True'):
+            test_message = Message({
+                'format': {'scaleSize': valid_scale_sizes,
+                           'width': valid_width}
+            })
+            self.assertTrue(
+                has_self_consistent_grid(test_message, valid_if_no_grid=True)
+            )
 
     def test_message_has_crs(self):
         message = Message({'format': {'crs': 'EPSG:4326'}})
