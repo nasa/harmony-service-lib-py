@@ -192,6 +192,5 @@ class TestMessage(unittest.TestCase):
     def test_printed_message(self):
         message = Message(full_message)
         printed_message = message.__repr__()
-        print(printed_message)
         self.assertTrue("accessToken = '<redacted>'" in printed_message)
         self.assertFalse('ABCD1234567890' in printed_message)
