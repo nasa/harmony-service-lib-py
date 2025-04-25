@@ -188,3 +188,10 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.extraArgs['arrayParam'], [1, 2, 3])
         self.assertEqual(message.extraArgs['objectParam'], {'name': 'obj1', 'attributes': ['x', 'y']})
         self.assertIsNone(message.extraArgs['nonExistent'])
+
+    def test_printed_message(self):
+        message = Message(full_message)
+        printed_message = message.__repr__()
+        print(printed_message)
+        self.assertTrue("accessToken = '***REDACTED***'" in printed_message)
+        self.assertFalse('ABCD1234567890' in printed_message)

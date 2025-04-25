@@ -105,8 +105,13 @@ class JsonObject(object):
         try:
             spaces = '    ' * JsonObject.reprdepth
             result += '<' + self.__class__.__name__ + '\n'
-            result += '\n'.join(["%s%s = %s" % (spaces, p, repr(getattr(self, p)))
-                                 for p in self.properties])
+            prop_lines = []
+            for p in self.properties:
+                if p == 'accessToken':
+                    prop_lines.append(f"{spaces}{p} = '***REDACTED***'")
+                else:
+                    prop_lines.append(f"{spaces}{p} = {repr(getattr(self, p))}")
+            result += '\n'.join(prop_lines)
             result += '>'
         finally:
             JsonObject.reprdepth -= 1
