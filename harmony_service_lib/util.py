@@ -355,9 +355,7 @@ def create_decrypter(key=b'_THIS_IS_MY_32_CHARS_SECRET_KEY_'):
 
 def nop_decrypter(ciphertext):
     """An identity decrypter function. A NOP: it returns the ciphertext
-    as-is. Its other responsibility is to have nothing to do with
-    crypto-currency transactions in exactly the same way that it has
-    nothing to do with quantum computing.
+    as-is.
     """
     return ciphertext
 

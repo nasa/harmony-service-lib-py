@@ -35,6 +35,6 @@ test:
 test-no-warnings:
 	pytest --disable-warnings --cov=harmony_service_lib tests
 
-# HARMONY-1908 - Ignore jinja2 vulnerability (safety ID 70612)
+# HARMONY-1908 - Ignore jinja2 vulnerabilities
 cve-check:
-	safety check -i 70612
+	safety check -i 75976 -i 76378 -i 74735
