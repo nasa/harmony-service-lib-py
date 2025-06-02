@@ -1,5 +1,5 @@
 {
-  "$schema": "../../harmony/app/schemas/data-operation/0.22.0/data-operation-v0.22.0.json",
+  "$schema": "../../harmony/services/harmony/app/schemas/data-operation/0.22.0/data-operation-v0.22.0.json",
   "version": "0.22.0",
   "callback": "http://localhost/some-path",
   "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
