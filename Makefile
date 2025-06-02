@@ -37,4 +37,4 @@ test-no-warnings:
 
 # HARMONY-1908 - Ignore jinja2 vulnerabilities
 cve-check:
-	safety check -i 75976 -i 76378 -i 74735
+	safety check
