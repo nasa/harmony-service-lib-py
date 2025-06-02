@@ -13,7 +13,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_full_message_it_parses_it_into_objects(self):
         message = Message(full_message)
 
-        self.assertEqual(message.version, '0.21.0')
+        self.assertEqual(message.version, '0.22.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -38,6 +38,7 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.sources[0].variables[0].relatedUrls[0].url, 'http://example.com/file649.txt')
         self.assertEqual(message.sources[0].variables[0].relatedUrls[0].mimeType, 'text/plain')
         self.assertEqual(message.sources[0].variables[0].relatedUrls[0].format, 'ASCII')
+        self.assertEqual(message.sources[0].variables[0].visualizations[0]['Name'], 'Test1234')
         self.assertEqual(message.sources[0].coordinateVariables[0].id, 'V1233801718-EEDTEST')
         self.assertEqual(message.sources[0].coordinateVariables[0].name, 'lat')
         self.assertEqual(message.sources[0].coordinateVariables[0].fullPath, 'lat')
@@ -49,6 +50,7 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.sources[0].granules[1].temporal.start, '2003-03-03T03:03:03Z')
         self.assertEqual(message.sources[0].granules[1].temporal.end, '2004-04-04T04:04:04Z')
         self.assertEqual(message.sources[0].granules[1].bbox, [-5, -6, 7, 8])
+        self.assertEqual(message.sources[0].visualizations[0]['Name'], 'Test123')
         self.assertEqual(message.sources[1].collection, 'C0002-EXAMPLE')
         self.assertEqual(message.sources[1].shortName, 'example_2_data')
         self.assertEqual(message.sources[1].versionId, '1')
@@ -87,7 +89,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_minimal_message_it_parses_it_into_objects(self):
         message = Message(minimal_message)
 
-        self.assertEqual(message.version, '0.21.0')
+        self.assertEqual(message.version, '0.22.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.stagingLocation, 's3://example-bucket/public/some-org/some-service/some-uuid/')
         self.assertEqual(message.user, 'jdoe')
@@ -107,7 +109,7 @@ class TestMessage(unittest.TestCase):
     def test_when_provided_a_message_with_minimal_source_it_parses_it_into_objects(self):
         message = Message(minimal_source_message)
 
-        self.assertEqual(message.version, '0.21.0')
+        self.assertEqual(message.version, '0.22.0')
         self.assertEqual(message.callback, 'http://localhost/some-path')
         self.assertEqual(message.user, 'jdoe')
         self.assertEqual(message.accessToken, 'ABCD1234567890')
