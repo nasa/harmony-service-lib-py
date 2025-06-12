@@ -101,42 +101,6 @@ full_message = """
               "type": "COORDINATE",
               "subtype": "LATITUDE"
             }],
-            "visualizations": [{
-                "Name": "Test123",
-                "Identifier": "Test123 ID",
-                "VisualizationType": "tiles",
-                "Specification": {},
-                "Generation": {},
-                "MetadataSpecification": {
-                "URL": "https://cdn.earthdata.nasa.gov/umm/visualization/v1.1.0",
-                "Name": "Visualization",
-                "Version": "1.1.0"
-                },
-                "ConceptIds": [
-                    {
-                    "Type": "STD",
-                    "Value": "C0001-EXAMPLE"
-                    }
-                ]
-                },
-            {
-                "Name": "Test1234",
-                "Identifier": "Test1234 ID",
-                "VisualizationType": "maps",
-                "Specification": {},
-                "Generation": {},
-                "MetadataSpecification": {
-                "URL": "https://cdn.earthdata.nasa.gov/umm/visualization/v1.1.0",
-                "Name": "Visualization",
-                "Version": "1.1.0"
-                },
-                "ConceptIds": [
-                {
-                    "Type": "STD",
-                    "Value": "C0001-EXAMPLE"
-                }
-                ]
-            }],
             "granules": [
                 {
                 "id": "G0001-EXAMPLE",

@@ -132,7 +132,8 @@ class Source(JsonObject):
         A list of Variable objects containing the coordinate variables for the
         collection.
     visualizations: list
-        A list of objects containing the UMM-Vis data for the collection
+        A list of objects containing the UMM-Vis data for the collection. This list will be
+        empty if the user specifies any variables for subsetting.
     granules : list
         A list of Granule objects for the granules which should be operated on
     """
