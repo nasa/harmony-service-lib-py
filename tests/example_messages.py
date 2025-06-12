@@ -1,7 +1,7 @@
 minimal_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.21.0/data-operation-v0.21.0.json",
-        "version": "0.21.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.22.0/data-operation-v0.22.0.json",
+        "version": "0.22.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -19,8 +19,8 @@ minimal_message = """
 
 minimal_source_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.21.0/data-operation-v0.21.0.json",
-        "version": "0.21.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.22.0/data-operation-v0.22.0.json",
+        "version": "0.22.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -34,7 +34,8 @@ minimal_source_message = """
             "versionId": "1",
             "variables": [],
             "coordinateVariables": [],
-            "granules": []
+            "granules": [],
+            "visualizations": []
             }
         ],
         "format": {
@@ -46,8 +47,8 @@ minimal_source_message = """
 
 full_message = """
     {
-        "$schema": "../../harmony/app/schemas/data-operation/0.21.0/data-operation-v0.21.0.json",
-        "version": "0.21.0",
+        "$schema": "../../harmony/app/schemas/data-operation/0.22.0/data-operation-v0.22.0.json",
+        "version": "0.22.0",
         "callback": "http://localhost/some-path",
         "stagingLocation": "s3://example-bucket/public/some-org/some-service/some-uuid/",
         "user": "jdoe",
@@ -73,7 +74,25 @@ full_message = """
                     "format": "ASCII"
                 }],
                 "type": "SCIENCE_VARIABLE",
-                 "subtype": "SCIENCE_ARRAY"
+                 "subtype": "SCIENCE_ARRAY",
+                 "visualizations": [{
+                    "Name": "Test1234",
+                    "Identifier": "Test1234 ID",
+                    "VisualizationType": "tiles",
+                    "Specification": {},
+                    "Generation": {},
+                    "MetadataSpecification": {
+                        "URL": "https://cdn.earthdata.nasa.gov/umm/visualization/v1.1.0",
+                        "Name": "Visualization",
+                        "Version": "1.1.0"
+                    },
+                    "ConceptIds": [
+                        {
+                        "Type": "STD",
+                        "Value": "V0001-EXAMPLE"
+                        }
+                    ]
+                    }]
             }],
             "coordinateVariables": [{
               "id": "V1233801718-EEDTEST",
@@ -111,9 +130,46 @@ full_message = """
                 {
                 "id": "V0002-EXAMPLE",
                 "name": "ExampleVar2",
-                "fullPath": "example/path/ExampleVar2"
+                "fullPath": "example/path/ExampleVar2",
+                "visualizations": []
                 }
             ],
+            "visualizations": [{
+                "Name": "Test123",
+                "Identifier": "Test123 ID",
+                "VisualizationType": "tiles",
+                "Specification": {},
+                "Generation": {},
+                "MetadataSpecification": {
+                "URL": "https://cdn.earthdata.nasa.gov/umm/visualization/v1.1.0",
+                "Name": "Visualization",
+                "Version": "1.1.0"
+                },
+                "ConceptIds": [
+                    {
+                    "Type": "STD",
+                    "Value": "C1200449962-MMT_1"
+                    }
+                ]
+                },
+            {
+                "Name": "Test1234",
+                "Identifier": "Test1234 ID",
+                "VisualizationType": "maps",
+                "Specification": {},
+                "Generation": {},
+                "MetadataSpecification": {
+                "URL": "https://cdn.earthdata.nasa.gov/umm/visualization/v1.1.0",
+                "Name": "Visualization",
+                "Version": "1.1.0"
+                },
+                "ConceptIds": [
+                {
+                    "Type": "STD",
+                    "Value": "C1200449962-MMT_1"
+                }
+                ]
+            }],
             "granules": [
                 {
                 "id": "G0003-EXAMPLE",
