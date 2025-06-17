@@ -115,7 +115,7 @@ class JsonObject(object):
 
 class Source(JsonObject):
     """
-    A collection / granule / variable / coordinateVariable data source as found in
+    A collection / granule / variable / coordinateVariable / visualization data source as found in
     the Harmony message "sources" list.
 
     Attributes
@@ -131,6 +131,9 @@ class Source(JsonObject):
     coordinateVariables: list
         A list of Variable objects containing the coordinate variables for the
         collection.
+    visualizations: list
+        A list of objects containing the UMM-Vis data for the collection. This list will be
+        empty if the user specifies any variables for subsetting.
     granules : list
         A list of Granule objects for the granules which should be operated on
     """
@@ -149,6 +152,7 @@ class Source(JsonObject):
                          list_properties={
                              'variables': Variable,
                              'coordinateVariables': Variable,
+                             'visualizations': JsonObject,
                              'granules': Granule
                             }
                          )
@@ -173,6 +177,8 @@ class Variable(JsonObject):
          UMM-Var group path combined with name.
     relatedUrls : list
          A list of RelatedUrl(s) for the variable.
+    visualizations: list
+        A list of Umm-Vis objects for the variable.
     """
 
     def __init__(self, message_data):
@@ -188,7 +194,8 @@ class Variable(JsonObject):
             message_data,
             properties=['id', 'name', 'fullPath', 'type', 'subtype'],
             list_properties={
-                'relatedUrls': RelatedUrl
+                'relatedUrls': RelatedUrl,
+                'visualizations': JsonObject
             })
 
 
