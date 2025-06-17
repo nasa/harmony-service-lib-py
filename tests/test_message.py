@@ -54,6 +54,7 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.sources[1].shortName, 'example_2_data')
         self.assertEqual(message.sources[1].versionId, '1')
         self.assertEqual(message.sources[1].variables[0].fullPath, 'example/path/ExampleVar2')
+        self.assertEqual(message.sources[1].visualizations[0]['Name'], 'Test123')
         self.assertEqual(message.format.crs, 'CRS:84')
         self.assertEqual(message.format.srs.proj4, '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
         self.assertEqual(message.format.srs.wkt, 'PROJCS[ ... ]')
