@@ -78,6 +78,7 @@ harmony_service_lib provides the following custom exceptions:
 - **CanceledException**: Raised when a Harmony request is canceled.
 - **ForbiddenException**: Raised when access to the requested data is denied (e.g., download failure due to permission issues).
 - **ServerException**: Raised for generic 500 internal server errors (e.g., a download failure due to a server issue).
+- **NoRetryException**: Raised when a fatal error occurs that is specific to the request and cannot be resolved by retrying.
 - **NoDataException**: Raised when the service finds no data to process (e.g., no data found by the service in the subset region). This is classified as a `Warning` exception.
 
 ### Customized Service Exceptions

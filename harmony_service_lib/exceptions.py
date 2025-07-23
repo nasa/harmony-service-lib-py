@@ -38,6 +38,14 @@ class ServerException(HarmonyException):
         super().__init__(message, 'Server')
 
 
+class NoRetryException(HarmonyException):
+    """Class for throwing an exception indicating the error is a fatal error that is specific to a request
+    and should not be retried by Harmony."""
+
+    def __init__(self, message=None):
+        super().__init__(message, 'NoRetry')
+
+
 class NoDataException(HarmonyException):
     """Class for throwing an exception indicating service found no data to process """
 
