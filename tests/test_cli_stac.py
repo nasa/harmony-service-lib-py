@@ -8,7 +8,7 @@ import json
 from pystac import Catalog, CatalogType, Item
 
 from harmony_service_lib import cli, BaseHarmonyAdapter
-from harmony_service_lib.exceptions import ForbiddenException, NoDataException
+from harmony_service_lib.exceptions import ForbiddenException, NoDataException, NoRetryException
 from tests.util import cli_parser, config_fixture
 
 
@@ -133,6 +133,27 @@ class TestCliInvokeAction(unittest.TestCase):
                 self.assertEqual(
                     file.read(),
                     '{"error": "Service request failed with an unknown error", "category": "Unknown", "level": "Error"}')
+
+    def test_when_the_backend_service_throws_a_no_retry_error_it_writes_the_error_to_the_output_dir(self):
+        with cli_parser(
+                '--harmony-action', 'invoke',
+                '--harmony-input', '{"test": "input"}',
+                '--harmony-sources', 'example/source/catalog.json',
+                '--harmony-metadata-dir', self.workdir) as parser:
+
+            class MockImpl(MockAdapter):
+                def invoke(self):
+                    raise NoRetryException('Not a retriable error, no need to retry.')
+
+            args = parser.parse_args()
+            with self.assertRaises(NoRetryException) as context:
+                cli.run_cli(parser, args, MockImpl, cfg=self.config)
+
+            self.assertTrue('Not a retriable error, no need to retry.' in str(context.exception))
+            with open(os.path.join(self.workdir, 'error.json')) as file:
+                self.assertEqual(
+                    file.read(),
+                    '{"error": "Not a retriable error, no need to retry.", "category": "NoRetry", "level": "Error"}')
 
     def test_when_the_backend_service_throws_a_known_warning_it_writes_the_warning_to_the_output_dir(self):
         with cli_parser(
