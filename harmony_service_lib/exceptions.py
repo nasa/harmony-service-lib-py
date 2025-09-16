@@ -12,6 +12,7 @@ class HarmonyException(Exception):
     """
 
     def __init__(self, message, category='Service', level='Error'):
+        super().__init__(message)
         self.message = message
         self.category = category
         self.level = level
