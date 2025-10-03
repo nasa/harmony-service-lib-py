@@ -61,11 +61,6 @@ class BaseHarmonyAdapter(ABC):
         else:
             self.logger = logging.getLogger()
 
-    def set_config(self, config):
-        self.config = config
-        if self.config is not None:
-            self.init_logging()
-
     def init_logging(self):
         user = self.message.user if hasattr(self.message, 'user') else None
         req_id = self.message.requestId if hasattr(self.message, 'requestId') else None
