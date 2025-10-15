@@ -21,8 +21,8 @@ class MockAdapter(BaseHarmonyAdapter):
         stac_extensions=[]
     )
 
-    def __init__(self, message, catalog=None):
-        super().__init__(message, catalog)
+    def __init__(self, message, catalog=None, config=None):
+        super().__init__(message, catalog=catalog, config=config)
         MockAdapter.messages.append(message.data)
 
     def invoke(self):

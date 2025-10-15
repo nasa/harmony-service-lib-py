@@ -17,7 +17,7 @@ from pystac.layout import BestPracticesLayoutStrategy
 from harmony_service_lib.exceptions import HarmonyException
 from harmony_service_lib.message import Message
 from harmony_service_lib.logging import setup_stdout_log_formatting, build_logger
-from harmony_service_lib.util import (config, create_decrypter)
+from harmony_service_lib.util import config, create_decrypter
 from harmony_service_lib.version import get_version
 from harmony_service_lib.aws import is_s3, write_s3
 from harmony_service_lib.s3_stac_io import S3StacIO
@@ -130,7 +130,7 @@ def _write_error(metadata_dir, message, category='Unknown', level='Error'):
             json.dump(error_data, file)
 
 
-def _build_adapter(AdapterClass, message_string, sources_path, data_location, config):
+def _build_adapter(AdapterClass, message_string, sources_path, data_location, cfg):
     """
     Creates the adapter to be invoked for the given harmony_service_lib input
 
@@ -144,7 +144,7 @@ def _build_adapter(AdapterClass, message_string, sources_path, data_location, co
         A file location containing a STAC catalog corresponding to the input message sources
     data_location : string
         The name of the directory where output should be written
-    config : harmony_service_lib.util.Config
+    cfg : harmony_service_lib.util.Config
         A configuration instance for this service
     Returns
     -------
@@ -153,7 +153,7 @@ def _build_adapter(AdapterClass, message_string, sources_path, data_location, co
     """
     catalog = Catalog.from_file(sources_path) if bool(sources_path) else None
 
-    secret_key = config.shared_secret_key
+    secret_key = cfg.shared_secret_key
 
     if bool(secret_key):
         decrypter = create_decrypter(bytes(secret_key, 'utf-8'))
@@ -165,8 +165,7 @@ def _build_adapter(AdapterClass, message_string, sources_path, data_location, co
     message = Message(json.loads(message_string), decrypter)
     if data_location:
         message.stagingLocation = data_location
-    adapter = AdapterClass(message, catalog)
-    adapter.set_config(config)
+    adapter = AdapterClass(message, catalog=catalog, config=cfg)
 
     return adapter
 
