@@ -82,7 +82,7 @@ class TestDownload(unittest.TestCase):
         cfg = config_fixture(app_name=app_name)
         with patch('builtins.open', mock_open()):
             util.download('http://example/file.txt', 'tmp', access_token='', cfg=cfg)
-        get.assert_called_with('http://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)'}, timeout=60, stream=True)
+        get.assert_called_with('http://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)'}, timeout=180, stream=True)
 
     @patch('harmony_service_lib.util.get_version')
     @patch.object(Session, 'get')
@@ -94,7 +94,7 @@ class TestDownload(unittest.TestCase):
         cfg = config_fixture(app_name=app_name)
         with patch('builtins.open', mock_open()):
             util.download('https://example/file.txt', 'tmp', access_token='', cfg=cfg)
-        get.assert_called_with('https://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)'}, timeout=60, stream=True)
+        get.assert_called_with('https://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)'}, timeout=180, stream=True)
 
     @patch('harmony_service_lib.util.get_version')
     @patch.object(Session, 'post')
@@ -107,7 +107,7 @@ class TestDownload(unittest.TestCase):
         cfg = config_fixture(app_name=app_name)
         with patch('builtins.open', mock_open()):
             util.download('http://example/file.txt', 'tmp', access_token='', data=data, cfg=cfg)
-        post.assert_called_with('http://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)', 'Content-Type': 'application/x-www-form-urlencoded'}, data = { 'foo': 'bar' }, timeout=60, stream=True)
+        post.assert_called_with('http://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)', 'Content-Type': 'application/x-www-form-urlencoded'}, data = { 'foo': 'bar' }, timeout=180, stream=True)
 
 
     @patch('harmony_service_lib.util.get_version')
@@ -121,7 +121,7 @@ class TestDownload(unittest.TestCase):
         cfg = config_fixture(app_name=app_name)
         with patch('builtins.open', mock_open()):
             util.download('https://example/file.txt', 'tmp', access_token='', data=data, cfg=cfg)
-        post.assert_called_with('https://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)', 'Content-Type': 'application/x-www-form-urlencoded'}, data = { 'foo': 'bar' }, timeout=60, stream=True)
+        post.assert_called_with('https://example/file.txt?A-api-request-uuid=abc123',  headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)', 'Content-Type': 'application/x-www-form-urlencoded'}, data = { 'foo': 'bar' }, timeout=180, stream=True)
 
 
     @patch('harmony_service_lib.util.get_version')
@@ -139,7 +139,7 @@ class TestDownload(unittest.TestCase):
             access_token='',
             cfg=cfg)
         post.assert_called_with('https://opendap.uat.earthdata.nasa.gov/collections/C1245618475-EEDTEST/granules/GPM_3IMERGHH.06:3B-HHR.MS.MRG.3IMERG.20200118-S233000-E235959.1410.V06B.HDF5.dap.nc4',
-        headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)', 'Content-Type': 'application/x-www-form-urlencoded'}, data = 'dap4.ce=%2FGrid%2Ftime%3B%2FGrid%2Flon%3B%2FGrid%2Flat_bnds%3B%2FGrid%2Ftime_bnds%3B%2FGrid%2Flon_bnds%3B%2FGrid%2Flat&A-api-request-uuid=abc123', timeout=60, stream=True)
+        headers={'user-agent': f'harmony (unknown version) harmony-service-lib/{fake_lib_version} (gdal-subsetter)', 'Content-Type': 'application/x-www-form-urlencoded'}, data = 'dap4.ce=%2FGrid%2Ftime%3B%2FGrid%2Flon%3B%2FGrid%2Flat_bnds%3B%2FGrid%2Ftime_bnds%3B%2FGrid%2Flon_bnds%3B%2FGrid%2Flat&A-api-request-uuid=abc123', timeout=180, stream=True)
 
 
 class TestStage(unittest.TestCase):
