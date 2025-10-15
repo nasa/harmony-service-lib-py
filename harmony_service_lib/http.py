@@ -27,7 +27,7 @@ from harmony_service_lib.logging import build_logger
 # precisely, if no bytes have been received on the underlying socket
 # for timeout seconds).  See:
 # https://2.python-requests.org/en/master/user/quickstart/#timeouts
-TIMEOUT = 60
+TIMEOUT = 180
 
 MAX_RETRY_DELAY_SECS = 90
 
