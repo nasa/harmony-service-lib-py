@@ -187,6 +187,13 @@ OPTIONAL:
        messages will be formatted as JSON.
 * `MAX_DOWNLOAD_RETRIES`: Number of times to retry HTTP download calls that fail due to transient errors.
 * `POST_URL_LENGTH`: Minimum url length that will be submitted via POST request.
+* `SERVICE_LOG_LEVEL`: Set the log level for the service. Allowed values are
+    "CRITICAL"
+    "FATAL"
+    "ERROR"
+    "WARNING"
+    "INFO"
+    "DEBUG"
 
 ## Development Setup
 

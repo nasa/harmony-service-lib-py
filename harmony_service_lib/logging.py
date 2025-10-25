@@ -3,6 +3,7 @@ from functools import lru_cache
 import logging
 import sys
 import copy
+import os
 
 from pythonjsonlogger import jsonlogger
 from harmony_service_lib import message
@@ -87,7 +88,11 @@ def build_logger(config, name='harmony-service', stream=None):
         formatter.app_name = config.app_name
     syslog.setFormatter(RedactorFormatter(formatter))
     logger.addHandler(syslog)
-    logger.setLevel(logging.INFO)
+    # SERVICE_LOG_LEVEL will be set on the command line by the service runner if it has an
+    # environment variable of the form <SERVICE_NAME>_LOG_LEVEL and <SERVICE_NAME> matches this
+    # service.
+    level = os.getenv("SERVICE_LOG_LEVEL") or logging.INFO
+    logger.setLevel(level)
     logger.propagate = False
     return logger
 
@@ -116,5 +121,10 @@ def setup_stdout_log_formatting(config):
             if self.linebuf != '':
                 self.logger.log(self.log_level, self.linebuf.rstrip())
             self.linebuf = ''
-    sys.stdout = StreamToLogger(build_logger(config), logging.INFO)
+    stdout_logger = build_logger(config)
+    # need to read the log level back as we need the integer value of the level, not the string
+    # the log level will be set to the default logging.INFO or to the integer equivalent of
+    # SERVICE_LOG_LEVEL, if it is defined and valid
+    stdout_log_level = stdout_logger.getEffectiveLevel()
+    sys.stdout = StreamToLogger(stdout_logger, stdout_log_level)
     sys.stderr = StreamToLogger(build_logger(config), logging.ERROR)
