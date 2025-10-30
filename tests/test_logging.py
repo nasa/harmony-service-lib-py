@@ -1,5 +1,7 @@
 import unittest
 import copy
+import logging
+import os
 from io import StringIO
 
 from harmony_service_lib.logging import build_logger
@@ -17,15 +19,25 @@ class TestLoggingRedaction(unittest.TestCase):
 
     def configure_logger(self, text_logger):
         self.logger = build_logger(
-            config_fixture(text_logger=text_logger), 
+            config_fixture(text_logger=text_logger),
             stream=self.buffer)
+
+    def test_service_log_level_sets_level(self):
+        os.environ['SERVICE_LOG_LEVEL'] = 'DEBUG'
+        self.configure_logger(text_logger=False)
+        assert(self.logger.level == logging.DEBUG)
+        os.environ['SERVICE_LOG_LEVEL'] = ''
+
+    def test_log_level_defaults_to_info(self):
+        self.configure_logger(text_logger=False)
+        assert(self.logger.level == logging.INFO)
 
     def test_msg_token_not_logged(self):
         self.configure_logger(text_logger=False)
         self.logger.info(self.harmony_message)
         log = self.buffer.getvalue()
         assert("accessToken = '<redacted>'" in log)
-        assert(self.token not in log) 
+        assert(self.token not in log)
         # check the same but with the text logger
         self.configure_logger(text_logger=True)
         self.logger.info(self.harmony_message)
@@ -82,5 +94,4 @@ class TestLoggingRedaction(unittest.TestCase):
         assert(self.token not in log)
         # check that the message wasn't mutated
         assert(self.harmony_message.accessToken == self.token)
-        
-        
+
