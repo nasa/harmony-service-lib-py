@@ -1,4 +1,4 @@
-#boto3 ~= 1.42.2
+boto3
 deprecation ~= 2.1.0
 pynacl ~= 1.4
 pystac >= 1.0.0
