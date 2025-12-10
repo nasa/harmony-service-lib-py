@@ -1,4 +1,5 @@
-boto3
+boto3 ~= 1.7.84; python_version < "3.10"
+boto3; python_version >= "3.10"
 deprecation ~= 2.1.0
 pynacl ~= 1.4
 pystac >= 1.0.0
