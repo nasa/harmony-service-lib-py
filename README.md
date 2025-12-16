@@ -1,6 +1,6 @@
 # harmony-service-lib
 
-The `harmony-service-lib` project is a Python library designed to simplify the development of Harmony services. It provides essential tools for parsing incoming messages, fetching and staging data, and interacting seamlessly with Harmony's backend APIs. By using this library, developers can streamline their integration with Harmony while ensuring compatibility with future upgrades.
+The  `harmony-service-lib` project is a Python library designed to simplify the development of Harmony services. It provides essential tools for parsing incoming messages, fetching and staging data, and interacting seamlessly with Harmony's backend APIs. By using this library, developers can streamline their integration with Harmony while ensuring compatibility with future upgrades.
 
 This library is particularly beneficial for developers building or maintaining Python-based Harmony services, enabling efficient interoperability and reducing the complexity of common tasks.
 
