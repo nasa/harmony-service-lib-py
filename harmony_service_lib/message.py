@@ -414,7 +414,7 @@ class Format(JsonObject):
     crs: string
         A proj4 string or EPSG code corresponding to the desired output projection
     srs: message.SRS
-        The output CRS information; overlappting information with 'crs'
+        The output CRS information; overlapping information with 'crs'
     isTransparent: boolean
         A boolean corresponding to whether or not nodata values should be set to transparent
         in the output if the file format allows it
