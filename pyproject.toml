@@ -12,6 +12,11 @@ authors = [
 classifiers = [
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Operating System :: OS Independent",
 ]
 description = "A library for Python-based Harmony services to parse incoming message, fetch data, stage data, and call back to Harmony."
@@ -19,7 +24,7 @@ dynamic = ["dependencies", "optional-dependencies", "version"]
 license = { text = "License :: OSI Approved :: Apache Software License" }
 name = "harmony-service-lib"
 readme = "README.md"
-requires-python = ">= 3.9"
+requires-python = ">= 3.10"
 
 [project.scripts]
 harmony-service-lib = "harmony_service_lib.cli.__main__:main"

@@ -198,7 +198,7 @@ OPTIONAL:
 ## Development Setup
 
 Prerequisites:
-  - Python 3.9+, ideally installed via a virtual environment
+  - Python 3.10+, ideally installed via a virtual environment
   - A local copy of the code
 
 Install dependencies:
