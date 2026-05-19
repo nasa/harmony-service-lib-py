@@ -1,5 +1,4 @@
 """Utility functionality for generating provenance metadata."""
-from __future__ import annotations
 
 from datetime import datetime
 
