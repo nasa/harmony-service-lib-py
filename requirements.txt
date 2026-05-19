@@ -3,3 +3,6 @@ deprecation ~= 2.1.0
 pynacl ~= 1.4
 pystac >= 1.0.0
 python-json-logger ~= 2.0.1
+
+# Pinned for CVE-2026-44432 and CVE-2026-44431
+urllib3 >= 2.7
